@@ -1,0 +1,108 @@
+/* iOS surface pass.
+ *
+ * The page reads as a set of frosted panels: a light, slightly warm glass with
+ * a hairline white edge, a soft inset highlight along the top and a wide, low
+ * shadow. Radii follow the iOS scale (panels 22-24px, controls 12-14px,
+ * capsules fully round), type uses the system stack, and every interactive
+ * surface gets a short, springy transition instead of the older linear fades.
+ *
+ * Sizes are deliberately left alone: this only changes surfaces, borders,
+ * radii, shadows, type and motion, so the responsive breakpoints keep working.
+ */
+:root{
+ --ios-glass:linear-gradient(168deg,rgba(255,255,255,.93),rgba(248,242,241,.74));
+ --ios-glass-strong:linear-gradient(168deg,rgba(255,255,255,.97),rgba(250,245,244,.86));
+ --ios-edge:1px solid rgba(255,255,255,.68);
+ --ios-hairline:rgba(120,92,89,.14);
+ --ios-shadow:inset 0 1px 0 rgba(255,255,255,.92),0 14px 34px rgba(74,46,45,.09);
+ --ios-shadow-lift:inset 0 1px 0 #fff,0 20px 44px rgba(74,46,45,.15);
+ --ios-ease:cubic-bezier(.22,1.15,.3,1);
+ --accent:#ad2720;
+}
+html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-size-adjust:100%}
+body,.workspace,.setup,.practice{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','PingFang SC','Microsoft YaHei',system-ui,sans-serif}
+input,button,select,textarea{font-family:inherit}
+
+/* --- panels ------------------------------------------------------------ */
+.setup-section,.metrics article,.score-card,.feedback,.drum-card,.score-library,.playback-panel,.mic-panel,.practice-actions{
+ border:var(--ios-edge);
+ border-radius:22px;
+ background:var(--ios-glass);
+ box-shadow:var(--ios-shadow);
+ backdrop-filter:blur(22px) saturate(1.6);
+ -webkit-backdrop-filter:blur(22px) saturate(1.6);
+}
+.setup-section{padding:16px 16px 18px;margin-bottom:14px}
+.score-library{margin:0 0 14px}
+.section-title>.section-kicker{border-radius:10px;background:linear-gradient(150deg,rgba(173,39,32,.12),rgba(173,39,32,.05));color:#8f2b25;box-shadow:inset 0 1px 0 rgba(255,255,255,.6)}
+.section-title strong,.section-heading strong{letter-spacing:.2px}
+
+/* --- header ------------------------------------------------------------ */
+.top{border-top:0;background:linear-gradient(180deg,rgba(255,251,250,.94),rgba(252,244,243,.78));border-bottom:1px solid rgba(120,92,89,.10);backdrop-filter:blur(20px) saturate(1.5);-webkit-backdrop-filter:blur(20px) saturate(1.5);box-shadow:0 6px 22px rgba(74,46,45,.06)}
+.edition img{border-radius:12px;box-shadow:0 4px 14px rgba(74,46,45,.14)}
+.brand strong{letter-spacing:.3px}
+
+/* --- controls ---------------------------------------------------------- */
+.primary,.secondary,.small-button,.text-button,.upload,.view-buttons,.tempo-control,input[type=number],select,summary{
+ transition:transform .2s var(--ios-ease),box-shadow .2s,background .2s,border-color .2s,color .2s;
+}
+.primary,.secondary,.small-button{border-radius:13px;border:var(--ios-edge)}
+.primary{background:linear-gradient(180deg,#c0443a,#a52d27);border-color:rgba(255,255,255,.32);box-shadow:inset 0 1px 0 rgba(255,255,255,.34),0 10px 22px rgba(140,30,26,.24)}
+.primary:hover:not(:disabled){transform:translateY(-1px);box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 14px 28px rgba(140,30,26,.3)}
+.primary:active:not(:disabled){transform:translateY(0) scale(.985)}
+.secondary,.small-button{background:var(--ios-glass-strong);box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 6px 16px rgba(74,46,45,.08)}
+.secondary:hover:not(:disabled),.small-button:hover:not(:disabled){transform:translateY(-1px);box-shadow:var(--ios-shadow-lift)}
+.text-button{border-radius:11px}
+.upload{border-radius:20px;border:1.5px dashed rgba(173,39,32,.28);background:linear-gradient(168deg,rgba(255,255,255,.8),rgba(252,243,242,.6));box-shadow:inset 0 1px 0 rgba(255,255,255,.85)}
+.upload:hover{border-color:rgba(173,39,32,.5);background:var(--ios-glass-strong)}
+.tempo-control,.control-grid,.playback-options{border-radius:16px}
+.tempo-control{border:var(--ios-edge);background:var(--ios-glass-strong);box-shadow:inset 0 1px 0 rgba(255,255,255,.9)}
+.tempo-control input[type=number]{background:transparent}
+.tempo-control button{border-radius:10px}
+input[type=number],select{border:var(--ios-edge);border-radius:12px;background:var(--ios-glass-strong);box-shadow:inset 0 1px 0 rgba(255,255,255,.9)}
+summary{border-radius:12px}
+summary:hover{background:var(--ios-glass-strong)}
+button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible,select:focus-visible,[tabindex]:focus-visible,.library-score:focus-visible{
+ outline:3px solid rgba(173,39,32,.28);outline-offset:2px;border-radius:12px
+}
+input[type=range]{accent-color:var(--accent)}
+input[type=checkbox]{accent-color:var(--accent)}
+
+/* --- iOS segmented control -------------------------------------------- */
+.view-buttons{border:var(--ios-edge);border-radius:14px;background:rgba(233,224,222,.62);box-shadow:inset 0 1px 3px rgba(74,46,45,.10);padding:3px;gap:2px}
+.view-buttons button{border-radius:11px;border:0;transition:background .22s var(--ios-ease),color .22s,box-shadow .22s}
+.view-buttons button.active{background:#fff;color:#8e2f28;box-shadow:0 2px 7px rgba(74,46,45,.16),inset 0 1px 0 #fff}
+
+/* --- score area -------------------------------------------------------- */
+.score-card{border-radius:24px;overflow:hidden}
+.score-toolbar{border-bottom:1px solid var(--ios-hairline);background:linear-gradient(180deg,rgba(255,255,255,.72),rgba(250,244,243,.5));backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.sheet-scroll{border-radius:0 0 22px 22px;background:linear-gradient(180deg,#fdfbfa,#f7f1ef)}
+.score-footer{border-top:1px solid var(--ios-hairline);background:rgba(255,255,255,.6)}
+.progress-track{border-radius:999px;box-shadow:inset 0 1px 3px rgba(74,46,45,.14)}
+.progress-track span{border-radius:999px;background:linear-gradient(90deg,#c0443a,#a52d27);box-shadow:0 0 12px rgba(173,39,32,.28),inset 0 1px 0 rgba(255,255,255,.4)}
+.pdf-page,.engraved-sheet,.simple-sheet{border-radius:18px;box-shadow:0 12px 30px rgba(74,46,45,.10);border:1px solid rgba(255,255,255,.7)}
+
+/* --- notices and progress --------------------------------------------- */
+.notice,.import-progress{border-radius:16px;border:var(--ios-edge);background:var(--ios-glass);box-shadow:var(--ios-shadow);backdrop-filter:blur(20px) saturate(1.5);-webkit-backdrop-filter:blur(20px) saturate(1.5)}
+.notice.error{background:linear-gradient(168deg,rgba(255,244,243,.96),rgba(253,232,230,.82))}
+.notice.warning{background:linear-gradient(168deg,rgba(255,250,240,.96),rgba(252,240,219,.84))}
+.import-progress-track{border-radius:999px;box-shadow:inset 0 1px 3px rgba(74,46,45,.12)}
+
+/* --- metrics, activity, records --------------------------------------- */
+.metrics article{border-radius:20px}
+.metrics strong{font-variant-numeric:tabular-nums}
+.events{border-radius:18px;background:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.62)}
+.activity-list,.task-row,.record{border-radius:14px}
+.bottom-note{border-top:1px solid var(--ios-hairline)}
+
+/* --- scrollbars ------------------------------------------------------- */
+*{scrollbar-width:thin;scrollbar-color:rgba(120,92,89,.3) transparent}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{border:3px solid transparent;border-radius:999px;background-clip:content-box;background-color:rgba(120,92,89,.28)}
+::-webkit-scrollbar-thumb:hover{background-color:rgba(120,92,89,.46)}
+::-webkit-scrollbar-corner{background:transparent}
+
+@media(prefers-reduced-motion:reduce){
+ button,a,input,select,summary,.library-score,.setup-section,.metrics article{transition:none!important}
+}

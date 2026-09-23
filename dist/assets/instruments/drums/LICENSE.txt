@@ -1,0 +1,2 @@
+FluidR3 GM by Frank Wen, Creative Commons Attribution 3.0. Drum sample rendering: dave4mpls/midi-js-soundfonts-with-drums. https://github.com/dave4mpls/midi-js-soundfonts-with-drums
+https://creativecommons.org/licenses/by/3.0/

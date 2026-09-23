@@ -1,0 +1,3 @@
+const {chromium}=require('C:/Users/mail/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+const assert=require('node:assert/strict');
+(async()=>{const b=await chromium.launch({channel:'msedge',headless:true});const p=await b.newPage();await p.goto('http://127.0.0.1:5173');const result=await p.evaluate(async()=>{const [{ScorePlayer},{sampleScore}]=await Promise.all([import('/player.js'),import('/score.js')]);const player=new ScorePlayer();const score=sampleScore();player.load(score);player.beat=5.25;player.setInstrument('violin');return {beat:player.beat,next:player.next,total:player.totalBeats};});console.log(result);assert.ok(Math.abs(result.beat-5.25)<.0001);assert.ok(result.next>0);await b.close();})();

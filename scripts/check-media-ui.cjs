@@ -1,0 +1,20 @@
+const {chromium}=require('C:/Users/mail/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+const assert=require('node:assert/strict'),fs=require('node:fs');
+(async()=>{const browser=await chromium.launch({channel:'msedge',headless:true});try{
+ const page=await browser.newPage({viewport:{width:1280,height:900}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.route('**/api/scores',route=>route.fulfill({json:{scores:[{id:'a',title:'可惜不是你',ready:false},{id:'b',title:'青玉案',ready:false}]}}));
+ await page.route('**/api/tasks',route=>route.fulfill({json:{tasks:[]}}));
+ let uploads=[],book=null;await page.route('**/api/photos',route=>{const name=decodeURIComponent(route.request().headers()['x-score-name']);uploads.push(name);return route.fulfill({status:202,json:{id:name}});});
+ await page.route('**/api/photo-books',route=>{book=route.request().postDataJSON();return route.fulfill({status:202,json:{id:'photo-book',jobId:'test'}});});
+ await page.goto('http://127.0.0.1:5173/');await page.locator('[data-panel=library]').click();await page.getByRole('button',{name:'展开云曲库'}).click();
+ await page.getByRole('searchbox',{name:'搜索曲谱'}).fill('青玉');assert.equal(await page.locator('.library-browser .library-score:visible').count(),1);await page.locator('.library-browser header button').click();
+ assert.equal(await page.locator('.score-library .library-score:visible').count(),2);
+ await page.locator('[data-photos]').click();const png=fs.readFileSync('dist/assets/suda-official.jpg');
+ await page.locator('[data-photo-input]').setInputFiles([{name:'first.jpg',mimeType:'image/jpeg',buffer:png},{name:'second.jpg',mimeType:'image/jpeg',buffer:png}]);
+ assert.equal(uploads.length,0);assert.equal(book,null);await page.locator('.photo-pages li').nth(1).getByRole('button',{name:'上移'}).click();
+ await page.locator('.photo-book-name').fill('照片测试');await page.locator('[data-submit]').click();await page.waitForFunction(()=>!document.querySelector('.photo-book-dialog').open);
+ assert.deepEqual(uploads,['second.jpg','first.jpg']);assert.deepEqual(book.pages,uploads);assert.equal(book.name,'照片测试');
+ await page.locator('[data-panel=library]').click();await page.getByRole('button',{name:'展开云曲库'}).click();await page.setViewportSize({width:390,height:844});await page.waitForTimeout(400);
+ assert.ok(await page.locator('.library-browser').evaluate(el=>el.scrollWidth<=innerWidth+1));await page.screenshot({path:'.sites-runtime/verification/library-browser.png'});
+ assert.deepEqual(errors,[]);console.log('Full-screen library/search/mobile layout; deferred ordered photo submission passed');
+}finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1});

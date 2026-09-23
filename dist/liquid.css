@@ -1,0 +1,93 @@
+/* A restrained liquid-glass treatment for the practice workspace. */
+@supports (backdrop-filter: blur(1px)) {
+ body{background:radial-gradient(circle at 12% -8%,rgba(183,222,207,.48),transparent 34%),radial-gradient(circle at 94% 18%,rgba(226,237,255,.62),transparent 30%),#f2f6f4;background-attachment:fixed}
+ .top,.setup,.score-card,.metrics article,.events,.score-library{background:rgba(255,255,255,.66);backdrop-filter:blur(24px) saturate(145%);-webkit-backdrop-filter:blur(24px) saturate(145%);border-color:rgba(130,158,146,.22)}
+ .top{box-shadow:0 8px 28px rgba(37,79,64,.06)}.setup{background:rgba(248,252,250,.63)}
+ .score-card{box-shadow:0 18px 52px rgba(34,75,59,.1),inset 0 1px rgba(255,255,255,.78);border-radius:18px;overflow:hidden}.metrics article{border-radius:16px;box-shadow:0 8px 25px rgba(34,75,59,.06),inset 0 1px rgba(255,255,255,.72)}
+ .events,.score-library{border-radius:16px;box-shadow:0 8px 25px rgba(34,75,59,.06)}.mic-panel{background:rgba(234,244,239,.64);border:1px solid rgba(122,155,139,.18);border-radius:14px}.upload{background:rgba(246,252,248,.58);border-radius:15px;transition:transform .25s ease,box-shadow .25s ease,background .25s ease}.upload:hover{transform:translateY(-2px);background:rgba(239,250,244,.82);box-shadow:0 12px 28px rgba(48,102,79,.1)}
+ .primary,.secondary,.small-button,.library-score{border-radius:12px}.primary{box-shadow:0 9px 20px rgba(23,107,86,.22)}.view-buttons{border-radius:11px;background:rgba(229,238,233,.62)}.view-buttons button.active{border-radius:9px;background:rgba(255,255,255,.86)}
+ .library-score{background:rgba(246,251,248,.56);border-color:rgba(112,148,130,.19);transition:transform .2s ease,background .2s ease,box-shadow .2s ease}.library-score:hover:not(:disabled){transform:translateX(3px);background:rgba(255,255,255,.88);box-shadow:0 8px 20px rgba(47,96,74,.1);filter:none}
+ .pdf-page{border-radius:10px;overflow:hidden;box-shadow:0 9px 25px rgba(34,55,45,.12)}.pdf-page-current{box-shadow:0 0 0 3px rgba(183,132,36,.58),0 14px 34px rgba(59,37,37,.17)}.pdf-page-placeholder{display:grid;place-items:center;min-height:140px;margin:0 auto 14px;border:1px dashed rgba(125,151,137,.3);border-radius:14px;background:rgba(246,250,247,.54)}
+}
+@keyframes liquidPulse{0%,100%{box-shadow:0 8px 22px rgba(33,94,72,.08)}50%{box-shadow:0 12px 30px rgba(33,94,72,.15)}}
+.pdf-page-current{animation:liquidPulse 2.8s ease-in-out infinite}
+.pdf-page{transition:box-shadow .24s ease,transform .24s ease}.pdf-page-current{transform:none!important}
+.pdf-cursor{transition:left .12s ease-out,top .12s ease-out,height .12s ease-out,opacity .18s ease;width:2px}.pdf-measure-highlight{transition:left .12s ease-out,top .12s ease-out,width .12s ease-out,height .12s ease-out,opacity .18s ease}
+
+/* Final workspace pass: the sidebar reads as three clear surfaces while the
+   score library remains a fast, always-visible switcher. */
+.setup{gap:0!important;overflow:auto;padding:24px!important}.setup-head{padding:2px 4px 18px}.setup-head h1{margin:5px 0 4px}.setup-head p{margin:0;color:var(--muted,#65756d);font-size:12px;letter-spacing:.04em}.setup-section{position:relative;margin:0 0 14px;padding:15px!important;border:1px solid rgba(126,159,144,.24);border-radius:20px;background:rgba(255,255,255,.48);box-shadow:0 12px 28px rgba(42,79,63,.07),inset 0 1px rgba(255,255,255,.82)}.setup-section+.setup-section{margin-top:0}.section-title{display:flex;align-items:flex-start;gap:10px;margin:0 0 13px}.section-title strong{display:block;font-size:13px;letter-spacing:.05em}.section-title small{display:block;margin-top:3px;color:#788a80;font-size:10px}.section-kicker{display:grid;place-items:center;width:24px;height:24px;border-radius:9px;background:rgba(25,108,84,.12);color:#176b54;font-size:10px;font-weight:700;letter-spacing:.06em}.import-actions{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}.control-grid{display:grid;grid-template-columns:1fr;gap:10px}.practice-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.practice-actions #reset-button{grid-column:1/-1}.practice-actions button{min-height:40px}.service-controls .technical{margin:0}.service-controls .technical[open]{padding-top:2px}.privacy{margin:1px 4px 0!important;font-size:10px;line-height:1.55}.score-library{margin:0 0 14px!important;padding:15px!important;perspective:900px}.score-library h3{margin:0 0 9px;font-size:13px}.library-list{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;max-height:246px;padding:2px 1px}.library-score{position:relative;min-height:70px;align-content:space-between;transform-style:preserve-3d;transition:transform .38s cubic-bezier(.2,.75,.25,1),box-shadow .3s ease,background .25s ease!important}.library-score:hover:not(:disabled){transform:translateX(4px) rotateY(-3deg) translateZ(7px)!important}.library-score:active:not(:disabled){transform:scale(.985) rotateY(2deg)!important}.library-score::after{content:"";position:absolute;inset:1px;border-radius:inherit;pointer-events:none;background:linear-gradient(110deg,rgba(255,255,255,.34),transparent 45%);opacity:0;transition:opacity .3s}.library-score:hover::after{opacity:1}.primary{background:linear-gradient(135deg,#166d57,#278b70)!important;color:#fff!important;border:1px solid rgba(255,255,255,.35)!important;min-height:42px}.secondary{background:rgba(255,246,235,.8)!important;color:#8a5425!important;border-color:rgba(173,121,57,.25)!important;min-height:42px}.small-button,.text-button{min-height:34px}.view-buttons{perspective:700px}.view-buttons button{transition:transform .3s ease,background .25s ease}.view-buttons button.active{transform:translateZ(8px)}
+.section-title em{display:block;margin-top:3px;color:#8a9a92;font-size:9px;font-style:normal;font-weight:500;letter-spacing:.08em;text-transform:uppercase}.english-caption{font-size:9px;letter-spacing:.08em;color:#96a59e}.bottom-note{align-items:flex-start!important;gap:7px!important}.bottom-note small{font-size:9px;color:#82938a;letter-spacing:.08em}.playback-options{display:flex;gap:8px;align-items:center;margin:10px 0}.metronome-toggle{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:10px;background:rgba(255,255,255,.54);border:1px solid rgba(125,157,142,.22);font-size:11px;color:#3d5c50}.library-progress{display:block;position:absolute;left:10px;right:10px;bottom:7px;height:3px;border-radius:9px;background:rgba(49,101,79,.12);overflow:hidden}.library-progress i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#2a8a6b,#d0a74e);transition:width .45s ease}/* The card status was five hairlines imitating a staff, in a green that no
+   longer matched the theme. It is a compact activity indicator now: five
+   rounded bars that rise in sequence while the server reads the page, then
+   settle into a quiet row. */
+.recognition-staff{display:flex;align-items:flex-end;gap:3px;height:14px;margin-top:7px;opacity:.9}
+.recognition-staff[hidden]{display:none}
+.recognition-staff i{display:block;width:3px;height:5px;border-radius:2px;background:linear-gradient(180deg,#c4584e,#a52d27);transition:height .3s ease,opacity .3s ease}
+.recognition-staff i::after{content:none}
+.recognition-staff.is-writing i{animation:card-activity 1.15s cubic-bezier(.42,0,.58,1) infinite}
+.recognition-staff.is-writing i:nth-child(1){animation-delay:0s}
+.recognition-staff.is-writing i:nth-child(2){animation-delay:.11s}
+.recognition-staff.is-writing i:nth-child(3){animation-delay:.22s}
+.recognition-staff.is-writing i:nth-child(4){animation-delay:.33s}
+.recognition-staff.is-writing i:nth-child(5){animation-delay:.44s}
+@keyframes card-activity{0%,100%{height:5px;opacity:.4}45%{height:14px;opacity:1}}
+}50%{opacity:1;transform:translateX(5px)}}
+@keyframes glassDrift{0%,100%{box-shadow:0 12px 28px rgba(42,79,63,.07),inset 0 1px rgba(255,255,255,.82)}50%{box-shadow:0 15px 34px rgba(42,79,63,.11),inset 0 1px rgba(255,255,255,.9)}}.setup-section{animation:glassDrift 8s ease-in-out infinite}.import-progress{box-shadow:0 8px 24px rgba(31,102,79,.1),inset 0 1px rgba(255,255,255,.8)}
+@media(max-width:760px){.setup{padding:16px!important}.setup-section{border-radius:17px;padding:13px!important}.library-list{grid-template-columns:1fr;max-height:220px}.practice-actions{grid-template-columns:1fr 1fr}.score-library{order:2}}
+
+
+/* Cloud library is a primary workspace section at every viewport size. */
+.practice > .score-library {position:relative;display:grid;grid-template-columns:1fr auto;gap:12px;padding:20px;margin:0 0 22px;min-width:0;border:1px solid rgba(90,110,107,.16);border-radius:22px;background:rgba(255,255,255,.72);backdrop-filter:blur(22px)}
+.practice > .score-library h3 {margin:0;font-size:15px;align-self:center}
+.practice > .score-library .library-list {grid-column:1/-1;display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x proximity;padding:3px 2px 12px;max-height:none;min-width:0}
+.practice > .score-library .library-score {flex:0 0 180px;width:180px;min-height:142px;display:flex;flex-direction:column;align-items:flex-start;gap:7px;padding:14px;text-align:left;white-space:normal;scroll-snap-align:start;overflow:hidden;transform:none}
+.library-cover {display:block;width:64px;height:64px;flex:none;border-radius:10px;background-position:center;background-size:cover;box-shadow:0 4px 12px #1232}
+.library-title {line-height:1.45;overflow-wrap:anywhere}.library-detail{font-size:11px;line-height:1.4}
+.pdf-measure-block,.pdf-playback-line{transition:none!important}
+@media(max-width:1000px){.practice{min-width:0}.practice > .score-library{padding:14px;margin-bottom:14px}.practice > .score-library .library-score{flex-basis:152px;width:152px}.practice > .score-library h3{font-size:13px}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+
+.pdf-measure-highlight,.pdf-cursor{transition:none!important;box-sizing:border-box!important}
+
+#pdf-pages progress{display:block;width:70%;height:5px;margin:18px auto;accent-color:#537c76}
+.streaming-score svg{animation:score-reveal 1.2s ease-out both}
+@keyframes score-reveal{from{clip-path:inset(0 100% 0 0);opacity:.35}to{clip-path:inset(0);opacity:1}}
+@media(prefers-reduced-motion:reduce){.streaming-score svg{animation:none}}
+
+.pdf-cursor{box-shadow:none!important}.pdf-page-current{transform:none!important}
+
+.score-loading-overlay[hidden]{display:none}.score-loading-overlay{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;background:#1622204d;backdrop-filter:blur(20px) saturate(1.5);-webkit-backdrop-filter:blur(20px) saturate(1.5)}
+.score-loading-dialog{display:grid;justify-items:center;gap:0;padding:30px 26px 22px;border-radius:38px;min-width:240px;max-width:85vw;animation:loading-card-in .44s cubic-bezier(.22,1.15,.3,1)}@keyframes loading-card-in{from{opacity:0;transform:scale(.93) translateY(12px)}to{opacity:1;transform:none}}.score-loading-dialog strong{margin-top:20px;font:600 17px/1.3 -apple-system,BlinkMacSystemFont,'SF Pro Text','PingFang SC','Microsoft YaHei',system-ui,sans-serif;color:#2c2320}.score-loading-dialog span{margin-top:6px;font-size:13px;color:#7d6e6b;text-align:center}.score-loading-progress{margin-top:20px}
+/* Opening a score: an iOS-style glass card. The seal used to sit inside a
+   spinning ring, so the emblem rotated with it and looked off-centre. */
+.score-loading-seal{width:76px;height:76px;border-radius:50%;flex:none;background:#ad2720 url('/suda-seal.svg') center/cover no-repeat;box-shadow:0 0 0 1px #ffffffb8,inset 0 0 0 4px #ffffff24,0 12px 28px #8c1e1a4d;animation:seal-breathe-scale 2.6s ease-in-out infinite}
+@keyframes seal-breathe-scale{0%,100%{transform:scale(1)}50%{transform:scale(1.045)}}
+.library-navigation{display:flex;gap:6px;justify-self:end}.library-navigation button{font-size:24px;min-width:34px;padding:0 8px}.score-library>button{position:absolute;right:104px;top:18px}
+.practice>.score-library .library-list{perspective:1000px;padding:24px 12px 26px;gap:18px}
+.practice>.score-library .library-score{position:relative;min-height:180px;transform:rotateY(-9deg) translateZ(0);transform-style:preserve-3d;transition:transform .35s cubic-bezier(.2,.7,.2,1),box-shadow .35s,border-color .35s;background:linear-gradient(135deg,#fff,#e9f0ed);border:1px solid #ffffffd9;box-shadow:7px 10px 18px #20352e14;isolation:isolate}
+.practice>.score-library .library-score:hover,.practice>.score-library .library-score:focus-visible{transform:translateY(-9px) rotateX(var(--tilt-x,0deg)) rotateY(var(--tilt-y,0deg)) translateZ(24px);box-shadow:10px 24px 35px #20352e30;border-color:#8daf9c}
+.library-score:after{content:'';position:absolute;inset:0;pointer-events:none;border-radius:inherit;background:linear-gradient(125deg,#ffffffa0,transparent 42%,#ffffff50);z-index:-1}.library-score .library-cover{width:80px;height:80px}.library-title{transform:translateZ(12px)}
+@media(max-width:600px){.score-library>button{right:96px;font-size:10px}.practice>.score-library h3{max-width:150px;line-height:1.5}.practice>.score-library .library-score{min-height:164px}}
+@media(prefers-reduced-motion:reduce){.practice>.score-library .library-score{transform:none!important;transition:none}.score-loading-orbit{animation-duration:2s}}
+
+.sound-options{display:grid;gap:12px;margin:16px 0}.sound-options label{font-size:12px;display:flex;flex-wrap:wrap;align-items:center;gap:6px}.sound-options small{color:#819089;font-size:10px}.sound-options select{width:100%;padding:8px;border:1px solid #cdd9d2;border-radius:9px;background:#ffffffc9;color:#24382d}.sound-options input[type=range]{width:100%;accent-color:#537c76}.chord-control output{font-size:19px;font-weight:600;margin-left:auto;color:#376b53}@media(max-width:800px){.sound-options{grid-template-columns:1fr 1fr;gap:10px}.sound-options label{min-width:0}}
+
+.task-center{margin:0 0 18px;border:1px solid #d4dfd8;border-radius:16px;background:#ffffffe0;padding:12px 16px}.task-center>summary{cursor:pointer;font-size:13px;color:#395347}.task-list{max-height:330px;overflow:auto;padding-top:10px}.task-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px 12px;padding:10px 0;border-top:1px solid #e3eae5}.task-row strong{font-size:12px;overflow-wrap:anywhere}.task-row span{font-size:11px;color:#64786d}.task-row progress{width:100%;height:6px;accent-color:#537c76}.task-row button{grid-column:2;grid-row:1/3;align-self:center}.task-row span{grid-column:1}.task-row progress{grid-column:1}
+.streaming-score .engraved-sheet{position:relative}.streaming-score .engraved-sheet:after{content:'𝄞';font-family:serif;position:absolute;right:18px;bottom:15px;font-size:34px;color:#54765b;animation:pen-breathe 1.4s ease-in-out infinite}@keyframes pen-breathe{50%{transform:translate(5px,-3px) rotate(8deg);opacity:.5}}
+
+.ink-reveal{animation:ink-write 1.1s ease-out both}@keyframes ink-write{from{clip-path:inset(0 0 100% 0);opacity:.35}to{clip-path:inset(0);opacity:1}}@media(prefers-reduced-motion:reduce){.ink-reveal{animation:none}}
+
+/* Cloud-score cards as frosted panels, matching the loading dialog and the
+   rest of the iOS glass pass. */
+.library-list{gap:10px}
+.library-score{background:linear-gradient(152deg,rgba(255,255,255,.88),rgba(249,241,240,.7));border:1px solid rgba(255,255,255,.72);border-radius:18px;color:#5b3f3d;box-shadow:inset 0 1px 0 rgba(255,255,255,.92),0 10px 24px rgba(74,46,45,.08);backdrop-filter:blur(18px) saturate(1.5);-webkit-backdrop-filter:blur(18px) saturate(1.5);transition:transform .22s cubic-bezier(.22,1.15,.3,1),box-shadow .22s,background .22s}
+.library-score:hover:not(:disabled){transform:translateY(-2px);background:linear-gradient(152deg,rgba(255,255,255,.97),rgba(252,244,243,.82));border-color:rgba(255,255,255,.9);box-shadow:inset 0 1px 0 #fff,0 18px 36px rgba(74,46,45,.14)}
+.library-score[data-ready="true"]{border-color:rgba(173,39,32,.18)}
+.library-score:disabled{opacity:.75}
+.library-score strong{color:#4a3330;font-weight:600}
+.library-score small{color:#a08b88}
+.library-score:disabled::before{content:'';flex:none;width:32px;height:32px;border-radius:50%;background:url('/suda-seal.svg') center/cover no-repeat;animation:card-seal-halo 2.4s ease-in-out infinite}
+@keyframes card-seal-halo{0%,100%{box-shadow:0 0 0 1px rgba(255,255,255,.85),0 0 0 5px rgba(173,39,32,.07)}50%{box-shadow:0 0 0 1px rgba(255,255,255,.95),0 0 0 10px rgba(173,39,32,.14)}}
+.library-progress{height:5px;background:rgba(173,39,32,.10);box-shadow:inset 0 1px 2px rgba(67,43,43,.10)}
+@media(prefers-reduced-motion:reduce){.recognition-staff.is-writing i,.library-score:disabled::before{animation:none}}

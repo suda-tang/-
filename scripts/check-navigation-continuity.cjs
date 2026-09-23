@@ -1,0 +1,22 @@
+const {chromium}=require('C:/Users/mail/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+const assert=require('node:assert/strict');
+(async()=>{const browser=await chromium.launch({channel:'msedge',headless:true});try{
+ const page=await browser.newPage({viewport:{width:390,height:844}});await page.goto('http://127.0.0.1:5173/');await page.waitForSelector('.nav-lens');
+ await page.locator('[data-panel=play]').click();await page.waitForFunction(()=>!document.querySelector('.workspace-stage').classList.contains('is-moving'));
+ const play=await page.locator('[data-panel=play]').boundingBox(),arrange=await page.locator('[data-panel=arrange]').boundingBox();
+ const x=play.x+play.width/2,y=play.y+play.height/2,step=arrange.x-play.x;
+ await page.mouse.move(x,y);await page.mouse.down();await page.mouse.move(x+step*.45,y,{steps:8});
+ await page.waitForTimeout(50);
+ const middle=await page.evaluate(()=>{const a=document.querySelector('#workspace-play'),b=document.querySelector('#workspace-arrange'),stage=document.querySelector('.workspace-stage');return{a:a.getBoundingClientRect().x-stage.getBoundingClientRect().x,b:b.getBoundingClientRect().x-stage.getBoundingClientRect().x,width:stage.clientWidth,both:!a.hidden&&!b.hidden};});
+ assert.ok(middle.both);assert.ok(Math.abs(middle.a/middle.width+.45)<.03);assert.ok(Math.abs(middle.b/middle.width-.55)<.03);
+ await page.mouse.move(x+step*.75,y,{steps:5});await page.mouse.up();await page.waitForTimeout(600);
+ assert.equal(await page.locator('body').getAttribute('data-workspace'),'arrange');
+ await page.locator('[data-panel=library]').click();await page.waitForTimeout(80);
+ assert.ok(await page.locator('.workspace-stage').evaluate(el=>el.classList.contains('is-moving')));
+ await page.locator('[data-panel=tasks]').click();await page.waitForTimeout(650);
+ assert.equal(await page.locator('body').getAttribute('data-workspace'),'tasks');
+ assert.equal(await page.locator('.workspace-panel:not([hidden])').count(),1);
+ assert.equal(await page.locator('#workspace-tasks').evaluate(el=>el.inert),false);
+ assert.equal(await page.locator('.workspace-stage').evaluate(el=>el.style.height),'');
+ console.log('Continuous mid-drag panel positions, interrupted clicks and settled accessibility passed');
+}finally{await browser.close();}})().catch(error=>{console.error(error);process.exitCode=1});

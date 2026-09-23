@@ -1,0 +1,5 @@
+FluidR3 GM by Frank Wen and contributors. CC BY 3.0.
+Rendered MP3 soundfonts by Benjamin Gleitzman.
+https://github.com/gleitz/midi-js-soundfonts
+https://creativecommons.org/licenses/by/3.0/
+Three-semitone subset extracted for this application.
