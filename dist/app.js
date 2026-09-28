@@ -58,6 +58,7 @@ import { PitchListener, Follower, summarize } from './engine.js';
 import { ScorePlayer } from './player.js';
 import { setupScoreEditing } from './score-editing.js';
 import { initLibrary, cleanText } from './library.js';
+import { initMediaImport } from './media-import.js';
 
 // PDF.js 5.x uses newer Web APIs that are absent in some embedded Chromium
 // builds used on the campus intranet. Install small compatibility fallbacks
@@ -583,7 +584,7 @@ async function uploadPdf(file){
  }finally{void refreshLibrary();if(version===uploadVersion){pdfLoading=null;importing=false;controls();}}
 }
 function unlockForImport(){if($('autoplay').checked)void player.unlock().catch(()=>{});}
-void import('./media-import.js').then(({initMediaImport})=>initMediaImport(async()=>{void refreshLibrary();showTasks();}));
+initMediaImport(async()=>{void refreshLibrary();showTasks();});
 $('pdf-input').onchange=e=>{unlockForImport();enqueueUploads([...e.target.files],uploadedQueuedScore);e.target.value='';};
 $('numbered-input').onchange=e=>{unlockForImport();enqueueUploads([...e.target.files].map(file=>{try{Object.defineProperty(file,'name',{value:`简谱·${file.name}`,configurable:true});}catch{}return file;}),uploadedQueuedScore);e.target.value='';};
 $('numbered-zone').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('numbered-input').click();}};

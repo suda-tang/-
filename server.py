@@ -17,10 +17,10 @@ POOL = ThreadPoolExecutor(max_workers=1)
 JOBS = {}
 LOCK = threading.Lock()
 PORT = int(os.environ.get('PIANO_PORT', '5173'))
-# 额外放行的主机名白名单（本机 127.0.0.1/localhost 之外）。
-# 用于通过内网穿透域名访问，例如 suzhou.super-tang.com。
-# 逗号分隔；可用环境变量 PIANO_ALLOWED_HOSTS 覆盖。
-ALLOWED_HOSTS = {h.strip().lower() for h in os.environ.get('PIANO_ALLOWED_HOSTS', 'suzhou.super-tang.com').split(',') if h.strip()}
+# 额外放行的主机名白名单（本机 127.0.0.1/localhost 之外），用于通过内网穿透
+# 域名访问；逗号分隔。真实域名不写进仓库（仓库是公开的），部署时用环境变量
+# PIANO_ALLOWED_HOSTS 注入 —— 见部署侧的 frp/launch.py。
+ALLOWED_HOSTS = {h.strip().lower() for h in os.environ.get('PIANO_ALLOWED_HOSTS', '').split(',') if h.strip()}
 
 def persist_queue():
     path=ROOT/'.sites-runtime/queue.json';path.parent.mkdir(parents=True,exist_ok=True)

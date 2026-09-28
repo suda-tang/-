@@ -45,3 +45,16 @@ __pycache__/
 /.codex/
 /outputs/
 /work/
+
+# Local snapshots of public faculty pages used for application research
+/application/research/sources/
+
+# 博士申请材料：套磁信主稿 / 导师定制稿、导师候选名单、申请策略与导师调研数据。
+# 本仓库是公开的，这些内容一旦被 git add 就对外可见 —— 整目录排除，别逐条放。
+/application/
+
+# 对外的博士申请导览页（含申请意向与导师姓名输入），同样不进公开仓库。
+# 首页指向它的链接已一并移除，避免留下死链。
+/dist/research.html
+/dist/research.js
+/dist/research.css

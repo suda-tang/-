@@ -75,9 +75,19 @@
     密集八分踩镲）和 4 小节乐句权重生成条件，避免每个钢琴起音都触发鼓点。
 - 仍需继续验证：自然演奏和模型演奏的节拍稳定性；模型表情只能改变力度与释放，
   不得改变谱面音符的起止时刻（`advance()` 中不要重新引入缩放时钟的 rubato）。
-- 遗留：`scripts/check-playback.cjs` 第 21–22 行的断言已过期（上传路径改为
-  `enqueueUploads` 后，失败信息进「进度中心」而不是 `#notice`），需要单独修订，
-  目前它会失败且与近期改动无关。
+- 已修（2026-09-28）：`scripts/check-playback.cjs` 的过期断言已处理，脚本现可 PASS。
+  实际过期的不止 21–22 行，共三处：
+  * 工作区改成多面板（曲库/演奏/改编/任务）后，导入控件在「曲库」、播放控件在
+    「演奏」，且示例谱等按钮被搬进默认折叠的 `<details class="technical">`；
+    未切面板或未展开时元素被裁剪，Playwright 判定 not visible。
+  * 上传改走 `enqueueUploads` 后，失败信息进「任务中心」而不是 `#notice`。
+  * `totalBeats` 改为「压缩小节间隙后最后一个音符的结束拍」（尾部休止不计入），
+    该 fixture 由 8 变 6。
+  两个易踩的坑：① 展开 details 必须等工作区初始化完，否则 `closest('details')`
+  仍是 null，等于没展开；② 上传只有在当前无谱面时才会接管页面
+  （`uploadedQueuedScore` 的 `if(!score&&!selectedJob)`），验证成功路径要先
+  重载回无谱面状态。
+  另：任务中心列表上限 80 条，被历史失败任务塞满时新任务可能挤不进可见区。
 - 改动 `scripts/generate-arrangement.py` 的生成逻辑时，必须同时提升
   `arrangement_service.py` 的缓存版本和 `server.py` 里 `arrange` 的任务版本号，
   否则已完成的任务会被 `INSERT OR IGNORE` 复用，旧结果永远不刷新。

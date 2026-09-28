@@ -1,8 +1,7 @@
 // Navigation owns grouping; the existing controls keep their ids and handlers.
+import {initTour} from './guided-tour.js';
 const $=selector=>document.querySelector(selector);
-const sheet=document.createElement('link');sheet.rel='stylesheet';sheet.href='/workspace.css';document.head.append(sheet);
-const glass=document.createElement('link');glass.rel='stylesheet';glass.href='/glass.css';document.head.append(glass);
-const mediaStyle=document.createElement('link');mediaStyle.rel='stylesheet';mediaStyle.href='/media-import.css';document.head.append(mediaStyle);
+const glass=document.querySelector('link[href="/glass.css"]');
 document.body.classList.add('studio');
 const aside=$('.setup'),nav=document.createElement('nav');nav.className='workspace-nav';nav.setAttribute('aria-label','工作区');
 const pages={};
@@ -46,14 +45,14 @@ function select(id){
  for(const button of nav.querySelectorAll('button'))button.setAttribute('aria-pressed',String(button.dataset.panel===id));
  document.body.dataset.workspace=id;
  const target=ids.indexOf(id),from=position;
- if(reduceMotion.matches||Math.abs(target-from)<.001){position=target;settle();return;}
+ if(document.documentElement.classList.contains('booting')||reduceMotion.matches||Math.abs(target-from)<.001){position=target;settle();return;}
  prepare(target);paint(from);
  let previous=performance.now(),elapsed=0;const duration=460+Math.min(120,Math.abs(target-from)*50);
  function step(now){elapsed+=Math.min(32,now-previous);previous=now;const t=Math.min(1,elapsed/duration),eased=t*t*(3-2*t);paint(from+(target-from)*eased);if(t<1)frame=requestAnimationFrame(step);else{frame=0;settle();}}
  frame=requestAnimationFrame(step);
 }
 new ResizeObserver(()=>{navGeometry=[];if(!moving)positionLens();}).observe(nav);
-glass.onload=()=>{positionLens();};
+if(glass)glass.onload=()=>{positionLens();};
 reduceMotion.addEventListener('change',()=>select(currentPanel));
 nav.addEventListener('pointerdown',event=>{
  if(event.button!==0)return;
@@ -128,4 +127,6 @@ document.addEventListener('transport-state',event=>{playing=event.detail.playing
 new MutationObserver(()=>{if(document.body.dataset.workspace==='library'&&!$('#play-button').disabled)select('play');}).observe($('#score-title'),{childList:true});
 document.addEventListener('show-task-center',()=>select('tasks'));
 select('library');
+initTour();
+window.dispatchEvent(new Event('workspace-ready'));
 new MutationObserver(()=>{document.body.dataset.training=String(!$('#stop-button').hidden);}).observe($('#stop-button'),{attributes:true,attributeFilter:['hidden']});

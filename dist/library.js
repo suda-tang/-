@@ -6,7 +6,8 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
   const panel=document.createElement('section');panel.className='score-library setup-section';
   const heading=document.createElement('h3');heading.textContent='SUPERTANG CLOUD 云曲谱';
   const refresh=document.createElement('button');refresh.className='small-button';refresh.textContent='刷新列表';
-  const list=document.createElement('div');list.className='library-list';
+  const list=document.createElement('div');list.className='library-list';list.setAttribute('aria-busy','true');
+  const skeleton=document.createElement('div');skeleton.className='library-skeleton';skeleton.setAttribute('role','status');skeleton.innerHTML='<div class="skeleton-cover" aria-hidden="true"></div><span>正在读取云曲库</span>';list.append(skeleton);
   panel.append(heading,list);
   const importSection=document.querySelector('.score-import');
   document.querySelector('.practice').prepend(panel);
@@ -223,8 +224,9 @@ staff.hidden=item.status!=='running';}
     scoreCache.clear();if(pollTimer)clearTimeout(pollTimer);
     const leaving=[...list.querySelectorAll('.library-score')];
     if(!matchMedia('(prefers-reduced-motion: reduce)').matches)await Promise.all(leaving.map((card,index)=>{card._deal?.cancel();card.style.opacity='';return card.animate([{opacity:1,translate:'0px 0px',rotate:'0deg',scale:'1'},{opacity:0,translate:`${-innerWidth-card.getBoundingClientRect().right}px -35px`,rotate:'18deg',scale:'.25'}],{duration:360,delay:Math.min(index*28,350),easing:'cubic-bezier(.55,.05,.9,.4)',fill:'forwards'}).finished.catch(()=>{});}));
+    const controller=new AbortController(),requestTimeout=setTimeout(()=>controller.abort(),20000);
     try{
-      const response=await fetch('/api/scores');if(!response.ok)throw Error();const data=await response.json();list.replaceChildren();
+      const response=await fetch('/api/scores',{signal:controller.signal});if(!response.ok)throw Error();const data=await response.json();list.replaceChildren();
       for(const [scoreIndex,item] of data.scores.entries()){
         const button=document.createElement('button');button.className='library-score';button.dataset.scoreId=item.id;button.dataset.status=item.status||'idle';button.dataset.ready=String(!!item.ready);
         button._item=item;
@@ -255,7 +257,7 @@ staff.hidden=item.status!=='running';}
       else {const mode=browser.open?'full':'deck';stageCards(mode);requestAnimationFrame(()=>animateCards(mode));}
       pollTimer=setTimeout(pollRecognition,4000);
     }catch{list.textContent='琴谱库暂不可用，点击刷新重试。';}
-    finally{reloading=false;refresh.disabled=false;}
+    finally{clearTimeout(requestTimeout);reloading=false;refresh.disabled=false;list.setAttribute('aria-busy','false');}
   }
   refresh.onclick=async()=>{refresh.animate([{transform:'rotate(0deg)'},{transform:'rotate(250deg)'},{transform:'rotate(360deg)'}],{duration:520,easing:'cubic-bezier(.22,.8,.25,1)'});await reload();};
   document.addEventListener('score-renamed',event=>{const {id,title}=event.detail||{},card=id&&list.querySelector(`[data-score-id="${id}"]`);if(card){card._item={...card._item,title,titleSource:'user'};updateCard(card,card._item);}});
