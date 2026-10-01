@@ -1,10 +1,30 @@
 <!doctype html>
 <html lang="zh-CN">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#122d2b"><title>唐秋鸣课题设计实例</title><meta name="description" content="上传钢琴谱，用麦克风跟随练习，观察音符、节奏与速度反馈。"><link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/player.css"><link rel="stylesheet" href="/progress.css"><link rel="stylesheet" href="/library.css">
-<link rel="stylesheet" href="/desktop.css"><link rel="stylesheet" href="/campus.css"><link rel="stylesheet" href="/refinement.css"><link rel="stylesheet" href="/editing.css"><link rel="stylesheet" href="/mobile.css">
-<link rel="stylesheet" href="/workspace.css"><link rel="stylesheet" href="/glass.css"><link rel="stylesheet" href="/media-import.css"><link rel="stylesheet" href="/polish.css"><script src="/startup.js"></script></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#122d2b"><title>唐秋鸣课题设计实例</title><meta name="description" content="上传钢琴谱，用麦克风跟随练习，观察音符、节奏与速度反馈。"><link rel="icon" href="/favicon.svg"><link rel="preload" as="image" href="/suda-seal.svg">
+<style>
+/* 加载页样式内联：外链 CSS 会阻塞渲染，不内联的话在它下载完成前整页都是白屏，
+   进度条根本来不及露面。这里只管加载页与「启动期间隐藏主体」，其余交给 bundle.css。
+   内容与 polish.css 中的对应规则保持一致，所以 CSS 到达后不会有跳动。 */
+html.booting body>.top,html.booting body>.workspace,html.booting body>.workspace-nav{visibility:hidden}
+#startup{position:fixed;inset:0;z-index:100000;display:grid;place-content:center;justify-items:center;gap:22px;background:#f7f4f1;color:#513b39;text-align:center;font:14px system-ui,-apple-system,"Segoe UI",sans-serif}
+#startup strong{font-size:15px;letter-spacing:.04em;font-weight:600}
+#startup .boot-mark{width:76px;height:76px;position:relative;display:grid;place-items:center;opacity:0;transition:opacity .3s ease}
+#startup .boot-mark.is-ready{opacity:1}
+#startup img{width:60px;height:60px;border-radius:50%}
+#startup .boot-mark:after{content:'';position:absolute;inset:0;border:1px solid #af40352b;border-top-color:#a3362c;border-radius:50%;animation:boot-orbit 1.5s linear infinite}
+@keyframes boot-orbit{to{transform:rotate(360deg)}}
+#startup .boot-progress{width:220px;height:4px;margin-top:-10px;border-radius:999px;background:#af40352b;overflow:hidden}
+#startup .boot-bar{display:block;height:100%;width:0;border-radius:999px;background:#a3362c;transition:width .25s ease}
+#startup .boot-percent{margin-top:-12px;font-size:12px;letter-spacing:.08em;color:#8a6a66;font-variant-numeric:tabular-nums}
+html.boot-ready #startup,#startup[inert]{opacity:0;pointer-events:none}
+@media(prefers-reduced-motion:reduce){#startup .boot-mark,#startup .boot-bar{transition:none}#startup .boot-mark:after{animation:none}}
+</style>
+<link rel="stylesheet" href="/tour-presentation.css">
+<link rel="stylesheet" href="/bundle.css" media="print" onload="this.media='all'">
+
+<script src="/startup.js" onerror="document.documentElement.classList.remove('booting');document.addEventListener('DOMContentLoaded',function(){var s=document.getElementById('startup');if(s)s.remove();})"></script></head>
 <body>
-<div id="startup" role="status" aria-live="polite"><div class="boot-mark"><img src="/suda-seal.svg" alt="苏州大学校徽"></div><strong>唐秋鸣课题设计实例</strong><span id="boot-label">正在准备工作区</span><button id="boot-retry" hidden>重新载入</button></div><noscript>请启用 JavaScript 以使用工作区。</noscript>
+<div id="startup" role="status" aria-live="polite"><div class="boot-mark" id="boot-mark"><img src="/suda-seal.svg" alt="苏州大学校徽"></div><strong>唐秋鸣课题设计实例</strong><span id="boot-label">正在准备工作区</span><div class="boot-progress"><span class="boot-bar" id="boot-bar"></span></div><div class="boot-percent" id="boot-percent" aria-hidden="true">0%</div><button id="boot-retry" hidden>重新载入</button></div><noscript>请启用 JavaScript 以使用工作区。</noscript>
 <header class="top"><a class="brand" href="/" aria-label="课题工作台首页"><strong>唐秋鸣<span>课题设计实例</span></strong></a><div class="top-title">苏州大学钢琴演奏<small>Suzhou University Piano Studio</small></div><span class="edition"><img src="/assets/suda-official.jpg" alt="苏州大学"></span></header>
 <main class="workspace">
 <aside class="setup">
@@ -17,12 +37,12 @@
 </section>
 <section class="setup-section practice-controls" aria-labelledby="practice-heading">
 <div class="section-title"><span class="section-kicker">02</span><div><strong id="practice-heading">演奏控制 <em>Performance</em></strong></div></div>
-<div class="playback-panel"><div class="section-label">播放</div><div class="playback-buttons"><button id="play-button" class="primary" disabled>播放</button><button id="play-reset" class="small-button" disabled aria-label="从头播放">重播</button></div><div class="playback-options"><label class="expression-control"><input type="checkbox" id="expressive" checked>自然力度</label><label class="metronome-toggle"><input type="checkbox" id="metronome">节拍器</label></div><button id="render-expression" class="small-button" disabled>力度处理</button><span id="expression-state" class="english-caption">音色准备中</span><div class="sound-options"><label>音源 <small>Instrument</small><select id="instrument-select"></select></label><label>配器试听 <small>Orchestration</small><select id="arrangement-select"><option value="original">原谱</option><option value="drums">原谱加鼓伴奏</option><option value="chamber">室内弦乐</option><option value="orchestra">管弦乐配器</option><option value="romantic">浪漫派琶音（规则改编）</option><option value="baroque">巴洛克对位（规则改编）</option></select></label><label>节拍器音量 <input id="metronome-volume" type="range" min="0.1" max="1" step="0.05" value="0.8"></label><label class="chord-control"><input id="chord-toggle" type="checkbox">和弦分析 <small>Chords</small><output id="chord-display" hidden>—</output></label></div><label class="autoplay-label"><input id="autoplay" type="checkbox" checked> 音符识别完成后自动播放</label><p id="play-status" role="status">尚未载入琴谱</p></div>
+<div class="playback-panel"><div class="section-label">播放</div><div class="playback-buttons"><button id="play-button" class="primary" disabled>播放</button><button id="play-reset" class="small-button" disabled aria-label="从头播放">重播</button></div><div class="playback-options"><label class="expression-control"><input type="checkbox" id="expressive" checked>自然力度</label><label class="metronome-toggle"><input type="checkbox" id="metronome">节拍器</label></div><button id="render-expression" class="small-button" disabled>力度处理</button><span id="expression-state" class="english-caption">音色准备中</span><div class="sound-options"><label>播放声部 <small>Part</small><select id="part-solo-select"><option value="all">全部乐器</option></select></label><div id="part-mix" class="part-mix" hidden></div><label>音源 <small>Instrument</small><select id="instrument-select"></select></label><label>配器试听 <small>Orchestration</small><select id="arrangement-select"><option value="original">原谱</option><option value="drums">原谱加鼓伴奏</option><option value="chamber">室内弦乐</option><option value="orchestra">管弦乐配器</option><option value="romantic">浪漫派琶音（规则改编）</option><option value="baroque">巴洛克对位（规则改编）</option></select></label><label>节拍器音量 <input id="metronome-volume" type="range" min="0.1" max="1" step="0.05" value="0.8"></label><label class="chord-control"><input id="chord-toggle" type="checkbox">和弦分析 <small>Chords</small><output id="chord-display" hidden>—</output></label></div><label class="autoplay-label"><input id="autoplay" type="checkbox" checked> 音符识别完成后自动播放</label><p id="play-status" role="status">尚未载入琴谱</p></div>
 <label class="field" for="tempo">演奏速度 <span>原谱 BPM / 30–240</span><div class="tempo-control"><button id="tempo-down" aria-label="减慢 5 BPM">−</button><input id="tempo" type="number" min="30" max="240" value="80"><span>BPM</span><button id="tempo-up" aria-label="加快 5 BPM">＋</button></div></label>
 <div class="control-grid"><label class="field" for="sensitivity">麦克风灵敏度 <span id="sensitivity-value">标准</span><input id="sensitivity" type="range" min="1" max="5" value="3"></label><div class="mic-panel"><div><span id="mic-label">麦克风未开启</span><span id="mic-level">0%</span></div><div class="meter"><span id="level-bar"></span></div><small id="heard">开启后，请先弹奏第一个音。</small></div></div>
 <div class="practice-actions"><button class="primary" id="start-button" disabled>开始练习</button><button class="secondary" id="stop-button" hidden>暂停练习</button><button class="text-button reset" id="reset-button" disabled>从头练习</button></div>
 </section>
-<section class="setup-section service-controls" aria-labelledby="service-heading"><div class="section-title"><span class="section-kicker">03</span><div><strong id="service-heading">服务与导入 <em>Import</em></strong></div></div><details class="technical"><summary>设置</summary><p id="service-state">正在连接服务</p><label class="xml-label">导入 MusicXML<input type="file" id="xml-input" accept=".musicxml,.xml,.mxl"></label><div class="recognition-tools"><button class="small-button" id="alt-recognize">精细重新识谱</button></div></details></section>
+<section class="setup-section service-controls" aria-labelledby="service-heading"><div class="section-title"><span class="section-kicker">03</span><div><strong id="service-heading">服务与导入 <em>Import</em></strong></div></div><details class="technical"><summary>设置</summary><p id="service-state">正在连接服务</p><label class="xml-label">导入 MusicXML 或 MIDI<input type="file" id="xml-input" accept=".musicxml,.xml,.mxl,.mid,.midi,audio/midi,audio/x-midi"></label><label class="xml-label">导入绑定演唱音频<input type="file" id="vocal-input" accept="audio/*"></label><label id="vocal-control" class="xml-label" hidden><input id="vocal-toggle" type="checkbox"> 播放演唱音轨</label><div class="recognition-tools"><button class="small-button" id="alt-recognize">精细重新识谱</button></div></details></section>
 <div class="privacy">声音仅在当前浏览器中分析，不录音、不上传。琴谱交由本机识谱服务处理。</div>
 </aside>
 <section class="practice">
@@ -35,5 +55,5 @@
 <div class="score-footer"><span id="position">尚未开始</span><div class="progress-track" role="progressbar" aria-label="练习进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="progress-bar"></span></div><span id="progress-label">0%</span></div></div>
 <section class="drum-card" id="drum-card" hidden><div class="drum-heading"><div><h3>鼓谱</h3><p id="drum-summary">Drum staff</p></div></div><div class="drum-scroll"><div class="drum-staff" id="drum-staff"></div></div></section><section class="feedback"><div class="feedback-heading"><div><h3>练习记录</h3><p id="feedback-subtitle">音符匹配与时间偏差</p></div><button id="export-button" class="small-button" disabled>导出记录</button></div><div id="events" class="events"><p class="empty-events">暂无记录</p></div></section>
 <footer class="bottom-note"><span>唐秋鸣　课题设计实例</span><small>TANG QIUMING · SUZHOU UNIVERSITY · MUSIC EDUCATION</small></footer>
-</section></main><script src="/vendor/opensheetmusicdisplay.min.js"></script><script src="/vendor/tesseract.min.js"></script><script type="module" src="/app.js?v=scan3"></script><script type="module" src="/campus.js"></script>
+</section></main><script type="module" src="/app.js?v=scan14"></script><script type="module" src="/campus.js"></script>
 </body></html>

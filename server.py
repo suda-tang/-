@@ -1,10 +1,10 @@
 """Dependency-free localhost server. PDF recognition uses an external Audiveris executable."""
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, unquote
 import ipaddress
 from concurrent.futures import ThreadPoolExecutor
-import os, json, subprocess, uuid, zipfile, io, threading, time, shutil, hashlib, socket, re, sys
+import os, json, subprocess, uuid, zipfile, io, gzip, threading, time, shutil, hashlib, socket, re, sys
 from score_book import join_scores
 import omr_normalize
 from storage import write_json
@@ -408,12 +408,74 @@ def recognize(job_id, data, digest, fine=False):
         # Temporary scores stay only for the running job; preserve no uploaded PDF.
         shutil.rmtree(folder, ignore_errors=True)
 
+# 文本类资源 gzip 后通常只剩三成左右，而首屏要拉 20 多个 js/css，
+# 不压缩在公网（尤其手机）上会明显变慢。
+GZIP_TYPES = {'.html', '.js', '.mjs', '.css', '.svg', '.json', '.xml', '.txt', '.map'}
+_GZIP_CACHE = {}
+# 合并输出的样式表，顺序必须与 index.html 里 <link> 的先后顺序一致，
+# 否则层叠结果会变。这里写死而不从 index.html 动态读：改过之后页面里
+# 只剩 bundle.css 自己一条，动态提取会把自己也读进去，成死循环。
+# 以后在 index.html 里增删样式表，记得同步改这里。
+BUNDLE_CSS = ['style.css', 'player.css', 'progress.css', 'library.css', 'desktop.css',
+              'campus.css', 'refinement.css', 'editing.css', 'mobile.css', 'workspace.css',
+              'glass.css', 'media-import.css', 'polish.css']
+_BUNDLE_CACHE = {}
+
+def gzip_cached(path):
+    """压缩后按 mtime 缓存一份，免得每个请求都重压一遍大文件。"""
+    try:
+        mtime = os.path.getmtime(path)
+        raw = open(path, 'rb').read()
+    except OSError:
+        return None
+    if len(raw) < 512:
+        return None                      # 太小，压了也省不出什么
+    hit = _GZIP_CACHE.get(path)
+    if hit and hit[0] == mtime and hit[1] == len(raw):
+        return hit[2]
+    buf = io.BytesIO()
+    with gzip.GzipFile(fileobj=buf, mode='wb', compresslevel=6, mtime=0) as stream:
+        stream.write(raw)
+    data = buf.getvalue()
+    _GZIP_CACHE[path] = (mtime, len(raw), data)
+    return data
+
 class Handler(SimpleHTTPRequestHandler):
+    # 默认 HTTP/1.0：那样每个资源都要重新握手一次，首屏四十几个请求就是四十几
+    # 次 TCP（HTTPS 下还要 TLS）握手 —— 手机上每次上百毫秒，累积起来好几秒。
+    # 改 1.1 后连接可复用，握手只做一次，这一项对首屏的影响最大。
+    protocol_version = 'HTTP/1.1'
+    # 连接复用会占住线程，给个读超时，免得空闲连接一直挂着不释放。
+    timeout = 30
     def __init__(self, *args, **kwargs): super().__init__(*args, directory=str(PUBLIC), **kwargs)
+    def send_head(self):
+        """文本资源走 gzip；音频 / PDF / 位图等照原样交给父类。"""
+        if 'gzip' not in (self.headers.get('Accept-Encoding') or '').lower():
+            return super().send_head()
+        path = self.translate_path(self.path)
+        # 目录请求（比如 "/"）在父类里会去找 index.html —— 这个入口同样值得压缩。
+        target = os.path.join(path, 'index.html') if os.path.isdir(path) else path
+        if not os.path.isfile(target):
+            return super().send_head()
+        if os.path.splitext(target)[1].lower() not in GZIP_TYPES:
+            return super().send_head()
+        body = gzip_cached(target)
+        if body is None:
+            return super().send_head()
+        self.send_response(200)
+        self.send_header('Content-Type', self.guess_type(target))
+        self.send_header('Content-Encoding', 'gzip')
+        self.send_header('Vary', 'Accept-Encoding')
+        self.send_header('Content-Length', str(len(body)))
+        self.end_headers()
+        return io.BytesIO(body)
     def end_headers(self):
         self.send_header('X-Content-Type-Options', 'nosniff')
         immutable_page=self.path.startswith('/api/scores/') and '/page/' in self.path
-        self.send_header('Cache-Control', 'public, max-age=31536000, immutable' if self.path.startswith('/assets/piano/salamander/') or immutable_page else 'no-store')
+        # vendor 下的第三方库版本稳定，可以长期缓存；dist 自身还在迭代，
+        # 保持 no-store，免得改了前端却因为缓存不生效。
+        long_lived=self.path.startswith('/assets/piano/salamander/') or immutable_page or self.path.startswith('/vendor/')
+        self.send_header('Cache-Control', 'public, max-age=31536000, immutable' if long_lived else 'no-store')
         super().end_headers()
     def json_response(self, data, status=200):
         body = json.dumps(data, ensure_ascii=False).encode('utf-8')
@@ -430,8 +492,50 @@ class Handler(SimpleHTTPRequestHandler):
                 return False
         origin = self.headers.get('Origin')
         return not origin or (urlparse(origin).hostname or '').strip('[]').lower() == host.lower()
+    def send_bundle(self):
+        """把十来份样式表拼成一份返回。
+
+        内容一字不改、拼接顺序与 index.html 里原来的 <link> 顺序完全一致，
+        所以层叠结果不变 —— 只是把十几个请求压成 1 个。加载页（含进度条）
+        要等样式表下载完才画得出来，这是让它尽快露面的关键一步。
+        """
+        parts, stamps = [], []
+        for name in BUNDLE_CSS:
+            source = PUBLIC / name
+            try:
+                stamps.append(source.stat().st_mtime)
+                parts.append(source.read_text(encoding='utf-8'))
+            except OSError:
+                continue
+        raw = '\n'.join(parts).encode('utf-8')
+        want_gzip = 'gzip' in (self.headers.get('Accept-Encoding') or '').lower()
+        body, encoding = raw, None
+        if want_gzip:
+            key = max(stamps) if stamps else 0
+            hit = _BUNDLE_CACHE.get('css')
+            if hit and hit[0] == key:
+                body = hit[1]
+            else:
+                buf = io.BytesIO()
+                with gzip.GzipFile(fileobj=buf, mode='wb', compresslevel=6, mtime=0) as stream:
+                    stream.write(raw)
+                body = buf.getvalue()
+                _BUNDLE_CACHE['css'] = (key, body)
+            encoding = 'gzip'
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/css; charset=utf-8')
+        if encoding:
+            self.send_header('Content-Encoding', encoding)
+            self.send_header('Vary', 'Accept-Encoding')
+        self.send_header('Content-Length', str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
     def do_GET(self):
         if not self.allowed(): return self.json_response({'error':'仅接受本机同源请求'},403)
+        if urlparse(self.path).path=='/api/voice-reference' or urlparse(self.path).path.startswith('/api/voice-reference/mentor/') or urlparse(self.path).path.startswith('/api/voice-reference/self/'):
+            import voice_capture
+            return voice_capture.handle(self)
+        if urlparse(self.path).path=='/bundle.css': return self.send_bundle()
         if self.path=='/api/import-capabilities':
             return self.json_response({'pdf':True,'photos':True,'media':(ROOT/'.sites-runtime/transcription-vendor/transkun/pretrained/2.0.pt').exists(),'engine':'Transkun V2','maxMediaMB':200,'maxMinutes':30,'maxPhotoPages':40})
         if self.path=='/api/arrangement-capabilities':
@@ -531,6 +635,12 @@ class Handler(SimpleHTTPRequestHandler):
                 if not pdf.exists(): return self.json_response({'error':'历史记录未保存原始 PDF'},404)
                 body=pdf.read_bytes()
                 self.send_response(200); self.send_header('Content-Type','application/pdf'); self.send_header('Content-Length',str(len(body))); self.end_headers(); self.wfile.write(body); return
+            if len(parts)==5 and parts[4]=='vocal':
+                vocal=CACHE_DIR/(digest+'.vocal')
+                item=read_cached_score(digest) or {}
+                if not vocal.exists(): return self.json_response({'error':'这份曲谱尚未绑定演唱音频'},404)
+                body=vocal.read_bytes();mime=str(item.get('metadata',{}).get('vocal',{}).get('mime') or 'audio/mpeg')
+                self.send_response(200);self.send_header('Content-Type',mime);self.send_header('Content-Length',str(len(body)));self.send_header('Accept-Ranges','bytes');self.end_headers();self.wfile.write(body);return
             if len(parts)==5 and parts[4]=='variants':
                 return self.json_response(variants_summary(digest) or {'active':None,'available':[]})
             if len(parts)==5 and parts[4]=='info':
@@ -597,6 +707,9 @@ class Handler(SimpleHTTPRequestHandler):
         return super().do_GET()
     def do_POST(self):
         if not self.allowed(): return self.json_response({'error':'仅接受本机同源请求'},403)
+        if urlparse(self.path).path=='/api/voice-reference' or urlparse(self.path).path.startswith('/api/voice-reference/mentor/') or urlparse(self.path).path.startswith('/api/voice-reference/self/'):
+            import voice_capture
+            return voice_capture.handle(self)
         try:
             length = int(self.headers.get('Content-Length','0'))
             if self.path in ('/api/media','/api/photos'):
@@ -658,6 +771,18 @@ class Handler(SimpleHTTPRequestHandler):
                 for task in waiting:background_jobs.update(task['id'],status='cancelled',detail='已选择转录方式')
                 key=background_jobs.enqueue(digest,'transcription','transkun-2.0.1-choice',{'audioChoice':choice},priority=0)
                 return self.json_response({'id':key,'status':'queued'},202)
+            if self.path.startswith('/api/scores/') and self.path.endswith('/vocal'):
+                digest=self.path.split('/')[-2];cached=read_cached_score(digest)
+                if not cached:return self.json_response({'error':'请先打开并保存一份电子谱'},404)
+                mime=self.headers.get('Content-Type','').split(';',1)[0].strip().lower()
+                if not mime.startswith('audio/'):
+                    return self.json_response({'error':'请导入音频文件'},415)
+                name=unquote(self.headers.get('X-Vocal-Name','演唱音频'))[:250]
+                (CACHE_DIR/(digest+'.vocal')).write_bytes(body)
+                metadata={**cached.get('metadata',{}),'vocal':{'name':name,'mime':mime,'bytes':len(body),'saved':time.time(),'offsetSeconds':0}}
+                write_cached_score(digest,cached['xml'],metadata)
+                (CACHE_DIR/(digest+'.metadata.json')).write_text(json.dumps(metadata,ensure_ascii=False),encoding='utf-8')
+                return self.json_response({'ok':True,'vocal':metadata['vocal']})
             if self.path.startswith('/api/scores/') and self.path.endswith('/arrange'):
                 digest=self.path.split('/')[-2];cache_path(digest)
                 import background_jobs
@@ -740,6 +865,22 @@ class Handler(SimpleHTTPRequestHandler):
                 name=unquote(self.headers.get('X-Score-Name','未命名琴谱'))[:250]
                 (CACHE_DIR/(digest+'.name')).write_text(name,encoding='utf-8')
                 return self.json_response({'id':digest})
+            if self.path == '/api/scores/midi':
+                try:
+                    payload=json.loads(body.decode('utf-8'))
+                    xml=str(payload.get('xml',''))
+                    metadata=payload.get('metadata') or {}
+                    name=str(payload.get('name') or 'MIDI 乐谱').strip()[:250]
+                except (UnicodeDecodeError, ValueError, TypeError):
+                    raise ValueError('MIDI 乐谱数据格式不正确')
+                if not xml.startswith('<?xml') or '<score-partwise' not in xml:
+                    raise ValueError('MIDI 乐谱缺少有效 MusicXML')
+                digest=hashlib.sha256((xml+'\n'+json.dumps(metadata,ensure_ascii=False,sort_keys=True)).encode('utf-8')).hexdigest()
+                cache_path(digest)
+                metadata={**metadata,'sourceType':'midi','title':str(metadata.get('title') or name)}
+                write_cached_score(digest,xml,metadata,parts=omr_normalize.REVISION)
+                (CACHE_DIR/(digest+'.name')).write_text(name,encoding='utf-8')
+                return self.json_response({'id':digest,'saved':True})
             if self.path == '/api/scores/image':
                 # Camera uploads are normalised into a clean, portrait PDF
                 # before entering the existing OMR pipeline. PIL is optional;

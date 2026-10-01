@@ -127,6 +127,7 @@ document.addEventListener('transport-state',event=>{playing=event.detail.playing
 new MutationObserver(()=>{if(document.body.dataset.workspace==='library'&&!$('#play-button').disabled)select('play');}).observe($('#score-title'),{childList:true});
 document.addEventListener('show-task-center',()=>select('tasks'));
 select('library');
-initTour();
+// 导览是附加功能，出错也不能影响工作区初始化，所以单独兜住异常。
+initTour().catch(()=>{});
 window.dispatchEvent(new Event('workspace-ready'));
 new MutationObserver(()=>{document.body.dataset.training=String(!$('#stop-button').hidden);}).observe($('#stop-button'),{attributes:true,attributeFilter:['hidden']});

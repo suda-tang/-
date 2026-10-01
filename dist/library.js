@@ -34,7 +34,7 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
     try{await flight.finished;}catch{}finally{flight.cancel();discMotion.cancel();shell.remove();card.style.visibility='';}
   }
   async function revealLoader(){
-    if(browser.open){browser.close();panel.insertBefore(list,panel.querySelector('.library-settings'));document.body.classList.remove('library-expanded');for(const card of list.children)card.hidden=false;list.scrollLeft=deckScroll;}
+    if(browser.open){browser.close();document.dispatchEvent(new Event('library-tour-closed'));panel.insertBefore(list,panel.querySelector('.library-settings'));document.body.classList.remove('library-expanded');for(const card of list.children)card.hidden=false;list.scrollLeft=deckScroll;}
     loader.hidden=false;
     if(!motionAllowed())return;
     const surface=loader.querySelector('.score-loading-dialog');
@@ -49,6 +49,7 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
   }
   const prefetchScore=id=>{if(!scoreCache.has(id))scoreCache.set(id,fetch(`/api/scores/${id}`).then(response=>{if(!response.ok)throw Error('琴谱读取失败');return response.json();}).catch(()=>{scoreCache.delete(id);return null;}));return scoreCache.get(id);};
   const stageCards=mode=>{
+    if(document.documentElement.matches('.tour-arrival,.tour-travelling'))return;
     if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
     for(const [index,card] of [...list.querySelectorAll('.library-score')].entries()){
       card._deal?.cancel();
@@ -56,8 +57,9 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
     }
   };
   const animateCards=mode=>{
+    if(document.documentElement.matches('.tour-arrival,.tour-travelling'))return;
     const origins=new Map([...list.querySelectorAll('.library-score')].map(card=>{const box=card.getBoundingClientRect();return [card.dataset.scoreId,{left:-box.width-120,top:box.top-70,width:box.width,height:box.height}];}));
-    transfer=flyCards(origins,true);
+    transfer=flyCards(origins,true);return transfer;
   };
   const navigation=document.createElement('div');navigation.className='library-navigation';for(const [label,direction] of [['上一组',-1],['下一组',1]]){const arrow=document.createElement('button');arrow.className='small-button';arrow.textContent=direction<0?'‹':'›';arrow.setAttribute('aria-label',label);let held=false,frame=0,start=0,last=0,moved=false;
     const release=()=>{held=false;cancelAnimationFrame(frame);list.style.scrollSnapType='';list.style.scrollBehavior='';};
@@ -71,63 +73,72 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
   const browser=document.createElement('dialog');browser.className='library-browser';browser.innerHTML='<header><h2>云曲库</h2><input type="search" aria-label="搜索曲谱" placeholder="搜索曲谱"><button class="library-close" type="button" aria-label="关闭云曲库" title="关闭">×</button></header>';document.body.append(browser);
   const expand=document.createElement('button');expand.className='small-button library-expand';expand.type='button';expand.textContent='⤢';expand.setAttribute('aria-label','展开云曲库');navigation.insertBefore(expand,navigation.children[1]);
   let closing=false,motion=null,expanding=false,dockRect=null;
-  let deckScroll=0,transfer=Promise.resolve();
+  let deckScroll=0,transfer=Promise.resolve(),cardMotion=false;
   const intersects=(box,clip)=>box.right>clip.left&&box.left<clip.right&&box.bottom>clip.top&&box.top<clip.bottom;
   const cardRects=()=>{const clip=browser.open?{left:0,top:0,right:innerWidth,bottom:innerHeight}:list.getBoundingClientRect();return new Map([...list.querySelectorAll('.library-score')].filter(card=>!card.hidden).map(card=>{const box=card.getBoundingClientRect();return [card.dataset.scoreId,{left:box.left,top:box.top,right:box.right,bottom:box.bottom,width:box.width,height:box.height,visible:intersects(box,clip)}];}));};
   const flyCards=async (origins,fall=false)=>{
+    if(fall&&document.documentElement.matches('.tour-arrival,.tour-travelling')){for(const card of list.children){card.style.opacity='';card.style.visibility='';}return;}
     const cleanup=[];
     const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
     const cards=[...list.querySelectorAll('.library-score')];
-    const layer=document.createElement('div');layer.className='card-flight-layer';layer.setAttribute('popover','manual');layer.setAttribute('aria-hidden','true');document.body.append(layer);if(layer.showPopover)layer.showPopover();
+    // Read layout once before creating flight layers; alternating reads/writes
+    // for every cover forces repeated layout on a large library.
+    const targetClip=browser.open?{left:0,top:0,right:innerWidth,bottom:innerHeight}:list.getBoundingClientRect();
+    const mouth=panel.getBoundingClientRect(),deckBox=list.getBoundingClientRect();
+    const visualProperties=['display','box-sizing','font-family','font-size','font-weight','line-height','color','background','border','border-radius','box-shadow','padding','margin','width','height','min-height','overflow','position','inset','flex','align-items','justify-content','gap','object-fit','white-space','text-align'];
+    const snapshots=new Map(cards.map(card=>{
+      const rect=card.getBoundingClientRect(),from=origins.get(card.dataset.scoreId);
+      const moving=intersects(rect,targetClip)||(!fall&&from?.visible);
+      const styles=moving?[card,...card.querySelectorAll('*')].map(node=>{const style=getComputedStyle(node);return visualProperties.map(key=>[key,style.getPropertyValue(key)]);}):null;
+      return [card,{rect,styles}];
+    }));
+    const layer=document.createElement('div');layer.className='card-flight-layer';layer.setAttribute('popover','manual');layer.setAttribute('aria-hidden','true');document.body.append(layer);if(layer.showPopover)layer.showPopover();document.dispatchEvent(new Event('library-flight-layer'));
+    const headerHeight=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--tour-header-height'))||0;layer.style.clipPath=`inset(${headerHeight}px 0 0 0)`;cardMotion=true;
     list.classList.add('cards-transferring');
     try{await Promise.all(cards.map((card,index)=>{
       card._deal?.cancel();card._deal=null;card.style.opacity='';
-      let from=origins.get(card.dataset.scoreId),to=card.getBoundingClientRect();
+      let from=origins.get(card.dataset.scoreId),to=snapshots.get(card).rect;
       const visible=box=>box&&box.right!==undefined?box.right>0&&box.left<innerWidth&&box.bottom>0&&box.top<innerHeight:!!box;
-      const targetClip=browser.open?{left:0,top:0,right:innerWidth,bottom:innerHeight}:list.getBoundingClientRect();
       const sourceVisible=from?.visible??visible(from),targetVisible=visible(to)&&intersects(to,targetClip);
       const absorbing=!fall&&sourceVisible&&!targetVisible;
       if(!fall&&!sourceVisible&&!targetVisible)return;
       // Off-screen deck cards travel through the deck mouth rather than vanish.
-      const mouth=panel.getBoundingClientRect();
       if(!fall&&!sourceVisible&&targetVisible)from={left:Math.min(innerWidth-80,mouth.right-90),top:mouth.top+100,width:80,height:100};
-      if(!fall&&sourceVisible&&!targetVisible)to={left:Math.min(innerWidth-70,mouth.right-70),top:list.getBoundingClientRect().top+list.clientHeight/2,width:36,height:48};
+      if(!fall&&sourceVisible&&!targetVisible)to={left:Math.min(innerWidth-70,mouth.right-70),top:deckBox.top+deckBox.height/2,width:36,height:48};
       if(reduced||!from||!to.width||!from.width)return;
       // Animate in viewport space, outside the dialog's scaling and scroll clips.
       if(fall&&!targetVisible)return;
       const ghost=card.cloneNode(true);
       // Keep typography, cover crop and surface identical outside the dialog.
-      [card,...card.querySelectorAll('*')].forEach((source,i)=>{
-        const target=[ghost,...ghost.querySelectorAll('*')][i],style=getComputedStyle(source);
-        for(const key of style)target.style.setProperty(key,style.getPropertyValue(key));
-      });
+      const targets=[ghost,...ghost.querySelectorAll('*')];
+      snapshots.get(card).styles?.forEach((styles,i)=>{for(const [key,value] of styles)targets[i].style.setProperty(key,value);});
       ghost.removeAttribute('data-score-id');ghost.removeAttribute('id');ghost.classList.add('card-flight-ghost');ghost.disabled=false;ghost.tabIndex=-1;
       ghost.style.cssText+=`;position:absolute!important;left:${to.left}px!important;top:${to.top}px!important;width:${to.width}px!important;height:${to.height}px!important;min-width:0!important;min-height:0!important;margin:0!important;transform:none!important;transform-origin:0 0!important;transition:none!important;opacity:1;visibility:visible!important;content-visibility:visible!important;`;
       layer.append(ghost);card.style.visibility='hidden';
       const inset=`inset(${Math.max(0,targetClip.top-to.top)}px ${Math.max(0,to.left+to.width-targetClip.right)}px ${Math.max(0,to.top+to.height-targetClip.bottom)}px ${Math.max(0,targetClip.left-to.left)}px)`;
-      if(fall){const clip=list.getBoundingClientRect();layer.style.clipPath=`inset(${Math.max(0,clip.top)}px ${Math.max(0,innerWidth-clip.right)}px ${Math.max(0,innerHeight-clip.bottom)}px ${Math.max(0,clip.left)}px)`;}
+      if(fall){const clip=deckBox;layer.style.clipPath=`inset(${Math.max(headerHeight,clip.top)}px ${Math.max(0,innerWidth-clip.right)}px ${Math.max(0,innerHeight-clip.bottom)}px ${Math.max(0,clip.left)}px)`;}
 
       const dx=from.left-to.left,dy=from.top-to.top,sx=from.width/to.width,sy=from.height/to.height;
       const flight=ghost.animate(fall?[
-        {translate:`${dx}px ${dy}px 0px`,rotate:'z -18deg',scale:'1.08 .88'},
-        {translate:'-36px -14px 30px',rotate:'z 5deg',scale:'1.03 .97',offset:.76},
-        {translate:'0px 0px 0px',rotate:'z 0deg',scale:'1',clipPath:inset}
+        {translate:`${dx}px ${dy}px -70px`,rotate:'1 0.6 0.2 -20deg',scale:'.94'},
+        {translate:'-18px -6px 12px',rotate:'1 0.6 0.2 2deg',scale:'1.01',offset:.8},
+        {translate:'0px 0px 0px',rotate:'1 0.6 0.2 0deg',scale:'1',clipPath:inset}
       ]:[
-        {translate:`${dx}px ${dy}px 0px`,scale:`${sx} ${sy}`,rotate:'z 0deg',opacity:1,clipPath:'inset(0px)'},
-        {translate:`${dx*.64+(closing?65:-65)}px ${dy*.64-85}px 65px`,scale:`${sx*.64+.36} ${sy*.64+.36}`,rotate:`z ${closing?14:-14}deg`,offset:.4},
-        {translate:`${dx*.16}px ${dy*.16-16}px 15px`,scale:`${sx*.16+.84} ${sy*.16+.84}`,rotate:`z ${closing?-5:5}deg`,offset:.76},
-        {translate:'0px 0px 0px',scale:absorbing?'0.001 0.001':'1 1',rotate:'z 0deg',opacity:absorbing?0:1,clipPath:absorbing?'inset(0px)':inset}
-      ],{duration:fall?540:760,delay:Math.min(index*(fall?38:24),fall?300:180),easing:fall?'cubic-bezier(.16,.65,.22,1)':'cubic-bezier(.35,0,.2,1)',fill:'both'});
+        {translate:`${dx}px ${dy}px 0px`,scale:`${sx} ${sy}`,rotate:'1 0.6 0.2 0deg',opacity:1,clipPath:'inset(0px)'},
+        {translate:`${dx*.58+(closing?22:-22)}px ${dy*.58-30}px 48px`,scale:`${sx*.58+.42} ${sy*.58+.42}`,rotate:`1 0.6 0.2 ${closing?12:-12}deg`,offset:.42},
+        {translate:`${dx*.1}px ${dy*.1-4}px 8px`,scale:`${sx*.1+.9} ${sy*.1+.9}`,rotate:`1 0.6 0.2 ${closing?2:-2}deg`,offset:.8},
+        {translate:'0px 0px 0px',scale:absorbing?'0.001 0.001':'1 1',rotate:'1 0.6 0.2 0deg',opacity:absorbing?0:1,clipPath:absorbing?'inset(0px)':inset}
+      ],{duration:fall?620:820,delay:Math.min(index*(fall?30:18),fall?240:126),easing:'cubic-bezier(.22,.55,.25,1)',fill:'both'});
       card._deal=flight;
       const finish=()=>{if(card._deal===flight){card.style.visibility='';flight.cancel();card._deal=null;}ghost.remove();};cleanup.push(finish);
       return flight.finished.catch(()=>{}).finally(finish);
     }));
 
-    }finally{cleanup.forEach(finish=>finish());layer.remove();list.classList.remove('cards-transferring');}
+    }finally{cleanup.forEach(finish=>finish());layer.remove();list.classList.remove('cards-transferring');cardMotion=false;document.dispatchEvent(new Event('library-flight-finished'));}
   };
   let tiltFrame=0;
   list.addEventListener('pointermove',event=>{
-    if(!browser.open||event.pointerType==='touch'||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+    if(cardMotion||expanding||closing||!browser.open||event.pointerType==='touch'||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
     const card=event.target.closest('.library-score');if(!card)return;
     cancelAnimationFrame(tiltFrame);
     tiltFrame=requestAnimationFrame(()=>{const box=card.getBoundingClientRect();card.style.setProperty('--card-x',`${(0.5-(event.clientY-box.top)/box.height)*10}deg`);card.style.setProperty('--card-y',`${((event.clientX-box.left)/box.width-.5)*14}deg`);});
@@ -140,7 +151,7 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
     const x=box.left+box.width/2-innerWidth/2,y=box.top+box.height/2-innerHeight/2;
     const dock={opacity:0,transform:`translate3d(${x}px,${y}px,0) scale(${Math.max(.15,box.width/innerWidth)},${Math.max(.12,box.height/innerHeight)})`,borderRadius:'28px'};
     const full={opacity:1,transform:'translate3d(0,0,0) scale(1)',borderRadius:'0px'};
-    motion=browser.animate(open?[dock,full]:[full,dock],{duration:900,easing:'cubic-bezier(.32,0,.18,1)',fill:'both'});
+    motion=browser.animate(open?[{opacity:0},{opacity:1}]:[full,dock],{duration:500,easing:'cubic-bezier(.32,0,.18,1)',fill:'both'});
     await motion.finished.catch(()=>{});
   };
   async function closeBrowser(){
@@ -151,7 +162,7 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
     const target=dockRect||panel.getBoundingClientRect();
     const collapse=motionAllowed()?surface.animate([{opacity:1,transform:'translate(0,0) scale(1)',borderRadius:'0px'},{opacity:0,transform:`translate(${target.left+target.width/2-box.width/2}px,${target.top+target.height/2-box.height/2}px) scale(${target.width/box.width},${target.height/box.height})`,borderRadius:'28px'}],{duration:480,easing:'cubic-bezier(.32,0,.18,1)',fill:'both'}):null;
     collapse?.finished.then(()=>surface.remove(),()=>surface.remove());
-    browser.close();motion?.cancel();panel.insertBefore(list,panel.querySelector('.library-settings'));
+    browser.close();document.dispatchEvent(new Event('library-tour-closed'));motion?.cancel();panel.insertBefore(list,panel.querySelector('.library-settings'));
     document.body.classList.remove('library-expanded');for(const card of list.children)card.hidden=false;list.scrollLeft=deckScroll;
     transfer=Promise.all([flyCards(origins),collapse?.finished.catch(()=>{})]);await transfer;surface.remove();
     closing=false;expand.disabled=false;expand.focus({preventScroll:true});
@@ -161,9 +172,10 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
     for(const card of list.children){card._deal?.cancel();card._deal=null;card.style.opacity='';}
     const origins=cardRects();
     browser.append(list);browser.querySelector('input').value='';document.body.classList.add('library-expanded');
-    browser.showModal();browser.querySelector('button').focus({preventScroll:true});
+    browser.showModal();document.dispatchEvent(new CustomEvent('library-tour-opened',{detail:{browser}}));browser.querySelector('button').focus({preventScroll:true});
     transfer=(async()=>{try{await Promise.all([flyCards(origins),animateBrowser(true)]);}finally{motion?.cancel();expanding=false;}})();await transfer;
   };
+  panel.tourOpen=async()=>{for(let n=0;n<220&&(reloading||closing);n++)await new Promise(r=>setTimeout(r,100));if(reloading||closing)throw Error('曲库仍在加载，请稍后重试');await expand.onclick();await transfer;return browser;};panel.tourClose=closeBrowser;
   browser.querySelector('button').onclick=closeBrowser;browser.addEventListener('cancel',event=>{event.preventDefault();closeBrowser();});browser.querySelector('input').oninput=event=>{const text=event.target.value.trim().toLowerCase();for(const card of list.children)card.hidden=!card.querySelector('.library-title')?.textContent.toLowerCase().includes(text);};
 
   function progressMarkup(button,item){
@@ -220,7 +232,7 @@ staff.hidden=item.status!=='running';}
   }
   let reloading=false;
   async function reload(){
-    if(reloading)return;if(expanding||closing)await transfer;reloading=true;refresh.disabled=true;
+    if(reloading||opening)return;reloading=true;refresh.disabled=true;await transfer;
     scoreCache.clear();if(pollTimer)clearTimeout(pollTimer);
     const leaving=[...list.querySelectorAll('.library-score')];
     if(!matchMedia('(prefers-reduced-motion: reduce)').matches)await Promise.all(leaving.map((card,index)=>{card._deal?.cancel();card.style.opacity='';return card.animate([{opacity:1,translate:'0px 0px',rotate:'0deg',scale:'1'},{opacity:0,translate:`${-innerWidth-card.getBoundingClientRect().right}px -35px`,rotate:'18deg',scale:'.25'}],{duration:360,delay:Math.min(index*28,350),easing:'cubic-bezier(.55,.05,.9,.4)',fill:'forwards'}).finished.catch(()=>{});}));
@@ -236,7 +248,8 @@ staff.hidden=item.status!=='running';}
         const staff=document.createElement('span');staff.className='recognition-staff';staff.innerHTML='<i></i><i></i><i></i><i></i><i></i>';staff.hidden=item.status!=='running';
         button.append(title,detail,staff);progressMarkup(button,item);
         button.onclick=async()=>{
-          if(opening||closing||expanding)return;opening=true;button.disabled=true;button.setAttribute('aria-busy','true');
+          if(opening||closing||expanding||reloading||cardMotion)return;opening=true;button.disabled=true;button.setAttribute('aria-busy','true');
+          let tourError=null;document.dispatchEvent(new CustomEvent('library-tour-loading',{detail:{id:item.id}}));
           document.body.dataset.currentScoreId=item.id;
           if(item.ready)void prefetchScore(item.id);
           try{
@@ -249,12 +262,12 @@ staff.hidden=item.status!=='running';}
             else if(item.hasPdf&&openPending){await openPending(item);}
             else if(item.hasPdf){const pdf=await fetch(`/api/scores/${item.id}/pdf`);if(!pdf.ok)throw Error('原谱读取失败');await openPdf(new File([await pdf.blob()],`${cleanText(item.title)||'云曲谱'}.pdf`,{type:'application/pdf'}));}
             else {document.dispatchEvent(new Event('show-task-center'));detail.textContent='正在后台转录';}
-          }catch(e){detail.textContent=e.message;}finally{await dismissLoader();button.disabled=false;button.removeAttribute('aria-busy');opening=false;}
+          }catch(e){tourError=e.message;detail.textContent=e.message;}finally{await dismissLoader();button.disabled=false;button.removeAttribute('aria-busy');opening=false;document.dispatchEvent(new CustomEvent('library-tour-selected',{detail:{id:item.id,ready:button.dataset.ready==='true',error:tourError}}));}
         };
         button.onpointerenter=()=>{if(item.ready)void prefetchScore(item.id);};list.append(button);void hydrateCover(item,button);
       }
       if(!data.scores.length)list.textContent='暂无琴谱';
-      else {const mode=browser.open?'full':'deck';stageCards(mode);requestAnimationFrame(()=>animateCards(mode));}
+      else {const mode=browser.open?'full':'deck';stageCards(mode);await animateCards(mode);}
       pollTimer=setTimeout(pollRecognition,4000);
     }catch{list.textContent='琴谱库暂不可用，点击刷新重试。';}
     finally{clearTimeout(requestTimeout);reloading=false;refresh.disabled=false;list.setAttribute('aria-busy','false');}

@@ -1,4 +1,21 @@
 import { cleanText } from './library.js';
+// OSMD 是 1.1 MB 的脚本，而首屏根本用不到它 —— 只有真正要排版谱面时才需要。
+// 它原先在 index.html 里同步加载，光这一个就占了首屏传输量的七成，还阻塞渲染。
+// 改成按需：第一次排谱时才插入 script，之后复用 window 上的全局对象。
+let osmdLoader = null;
+function ensureOsmd() {
+  if (globalThis.opensheetmusicdisplay?.OpenSheetMusicDisplay) return Promise.resolve();
+  if (!osmdLoader) {
+    osmdLoader = new Promise((resolve, reject) => {
+      const tag = document.createElement('script');
+      tag.src = '/vendor/opensheetmusicdisplay.min.js';
+      tag.onload = () => resolve();
+      tag.onerror = () => { osmdLoader = null; reject(Error('乐谱排版引擎加载失败')); };
+      document.head.append(tag);
+    });
+  }
+  return osmdLoader;
+}
 // A container that is still hidden reports clientWidth 0. Measuring the
 // container therefore collapsed a whole score into a 260 px strip whenever the
 // engraving happened before the view switched over — which is exactly what
@@ -40,6 +57,7 @@ async function renderSingleEngraved(container, score) {
     document.body.append(host);
   }
   let stale = false, failure = null;
+  await ensureOsmd();
   try {
     const osmd = new opensheetmusicdisplay.OpenSheetMusicDisplay(sheet, {
       backend: 'svg', autoResize: false, drawTitle: !score.measureOffset,

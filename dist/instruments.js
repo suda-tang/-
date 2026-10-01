@@ -2,7 +2,8 @@ export const INSTRUMENTS=[['salamander','音乐会钢琴'],['acoustic_grand_pian
 const cachesByContext=new WeakMap();
 const MIRRORS=globalThis.SOUND_FONT_MIRRORS||['https://cdn.jsdelivr.net/gh/super-tang/piano-soundfonts@main/instruments'];
 async function fetchAudio(url){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10000);try{const response=await fetch(url,{signal:controller.signal,cache:'force-cache'});if(!response.ok)throw Error(String(response.status));return response.arrayBuffer();}finally{clearTimeout(timer);}}
-export const rootFor=(midi,name)=>{if(name==='drums')return midi;const bounds=name==='contrabass'?[27,48]:[21,108];return Math.max(bounds[0],Math.min(bounds[1],21+Math.round((midi-21)/3)*3));};
+const DRUM_ROOTS=[36,38,42,43,46,47,49,50,51];
+export const rootFor=(midi,name)=>{if(name==='drums')return DRUM_ROOTS.reduce((best,root)=>Math.abs(root-midi)<Math.abs(best-midi)?root:best,DRUM_ROOTS[0]);const bounds=name==='contrabass'?[27,48]:[21,108];return Math.max(bounds[0],Math.min(bounds[1],21+Math.round((midi-21)/3)*3));};
 export async function loadInstrument(context,name,notes,progress=()=>{}){
  if(name!=='drums'&&!INSTRUMENTS.some(x=>x[0]===name))throw Error('未知音源');
  let cache=cachesByContext.get(context);if(!cache){cache=new Map();cachesByContext.set(context,cache);}

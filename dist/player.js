@@ -11,7 +11,7 @@ const BANK_GAIN=4,DRUM_GAIN=2.4;
 export const sourceGain=name=>name==='drums'?DRUM_GAIN:name==='salamander'?1:BANK_GAIN;
 export class ScorePlayer {
   constructor({onUpdate=()=>{},onEnd=()=>{},onLoad=()=>{},onPulse=()=>{}}={}) {
-    Object.assign(this,{onUpdate,onEnd,onLoad,onPulse,bpm:80,beat:0,playing:false,score:null,next:0,voices:new Set(),context:null,generation:0,expressive:true,instrument:"salamander",arrangement:"original",instrumentBanks:new Map()});
+    Object.assign(this,{onUpdate,onEnd,onLoad,onPulse,bpm:80,beat:0,playing:false,score:null,next:0,voices:new Set(),context:null,generation:0,expressive:true,instrument:"salamander",arrangement:"original",soloPart:"all",enabledParts:new Set(),instrumentBanks:new Map()});
   }
   async unlock() {
     try{if(navigator.audioSession)navigator.audioSession.type='playback';}catch{}
@@ -36,13 +36,15 @@ export class ScorePlayer {
     if(this.context.state!=='running')throw Error('请点击“自动演奏”以允许浏览器播放声音');
   }
   load(score) {
-    this.stop();this.originalScore=score;this.performanceCache??=new WeakMap();let versions=this.performanceCache.get(score);if(!versions){versions=new Map();this.performanceCache.set(score,versions);}const key=this.arrangement+':'+this.instrument;if(!versions.has(key)){versions.set(key,preparePerformance(score.generated?score:arrangeScore(score,this.arrangement,this.instrument)));if(versions.size>4)versions.delete(versions.keys().next().value);}this.score=versions.get(key);this.samples=null;this.samplePromise=null;
+    this.stop();this.originalScore=score;this.performanceCache??=new WeakMap();let versions=this.performanceCache.get(score);if(!versions){versions=new Map();this.performanceCache.set(score,versions);}const key=this.arrangement+':'+this.instrument;if(!versions.has(key)){versions.set(key,preparePerformance(score.generated?score:arrangeScore(score,this.arrangement,this.instrument)));if(versions.size>4)versions.delete(versions.keys().next().value);}const prepared=versions.get(key);const filter=note=>this.soloPart!=='all'?note.part===this.soloPart:(!score.midiSource||!this.enabledParts.size||this.enabledParts.has(note.part));this.score={...prepared,events:prepared.events.map(event=>({...event,notes:event.notes.filter(filter)})).filter(event=>event.notes.length)};const partCount=score.midiSource&&this.soloPart==='all'?new Set(this.score.events.flatMap(event=>event.notes.map(note=>note.part))).size:1;this.mixGain=partCount>1?Math.max(.28,1/Math.sqrt(partCount)):1;this.samples=null;this.samplePromise=null;
     this.totalBeats=Math.max(score.totalBeats||0,...score.events.flatMap(e=>e.notes.map(n=>e.beat+n.duration)));
   }
   displayIndex(beat){const events=this.originalScore.events;let low=0,high=events.length;while(low<high){const mid=(low+high)>>1;if(events[mid].beat<=beat+.005)low=mid+1;else high=mid;}return Math.max(0,low-1);}
   setModelPerformance(result){this.modelPerformance={source:this.originalScore,...result};}
   setInstrument(name){const wasPlaying=this.playing,position=this.beat;this.instrument=name;if(this.originalScore){this.load(this.originalScore);this.restorePosition(position,wasPlaying);}}
   setArrangement(mode){const wasPlaying=this.playing,position=this.beat;this.arrangement=mode;if(this.originalScore){this.load(this.originalScore);this.restorePosition(position,wasPlaying);}}
+  setSoloPart(part){const wasPlaying=this.playing,position=this.beat;this.soloPart=part;if(this.originalScore){this.load(this.originalScore);this.restorePosition(position,wasPlaying);}}
+  setPartEnabled(part,enabled){const wasPlaying=this.playing,position=this.beat;if(enabled)this.enabledParts.add(part);else this.enabledParts.delete(part);if(this.originalScore&&this.soloPart==='all'){this.load(this.originalScore);this.restorePosition(position,wasPlaying);}}
   restorePosition(position,wasPlaying=false){if(!this.originalScore?.events?.length)return;this.pause();this.beat=Math.max(0,Math.min(this.totalBeats,Number(position)||0));this.next=this.score.events.findIndex(e=>e.beat>=this.beat-.0001);if(this.next<0)this.next=this.score.events.length;this.onUpdate({beat:this.beat,index:this.displayIndex(this.beat),totalBeats:this.totalBeats,playing:false});if(wasPlaying)void this.play();}
   setTempo(bpm) {
     const value=Number(bpm);if(!Number.isFinite(value)||value<30||value>240)throw Error('速度应为 30–240 BPM');
@@ -99,7 +101,7 @@ export class ScorePlayer {
     // narrow band — velocity .3 and .95 came out within 2 dB of each other, so
     // written and modelled dynamics were inaudible. A low floor with a slightly
     // steeper curve restores roughly 14 dB between ppp and fff.
-    const level=(.08+Math.pow(velocity,1.5)*1.15)*(note.gainScale||1)*sourceGain(instrument);
+    const level=(.08+Math.pow(velocity,1.5)*1.15)*(note.gainScale||1)*sourceGain(instrument)*(this.mixGain||1);
     const sustained=/violin|viola|cello|contrabass|string_ensemble|flute|clarinet|oboe|bassoon|horn|trumpet|trombone/.test(instrument);
     const attack=sustained?.035:.004;
     gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(level,now+attack);

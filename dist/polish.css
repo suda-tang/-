@@ -21,7 +21,17 @@ html{scrollbar-gutter:stable}
 .research-link{font:12px system-ui;color:#873d36;text-decoration:none;padding:8px 12px;border:1px solid #bca8a150;border-radius:18px;white-space:nowrap}
 .guided-tour{position:fixed;bottom:20px;right:20px;z-index:9000;width:min(380px,calc(100vw - 40px));padding:22px;background:#fffaf5f5;border:1px solid #d9c7be;border-radius:20px;box-shadow:0 12px 50px #38242124;font:14px/1.8 system-ui;backdrop-filter:blur(18px)}
 .guided-tour p{color:#75665e}.guided-tour>div{display:flex;gap:8px;flex-wrap:wrap}.guided-tour button{font:12px system-ui;border:1px solid #d9c7be;border-radius:10px;padding:9px;background:#fffaf5;color:#753f36}
-.guided-tour .tour-greeting{font-size:12px;color:#995b50;margin-bottom:10px}.guided-tour small{display:block;color:#8b7a71;font-size:11px}.guided-tour .tour-time{height:2px;background:#e8dad4;margin:12px 0;overflow:hidden}.tour-time i{display:block;width:100%;height:100%;background:#91534a;transform:scaleX(0);transform-origin:left}.tour-highlight{outline:2px solid #a95e4d!important;outline-offset:6px;border-radius:16px;scroll-margin-top:90px}.has-guided-tour{padding-bottom:360px!important}
+.guided-tour .tour-greeting{font-size:12px;color:#995b50;margin-bottom:10px}.guided-tour small{display:block;color:#8b7a71;font-size:11px}.guided-tour .tour-time{height:2px;background:#e8dad4;margin:12px 0;overflow:hidden}.tour-time i{display:block;width:100%;height:100%;background:#91534a;transform:scaleX(0);transform-origin:left}.tour-focus{scroll-margin-top:90px}.tour-ring{position:absolute;z-index:8998;pointer-events:none;border:2px solid #a95e4d;box-shadow:0 0 0 1px #fffaf5,0 12px 30px #3824211f;opacity:0;transition:opacity .35s ease}.tour-ring.is-on{opacity:1}.tour-arrow{position:fixed;top:0;left:0;width:100%;height:100%;z-index:8999;pointer-events:none;overflow:visible}.tour-arrow path{fill:none;stroke:#a95e4d;stroke-width:2;stroke-linecap:round}.tour-arrow marker path{stroke:none}.tour-arrow[hidden],.tour-ring[hidden]{display:none}.guided-tour .tour-copy{overflow-wrap:anywhere}.has-guided-tour{padding-bottom:360px!important}
 @media(max-width:600px){.guided-tour{bottom:10px;right:12px;width:calc(100vw - 24px);padding:14px 16px;font-size:13px;line-height:1.65;max-height:44vh;overflow:auto}.guided-tour p{margin:8px 0}.guided-tour>strong{font-size:14px}.guided-tour button{padding:8px}.has-guided-tour{padding-bottom:48vh!important}}
 @media(max-width:600px){.research-link{font-size:11px;padding:6px 8px}.top{flex-wrap:wrap;gap:8px}}
-@media(prefers-reduced-motion:reduce){#startup,.studio button,.studio summary{transition:none}.boot-mark:after,.boot-ready .workspace{animation:none}}
+@media(prefers-reduced-motion:reduce){#startup,.studio button,.studio summary{transition:none}.boot-mark:after,.boot-ready .workspace{animation:none}.tour-ring{transition:none}}
+
+/* 校徽与外圈一起淡入：外圈是 CSS 生成的、立刻就有，校徽却要下载完才显示，
+   不统一控制就会先看到一个空转的圈、校徽随后才补上来。 */
+#startup .boot-mark{opacity:0;transition:opacity .3s ease}
+#startup .boot-mark.is-ready{opacity:1}
+/* 百分比进度条 */
+#startup .boot-progress{width:220px;height:4px;margin-top:-10px;border-radius:999px;background:#af40352b;overflow:hidden}
+#startup .boot-bar{display:block;height:100%;width:0;border-radius:999px;background:#a3362c;transition:width .25s ease}
+#startup .boot-percent{margin-top:-12px;font-size:12px;letter-spacing:.08em;color:#8a6a66;font-variant-numeric:tabular-nums}
+@media(prefers-reduced-motion:reduce){#startup .boot-mark,#startup .boot-bar{transition:none}}

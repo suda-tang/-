@@ -1,5 +1,26 @@
 # WorkBuddy 项目交接说明
 
+## 2026-10-02 更新
+
+- 启动脚本已抽成外链：`dist/index.html` 里那段 122 行的内联副本已删除，改为
+  `<script src="/startup.js" onerror="...">`（带 404 兜底）。**以后改启动逻辑只改
+  `dist/startup.js`，不要再往 `index.html` 里塞内联副本** —— 两边各留一份会再次分叉。
+  `tour-arrival` 那一行在 `startup.js` 第 4 行，删掉会坏掉导览开场
+  （`library.js` 与 `tour-presentation.css/js` 都消费它）。
+- 新增回归脚本 `node scripts/check-startup-external.cjs`（会启动 msedge，与其他
+  check 脚本一样必须**串行**跑）。它带阳性对照：把 `/startup.js` 拦成 404 后断言
+  页面不会出现 `boot-ready`，以此证明收尾逻辑确实由该文件负责。
+- 坑：HTML 内联事件处理器里写裸 `addEventListener(...)` 会绑到 `<script>` 元素自己身上
+  （内联 handler 作用域链中元素优先于 document/window），`DOMContentLoaded` 因此永不触发。
+  必须显式写 `document.addEventListener(...)`。
+- `dist/` 下有 4 个页面：`index.html`、`voice-record.html`、`worker.html`、`research.html`。
+  判断某个 js 是不是孤儿模块，必须扫**全部** `dist/*.html`，只 grep `*.js` 和 `index.html`
+  会误判（`voice-record.js` 就是这样被误判成孤儿的，它其实由 `voice-record.html` 加载）。
+- 语音线已完整接线，不是半成品：`voice-record.html` 是录音入口，`mentor-voice.js`
+  负责导师素材分片上传与试听，服务端 `/api/voice-reference` 未带密钥时返回 403。
+- 已知既有失败：`scripts/check-auto-tour.cjs` 跑不过。已对照验证 —— 把 `index.html`
+  还原成 git 的 HEAD 版本再跑同样失败、且失败更早，属导览线自身的 WIP，不是本轮改动引入。
+
 ## 2026-09-18 更新
 
 - 工作区现在由 `dist/workspace.js` 和 `dist/workspace.css` 分为曲库、演奏、改编、任务；旧 `mobile.js` 不再加载，勿重新启用重复 DOM 搬移。

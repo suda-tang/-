@@ -10,7 +10,7 @@ OUT=m.OUT
 GROUPS={
  '音乐/声音':['音乐','音频','语音','声学','乐器','music','audio','speech','acoustic'],
  '交互/媒体':['人机交互','多模态','多媒体','虚拟现实','交互设计','interactive','multimodal','multimedia','human-computer'],
- '学习/教育':['教育','教学','学习科学','学习分析','课程','learning analytics','education','pedagog'],
+ '学习/教育':['教育学','教育技术','音乐教育','教学设计','学习科学','学习分析','教学评价','课程与教学','教师教育','教育心理','智慧教育','智能教育','教育测量','教育评价','教育研究','教育史','比较教育','学前教育','特殊教育','高等教育','基础教育','教育公平','教育政策','教育理论','learning analytics','educational technology','pedagog'],
  '心理/认知':['心理','认知','脑科学','情绪','情感','cognit','psycholog','affect'],
  '生成/智能':['人工智能','机器学习','深度学习','生成','模式识别','machine learning','artificial intelligence','generative'],
  '网络/同步':['计算机网络','分布式','实时系统','网络通信','wireless','distributed','real-time'],
@@ -21,7 +21,7 @@ def enrich(row):
   doc=m.soup(row['profile'])
   for tag in doc.select('script,style,nav,header,footer'):tag.decompose()
   title=doc.title.get_text(' ',strip=True) if doc.title else ''
-  content=doc.select_one('.v_news_content,.wp_articlecontent,.article-content,.article_content,#vsb_content,.teacher-info,.teacher_content')
+  content=doc.select_one('.v_news_content,.wp_articlecontent,.article-content,.article_content,.arti_content,#vsb_content,.teacher-info,.teacher_content,article')
   text=(content or doc).get_text(' ',strip=True);text=re.sub(r'\s+',' ',text)
   record['profile_title']=title
   if re.search('txjzg|c44296|c2644|c2645|ltx|tuixiu',row['profile'],re.I) or re.search('永远怀念|退休教师|离退休教师|已退休|因病逝世|不幸逝世',title+' '+text[:1200]):
@@ -34,8 +34,12 @@ def enrich(row):
   doctoral=re.search(r'.{0,35}(?:博士研究生导师|博士生导师|博导).{0,65}',text)
   record['doctoral_evidence']=doctoral.group() if doctoral else ''
   # Prefer research sections, avoiding navigation and unrelated page links.
-  marker=re.search('研究方向|研究领域|研究兴趣|科研方向|Research Interests|Research Areas',text,re.I)
+  markers=list(re.finditer('研究方向|研究领域|研究兴趣|科研方向|Research Interests|Research Areas',text,re.I))
+  marker=markers[-1] if markers else None
   relevant=text[marker.start():marker.start()+2400] if marker else text[:6000]
+  relevant=re.sub('教育背景.{0,220}?(?=工作经历|研究|社会兼职|$)','',relevant)
+  for noise in ['高等教育出版社','基础教育出版社','学习教育','非学历教育','教授课程','教育部','教学科研']:
+   relevant=relevant.replace(noise,'')
   groups=[g for g,words in GROUPS.items() if any(w in relevant.lower() for w in words)]
   record['matches']='；'.join(groups)
   snippets=[]
@@ -60,7 +64,7 @@ def main():
  rows=json.loads((OUT/'leads.json').read_text(encoding='utf-8'));data=[]
  existing=OUT/'profiles.json'
  previous={r['profile']:r for r in json.loads(existing.read_text(encoding='utf-8'))} if existing.exists() else {}
- def resume(row):return previous.get(row['profile']) or enrich(row)
+ def resume(row):return enrich(row) if '--refresh' in __import__('sys').argv else previous.get(row['profile']) or enrich(row)
  with cf.ThreadPoolExecutor(max_workers=8) as pool:
   for i,row in enumerate(pool.map(resume,rows)):
    data.append(row)
