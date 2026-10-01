@@ -113,4 +113,25 @@ grep 了 `dist/*.js` 和 `dist/index.html`，**漏了其他 HTML**。而 `dist/`
 （HEAD 版连 `.tour-home-intro.is-visible` 都没等到，本轮版本至少走到了子元素）。
 即导览线本身还是 WIP，与本次改动无关。
 
-**本轮没做**：未 commit（等你确认）、未改任何 Python（本次是静态文件，不需要重启服务）。
+**本轮没做**：未改任何 Python（本次是静态文件，不需要重启服务）。
+
+## 8. 导览线：6 个脚本由红转绿（2026-10-02 第二轮）
+
+`check-auto-tour` / `check-tour-home` / `check-presentation-tour` / `check-tour-header` /
+`check-tour-selection` / `check-narration-opening` 原本全跑不过。**产品代码没坏，是脚本脱离了实现**
+——本轮只改脚本，没动导览功能。三类过时原因：
+
+1. **选择器不唯一**：`.tour-home-intro button` 现在匹配 **6 个**元素。开场页加了旁白播放列表
+   （3 张卡片的"试听" + "连续播放全部" + "直接看演示" + 主按钮），Playwright strict mode 直接报错。
+2. **按钮语义变了**：主按钮从「往下看看 ↓」变成「播放前言并开始演示」。点它会先播音频，
+   **不滚动、不推进导览**；要进入导览必须点「直接看演示」（触发 `finish()` 让
+   `openingNarration` 的 Promise 落地）。headless 下音频播不了，所以脚本一律走"直接看演示"。
+3. **文案断言过时**：导览台词已改写为异地 MIDI 合奏 / ICMC 那条线，
+   旧的 `/毫秒|时间码/`、`/虚拟合奏/` 都不再出现（现文是"网络合奏"）。
+
+修完后全部 PASS（含 1440 / 390 / 844×390 多视口），`check-auto-tour.cjs` 已复跑一次确认不是偶发。
+
+**仍是既有失败（已用对照证明，非本轮引入）**：`scripts/check-full-engraved.cjs` 卡在
+`#sample-button` 不可见。把 `index.html` + `startup.js` 还原到 Codex 基线 `ec712bd` 重跑，
+同样失败在同一步。成因与交接文档 2026-09-28 记的那条一致：工作区改成多面板后，
+示例谱按钮被搬进默认折叠区，未切面板/未展开时元素被裁剪。要修得让脚本先切到「曲库」面板。
