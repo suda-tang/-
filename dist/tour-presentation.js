@@ -1,4 +1,4 @@
-import {openingNarration} from './narration-opening.js?v=playlist3';
+import {openingNarration} from './narration-opening.js?v=playlist4';
 export function pinTourHeader(){
  const header=document.querySelector('.top');if(!header)return()=>{};
  const spacer=document.createElement('div');spacer.className='tour-header-space';header.before(spacer);

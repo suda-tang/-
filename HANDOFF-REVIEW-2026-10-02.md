@@ -131,6 +131,23 @@ grep 了 `dist/*.js` 和 `dist/index.html`，**漏了其他 HTML**。而 `dist/`
 
 修完后全部 PASS（含 1440 / 390 / 844×390 多视口），`check-auto-tour.cjs` 已复跑一次确认不是偶发。
 
+## 9. 抢修：整站打不开，进度条卡在 92%（2026-10-02 晚）
+
+唐老师反馈"打不开了，卡在 92%"。定位与修复：
+
+- **92% 是 `startup.js` 里 `creep` 的推进上限** —— 说明启动脚本在跑，但 `workspace-ready`
+  没来。现场证据：`html` 停在 `booting`、工作区导航面板 0 个、`#startup` 不消失，
+  pageerror 只有一条：**`Unexpected token 'catch'`**。
+- **根因**：`dist/narration-opening.js` 第 20 行少写一个 `}`（05:02 的编辑把单语句 `if`
+  改成 `{}` 块，结尾没同步补括号），`try` 没闭合 → `catch` 成孤立 token。
+  因为它是 ES module，**一个文件语法错 = 整条 import 链静默失败**，`workspace.js`
+  根本没执行 —— 表现不是报错弹窗，而是整页静默卡死。
+- 修好后现场：`boot-ready`、遮罩移除、4 个工作区面板、0 报错。
+- 补了 `scripts/check-frontend-syntax.cjs`（秒级扫 `dist/` 全部脚本语法，不启浏览器），
+  并做了**阳性对照**：把错误放回 → 报出 `narration-opening.js:20`；恢复 → 34 个文件全 PASS。
+- 顺带确认：`dist/narration/` 现在已有 `mentor-context.m4a` 与 `tour.json`
+  （05:02 之后补齐的，早上那份快照里还没有），音频资产不缺。
+
 **仍是既有失败（已用对照证明，非本轮引入）**：`scripts/check-full-engraved.cjs` 卡在
 `#sample-button` 不可见。把 `index.html` + `startup.js` 还原到 Codex 基线 `ec712bd` 重跑，
 同样失败在同一步。成因与交接文档 2026-09-28 记的那条一致：工作区改成多面板后，

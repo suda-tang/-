@@ -31,6 +31,16 @@
 - `scripts/check-full-engraved.cjs` 仍是既有失败（卡在 `#sample-button` 不可见，
   已用 `ec712bd` 对照证明）。要修需让脚本先切到「曲库」面板再展开折叠区，
   与 2026-09-28 记录的那条是同一类问题。
+- **「进度条卡在 92%」的含义**：92% 是 `startup.js` 里 `creep` 推进的上限，
+  说明启动脚本自己在跑，但 **`workspace-ready` 一直没来**、工作区没初始化。
+  最常见的原因不是服务挂了，而是**某个 ES module 语法错误**让整条 import 链静默失败
+  （`workspace.js` 压根没执行）。排查顺序：
+  1. 先跑 `node scripts/check-frontend-syntax.cjs` —— 几秒扫完 `dist/` 全部脚本；
+  2. 再看浏览器 console 里的 pageerror（页面不会弹窗，只会静默卡住）。
+  2026-10-02 就栽在这：`narration-opening.js` 第 20 行 `try` 块少写一个 `}`，
+  `catch` 成了孤立 token，整站打不开。
+- 新增 `scripts/check-frontend-syntax.cjs`（不启浏览器，秒级）。**建议在跑任何浏览器类
+  check 之前先跑它**，能提前拦掉"整站白屏"这类问题；已做阳性对照（故意放回错误能报出文件名和行号）。
 
 ## 2026-09-18 更新
 

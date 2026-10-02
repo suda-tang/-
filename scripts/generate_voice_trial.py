@@ -25,7 +25,13 @@ def create_tts() -> sherpa_onnx.OfflineTts:
     # espeak-ng resolves this path inside a native runtime.  Forward slashes
     # keep the Windows build from falling back to its Unix default path.
     def native_path(path: Path) -> str:
-        return path.resolve().as_posix()
+        # The Windows sherpa build resolves ZipVoice's eSpeak directory
+        # correctly from a relative POSIX path.  Passing C:/... can fall back
+        # to its Unix default (/usr/share/espeak-ng-data) in older bindings.
+        try:
+            return path.resolve().relative_to(ROOT.resolve()).as_posix()
+        except ValueError:
+            return path.resolve().as_posix()
 
     config = sherpa_onnx.OfflineTtsConfig(
         model=sherpa_onnx.OfflineTtsModelConfig(

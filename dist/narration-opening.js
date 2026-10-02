@@ -11,13 +11,13 @@ export async function openingNarration(scene) {
  const playAll=document.createElement('button'),skip=document.createElement('button');playAll.type='button';skip.type='button';playAll.textContent='连续播放全部';skip.textContent='直接看演示';actions.append(playAll,skip);controls.append(heading,list,audio,actions);host.append(controls);
  const tracks=[
   {src:'/narration/mentor-preface.m4a',speaker:'导师前言',label:'项目从哪里开始',text:'老师您好，谢谢您抽出时间来看唐秋鸣的项目。秋鸣是苏州大学音乐学院音乐教育专业钢琴方向的硕士研究生。进入操作页面以前，我先介绍一下这项工作的来由，以及接下来值得留意的几个地方。他最早关注的是异地合奏：人不在同一间琴房，怎样还能一起排练？对演奏者来说，声音能够传过来只是起点，更难的是彼此能不能合上，能不能听着对方往下走。'},
-  {src:'/narration/mentor-welcome.m4a',speaker:'导师介绍',label:'这套系统在做什么',text:'围绕这个问题，秋鸣做过基于时间码的异地数字乐器合奏工作，也在继续把这些对演奏体验的观察带到钢琴学习中。接下来这套工作区会从曲谱、试听、练习和改编几个环节展开。已经做出来的功能可以直接操作，仍在推进的问题也会如实保留。'},
+  {src:'/narration/mentor-context.m4a',speaker:'导师介绍',label:'从异地合奏到钢琴学习',text:'围绕这个问题，秋鸣做过基于时间码的异地数字乐器合奏工作，尝试处理不同地点的时钟同步和网络延迟。今天展示的钢琴学习网页，是与这项工作相关的另一套原型。两者不是同一个系统，不过，它们关心的都是技术进入音乐活动以后，怎样照顾实际的演奏体验。请您把今天的展示看作一次对研究过程的介绍。哪些已经做出来，哪些仍需要验证，演示中会分开说明。'},
   {src:'/narration/tang-introduction.m4a',speaker:'唐秋鸣',label:'演示从一首作品开始',text:'老师您好，我是唐秋鸣，现在在苏州大学学习音乐教育，主项是钢琴。我平时弹琴，也给人做伴奏，所以最早想做这个项目，是希望大家不在同一间琴房，也能一起排练。您不用急着把所有功能都看完，我们先选一首熟悉的作品，听一小段，再慢慢往下看。'}
  ];
  let chapters=[],generation=null;
  try{const r=await fetch('/narration/mentor-script.json');if(r.ok)chapters=await r.json();}catch{}
  try{const r=await fetch('/narration/generation.json');if(r.ok)generation=await r.json();}catch{}
- try{const r=await fetch('/narration/tour.json');if(r.ok){const generated=await r.json();const mentor=chapters.map(c=>generated.find(t=>t.id===c.id&&t.text===c.text));if(mentor.length&&mentor.every(Boolean))tracks.splice(0,tracks.length,...mentor.map((t,i)=>({src:t.url,speaker:'导师前言与项目介绍',label:`第 ${i+1} 节`,text:t.text})));}}catch{}
+ try{const r=await fetch('/narration/tour.json');if(r.ok){const generated=await r.json();const mentor=chapters.map(c=>generated.find(t=>t.id===c.id&&t.text===c.text)).filter(Boolean);if(mentor.length){const mentorTracks=mentor.map((t,i)=>({src:t.url,speaker:'导师前言与项目介绍',label:chapters.find(c=>c.id===t.id)?.title||`第 ${i+1} 节`,text:t.text}));const personal=tracks.find(track=>track.speaker==='唐秋鸣');tracks.splice(0,tracks.length,...mentorTracks,personal);}}}catch{}
  const mentorReady=tracks.filter(track=>track.speaker.includes('导师')).length;
  const mentorTotal=chapters.length||mentorReady;
  const pendingMentor=Math.max(0,mentorTotal-mentorReady);
