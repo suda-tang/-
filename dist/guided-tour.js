@@ -1,4 +1,5 @@
 import {presentWelcome,researchFor,glideTo,pinTourHeader} from './tour-presentation.js';
+import {registerTourEnglish} from './tour-english.js';
 // 项目导览：缓缓移到目标 → 按目标圆角画高亮框 → 文字与人声同步 → 箭头指向目标。
 // 语音走浏览器自带的 speechSynthesis，不需要联网；被浏览器拦下时退回定时讲解。
 export async function initTour(){
@@ -29,6 +30,7 @@ export async function initTour(){
  if(visit){steps[0][3]=`${mentor}老师，这次我想先围绕${visit.focus}跟您聊聊。${opening[direction]||opening.ensemble}`;steps[steps.length-1][3]=visit.question||steps[steps.length-1][3];}
  if(research){steps[0][3]=research.opening;steps[0][2]=research.heading||'我想向您请教的问题';if(research.play)steps[2][3]=research.play;if(research.arrange)steps[4][3]=research.arrange;steps[6][3]=research.question;}
  steps.splice(1,0,['library','.library-list','请在全屏曲库里选一首','这里请您挑一首熟悉的作品。熟悉的旋律更容易听出哪里不对，我们就沿着这首曲子往下看，不必每换一个功能就换一份材料。\n\n可以在上面搜索歌名，点卡片后等它打开；我会等作品载入，再接着介绍。若想先了解整体，也可以跳过选曲。']);
+ if(!visit&&!research)registerTourEnglish(steps,direction);
  let index=Math.max(0,steps.findIndex(s=>s[0]===params.get('panel'))),automatic=params.get('auto')!=='0',timer=0,version=0,closed=false,highlighted=null,revealFrame=0,boundaryChars=0,stepDuration=0,ringRadius=20;
  let voiceOn=false,voiceStarted=false,voiceBlocked=false,voiceAuto=false,voiceWaiting=false,utter=null;
  let recorded=null,recordedTracks=[];

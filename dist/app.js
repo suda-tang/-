@@ -724,7 +724,7 @@ document.addEventListener('click',event=>{
 
 const toneSelect=$('instrument-select');for(const [id,label] of INSTRUMENTS){const option=document.createElement('option');option.value=id;option.textContent=label;toneSelect.append(option);}
 toneSelect.onchange=()=>{player.setInstrument(toneSelect.value);controls();$('play-status').textContent='音源已选择，播放时加载';};
-$('part-solo-select').onchange=event=>{player.setSoloPart(event.target.value);controls();$('play-status').textContent=event.target.selectedOptions[0]?.textContent==='全部乐器'?'合奏已选择':'单独试听 '+(event.target.selectedOptions[0]?.textContent||'');};
+$('part-solo-select').onchange=event=>{player.setSoloPart(event.target.value);controls();$('play-status').textContent=event.target.value==='all'?'合奏已选择':'单独试听 '+(event.target.selectedOptions[0]?.textContent||'');};
 $('part-mix').onchange=event=>{const input=event.target;if(!(input instanceof HTMLInputElement)||!input.dataset.part)return;$('part-solo-select').value='all';player.setSoloPart('all');player.setPartEnabled(input.dataset.part,input.checked);$('play-status').textContent=input.checked?`已加入${input.nextSibling?.textContent||'该乐器'}试听`:`已关闭${input.nextSibling?.textContent||'该乐器'}`;controls();};
 let arrangementRequest=0;
 

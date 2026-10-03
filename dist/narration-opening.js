@@ -1,3 +1,4 @@
+import {attachNarrationAvatar} from './narration-avatar.js';
 // Only completed presentation audio is published; reference uploads stay private.
 export async function openingNarration(scene) {
  const caption=scene.querySelector('.premiere-caption'),start=scene.querySelector('button'),host=scene.querySelector('.home-intro-content');
@@ -7,6 +8,7 @@ export async function openingNarration(scene) {
  const status=document.createElement('p');status.className='narration-status';status.setAttribute('aria-live','polite');heading.append(title,status);
  const list=document.createElement('div');list.className='narration-list';
  const audio=document.createElement('audio');audio.className='narration-audio';audio.controls=true;audio.preload='metadata';audio.setAttribute('playsinline','');
+ const disposeAvatar=attachNarrationAvatar(controls,audio);
  const actions=document.createElement('div');actions.className='narration-actions';
  const playAll=document.createElement('button'),skip=document.createElement('button');playAll.type='button';skip.type='button';playAll.textContent='连续播放全部';skip.textContent='直接看演示';actions.append(playAll,skip);controls.append(heading,list,audio,actions);host.append(controls);
  const tracks=[
@@ -29,7 +31,7 @@ export async function openingNarration(scene) {
  async function play(){try{await audio.play();cards[index].button.textContent='播放中';status.textContent=`正在播放：${tracks[index].speaker} · ${tracks[index].label}`;}catch{status.textContent='请点播放器的播放键开始试听。';}}
  renderCards();select(0,false);start.textContent='播放前言并开始演示';
  return new Promise(resolve=>{
-  function finish(){if(finished)return;finished=true;audio.pause();audio.removeAttribute('src');audio.load();audio.onended=null;start.onclick=null;skip.onclick=null;playAll.onclick=null;document.removeEventListener('visibilitychange',visibility);controls.remove();resolve();}
+  function finish(){if(finished)return;finished=true;disposeAvatar();audio.pause();audio.removeAttribute('src');audio.load();audio.onended=null;start.onclick=null;skip.onclick=null;playAll.onclick=null;document.removeEventListener('visibilitychange',visibility);controls.remove();resolve();}
   function visibility(){if(document.hidden)audio.pause();}
   start.onclick=()=>{continuous=true;select(0,true);playAll.textContent='正在连续播放';};
   playAll.onclick=()=>{if(continuous){continuous=false;audio.pause();playAll.textContent='继续连续播放';return;}continuous=true;playAll.textContent='正在连续播放';void play();};skip.onclick=finish;
