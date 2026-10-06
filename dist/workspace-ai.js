@@ -132,6 +132,11 @@ function snapshot(){
   // 于是 view 动作会被误判成「执行后界面没有变化」。
   viewMode:(()=>{const on=id=>document.querySelector('#'+id)?.classList.contains('active');return on('notation-button')?'engraved':on('simple-button')?'simple':on('original-button')?'pdf':on('daw-button')?'daw':'';})(),
   title:document.querySelector('#score-title')?.textContent||'',
+  // ★ 曲谱 id 才是唯一标识。重名曲谱（《知足》×2、《星海欢迎你》×3…）标题完全一样，
+  //   「换另一首《知足》」成功后 title 不变 → 只比 title 会把「真的换成了另一份」
+  //   误判成「执行后界面没有变化，可能没有真正生效」，把 AI 的正确回复覆盖成报警。
+  //   library.js 每次打开曲谱都会写 body.dataset.currentScoreId，这里同步读即可。
+  scoreId:document.body.dataset.currentScoreId||'',
   playing:play?play.textContent.trim():'',playDisabled:play?play.disabled:null,
   solo:select?select.value:'',muted:[...document.querySelectorAll('#part-mix input')].filter(x=>!x.checked).map(x=>x.dataset.part),
   // 这四个是「控件类」动作的回读依据：速度/节拍器/音色/配器改没改，只能看控件本身。
@@ -141,12 +146,20 @@ function snapshot(){
 }
 // 每种动作预期会改动哪些字段；产出文字/按钮的动作以「对话多了一行」为准。
 // view 看谱面按钮的选中态（切谱面不会动工作区面板），solo_group 看声部勾选。
-const EXPECT={panel:['panel'],view:['viewMode'],open:['title'],play:['playing','playDisabled'],pause:['playing','playDisabled'],stop:['playing','playDisabled'],solo:['solo'],mute:['muted'],unmute:['muted'],solo_group:['solo','muted'],set_tempo:['tempo'],set_metronome:['metronome'],set_instrument:['instrument'],set_arrangement:['arrangement'],generate_arrangement:['logLines'],seek_measure:['position'],chords:['logLines'],search:['logLines'],web_search:['logLines'],skill_search:['logLines'],choose_scores:['logLines']};
+const EXPECT={panel:['panel'],view:['viewMode'],open:['title','scoreId'],play:['playing','playDisabled'],pause:['playing','playDisabled'],stop:['playing','playDisabled'],solo:['solo'],mute:['muted'],unmute:['muted'],solo_group:['solo','muted'],set_tempo:['tempo'],set_metronome:['metronome'],set_instrument:['instrument'],set_arrangement:['arrangement'],generate_arrangement:['logLines'],seek_measure:['position'],chords:['logLines'],search:['logLines'],web_search:['logLines'],skill_search:['logLines'],choose_scores:['logLines']};
 // 回读留一个观察窗口：切面板、换谱面这类改动要过一帧才落到 DOM，
 // 立刻比对会把「其实成功了」误判成「没生效」。已经站在目标面板上则直接算完成。
 async function verifyAction(a,before){
  const keys=EXPECT[a.type];if(!keys)return true;
  if(a.type==='panel'&&before.panel===panelValue(a.value))return true;
+ // ★ 重名曲谱（《知足》×2、《星海欢迎你》×3…）：两份标题完全一样，「换另一首」成功后
+ //   title 不变 —— 只比 title 会把「真的换成了另一份」误判成「执行后界面没有变化」，
+ //   于是 AI 的正确回复被报警覆盖（长流程报告 #52）。
+ //   权威判据是**当前曲谱 id**，但它只能从 live context（异步事件）读到，所以这里单独判。
+ if(a.type==='open'){
+  const want=String(a.value||'');
+  if(want)for(let i=0;i<6;i++){if(await currentScoreId()===want)return true;await wait(120);}
+ }
  const changed=()=>{const after=snapshot();return keys.some(key=>JSON.stringify(before[key])!==JSON.stringify(after[key]));};
  for(let i=0;i<12;i++){await wait(60);if(changed())return true;}
  return false;
@@ -165,7 +178,10 @@ function currentSettings(){
  const num=el=>{const v=Number(el?.value);return Number.isFinite(v)?v:null;};
  return {tempo:num(document.querySelector('#tempo')),metronome:!!document.querySelector('#metronome')?.checked,instrument:(document.querySelector('#instrument-select')?.selectedOptions?.[0]?.textContent||'').trim()||null,arrangement:document.querySelector('#arrangement-select')?.value||null};
 }
-async function workspaceContext(){const data=await readCloudLibrary();const live=await readLiveContext();return {...libraryContext(data.scores),...live,controls:CONTROLS,settings:currentSettings(),parts:parts(),current:document.querySelector('#score-title')?.textContent};}
+// ★ 全站**唯一**的 context 构造入口。主流程以前在别处手工拼了第二份（漏了 settings），
+//   于是「快一点 / 慢一点」的基准永远到不了后端 —— 长流程 #29 的波动就是这么来的。
+//   以后要加 context 字段**只改这里**，不要再手工拼一份。
+async function workspaceContext(extra){const data=await readCloudLibrary();const live=await readLiveContext();return {...libraryContext(data.scores),...live,controls:CONTROLS,settings:currentSettings(),parts:parts(),current:document.querySelector('#score-title')?.textContent,...extra};}
  async function repairActions(failed,error,completed){line('操作没有完成，正在重新核对曲谱、声部和播放位置…');const context=await workspaceContext();const response=await fetch('/api/workspace-ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:historyForModel(),context:{...context,executed:executedActions.slice(-12)},repair:{failed,error:readableNetworkError(error),completed}}),signal:deadline(110000)});const result=await response.json();if(!response.ok)throw Error(result.error);line(result.reply);if(!result.actions?.length)throw Error('重新核对后仍无法完成：'+error.message);return result.actions;}
  async function runActions(actions,summary=''){if(!actions.length)return false;actions=[...actions];let repairCount=0,unverified=0;const failedStates=new Set();const completed=[];awaitingUser=false;await close();document.body.classList.add('ai-executing');trigger.disabled=true;taskPercent=0;taskProgress(0,'准备操作');try{for(let i=0;i<actions.length;i++){const a=actions[i];taskProgress(i/actions.length*100,labels[a.type]||'正在操作');const snapBefore=snapshot();try{const outcome=await action(a,p=>taskProgress((i+p)/actions.length*100,labels[a.type]||'正在操作'));if(outcome!=='skipped'&&!await verifyAction(a,snapBefore)){unverified++;line('注意：'+(labels[a.type]||'这一步')+'执行后界面没有变化，可能没有真正生效。');}}catch(error){const signature=JSON.stringify(a)+'|'+error.message;if(repairCount>=2||failedStates.has(signature))throw error;failedStates.add(signature);repairCount++;const replacement=await repairActions(a,error,completed);actions.splice(i,actions.length-i,...replacement.slice(0,6));i--;continue;}completed.push(a);executedActions.push({type:a.type,value:a.value});if(executedActions.length>30)executedActions=executedActions.slice(-30);taskProgress((i+1)/actions.length*100,labels[a.type]||'正在操作');}if(unverified)line('这一步里共有 '+unverified+' 个子操作执行后界面没有变化，可能没有真正生效。建议换个更具体的说法再试一次（例如直接点曲名或说面板名）。');taskProgress(100,'已完成');await wait(reduced()?0:350);}catch(error){trigger.classList.add('task-failed');throw error;}finally{document.body.classList.remove('ai-executing');trigger.disabled=false;}
  // ★ 操作已经做完（比如已经在自动演奏）就把面板收回，不挡着谱面；只有还需要用户拍板
@@ -402,7 +418,7 @@ const CONTROLS=[
  //   requests 超时是 (5, 90)，它到点会回一句准确的「SUPERTANG AI 暂时没有响应，请稍后重试。」
  //   以前前端也是 90s，两边撞在一起，前端先 abort —— 用户看到的是
  //   「请求等待超时或连接被中止…请检查外网隧道连接」，把模型没响应错怪到隧道上。
- try{const libraryData=await readCloudLibrary();const live=await readLiveContext();const context={...libraryContext(libraryData.scores),...live,controls:CONTROLS,executed:executedActions.slice(-12),selectionId:selectedScoreId,parts:parts(),current:document.querySelector('#score-title')?.textContent};selectedScoreId=null;const result=await requestAI({messages:historyForModel(),context},event=>{if(event.type==='reset'){const partial=log.querySelector('.ai-streaming-text');reveal.cancel();partial?.remove();reveal=characterStream();}if(event.type==='status'){streamStatus(event.text);taskReport({detail:event.text});}if(event.type==='delta'){stopWaitClock();reveal.push(event.text);}},deadline(110000));clearInterval(statusTimer);stopWaitClock();status.remove();await reveal.finish();messages.push({role:'assistant',content:result.reply});await runActions(result.actions||[],result.reply);
+ try{const context=await workspaceContext({executed:executedActions.slice(-12),selectionId:selectedScoreId});selectedScoreId=null;const result=await requestAI({messages:historyForModel(),context},event=>{if(event.type==='reset'){const partial=log.querySelector('.ai-streaming-text');reveal.cancel();partial?.remove();reveal=characterStream();}if(event.type==='status'){streamStatus(event.text);taskReport({detail:event.text});}if(event.type==='delta'){stopWaitClock();reveal.push(event.text);}},deadline(110000));clearInterval(statusTimer);stopWaitClock();status.remove();await reveal.finish();messages.push({role:'assistant',content:result.reply});await runActions(result.actions||[],result.reply);
   // 只答应不干活：回复里满口「我来处理」却一个动作都没给，用户看到的就是什么都没发生。
   if(!result.actions?.length&&/我来处理|我来帮|马上|没问题|好的|可以[，。]?$|已经帮你/.test(String(result.reply||'')))line('这一步没有生成可执行的操作，界面不会变化。请说得更具体一点，例如「打开《…》」「切换到演奏面板」「只听左手」。');taskReport({status:'complete',progress:100,detail:result.actions?.some(a=>['choose_scores','search','web_search'].includes(a.type))?'结果已列出，等待选择':'已完成',result:[result.reply,...taskLines].filter(Boolean).join('\n\n')}); }
   // 用户自己关掉对话、或按了停止：静默收尾，不要把对话重新弹开（showResults 会 showModal）。

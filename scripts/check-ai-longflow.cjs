@@ -130,6 +130,12 @@ function checkExpect(exp,before,after){
     switch(k){
       case 'baseTitle':
         if(!after.title.includes(v))fails.push(`曲谱应为「${v}」，实际「${after.title}」`);break;
+      case 'currentIdChanged':
+        // ★ 重名曲谱专用：标题一样，只有 id 能证明「真的换成了另一份」。
+        //   v=true 表示要求 id 必须变；v=false 表示要求不许变。
+        if(!!(before.currentId&&after.currentId&&before.currentId!==after.currentId)!==!!v)
+          fails.push(`当前曲谱 id 应${v?'改变':'保持不变'}，实际 ${before.currentId} → ${after.currentId}`);
+        break;
       case 'playing':
         if(after.playing!==v)fails.push(`playing 应为 ${v}，实际 ${after.playing}`);break;
       case 'measure':

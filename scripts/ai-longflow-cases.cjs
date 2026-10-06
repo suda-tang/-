@@ -17,6 +17,7 @@
 //
 // 可断言的界面状态（都能从浏览器直接读到，见 _probe-ai-longflow.cjs）：
 //   currentId      当前曲谱 id（用 baseTitle 断言更可读）
+//   currentIdChanged true=要求 id 变了（重名曲谱「换另一份」）；false=要求不变
 //   playing        是否在播放
 //   measure        当前小节（精确值，仅用于「不会播放推进」的场景）
 //   measureRange   [lo,hi] 「跳到第 N 小节」用：seek 会开始播放且按可听声部的音符定位
@@ -176,4 +177,15 @@ module.exports = [
   {id:51,name:'「慢一点」（相对指令，基准 160）',base:S,pre:{tempo:160},
    say:'太快了，慢一点。',tier:'core',
    expect:{tempoAtMost:150},reply:{must:[/BPM|速度/]}},
+
+  // ── L. 重名曲谱（2）★ 第四轮补：曲库里有 2 首《知足》，不能默认用户想要哪一份 ──
+  // 背景：`未命名曲谱`×4、`知足`×2、`星海欢迎你`×3 …… 重名是**系统性**存在的。
+  //   两份《知足》只有上传时间 / titleVersion 可区分，所以正确做法不是「去重」
+  //   （那等于删曲谱，属禁删范围），而是 ① 回复里点明有几份 ② 给一个换另一份的出口。
+  {id:52,name:'换另一首《知足》（重名逃生口）',base:S,say:'换另一首《知足》。',tier:'core',
+   expect:{baseTitle:S,currentIdChanged:true},        // ★ 关键：必须真的换成了**另一份**（id 变了）
+   reply:{must:[/知足/]}},
+  {id:53,name:'重名时点明有几份（打开《知足》）',base:M,say:'打开《知足》。',tier:'core',
+   expect:{baseTitle:S},
+   reply:{must:[/2\s*首|两首/]}},                     // ★ 回复里要说明「曲库里有 2 首《知足》」
 ];
