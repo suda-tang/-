@@ -27,6 +27,8 @@
 //   muted          被静音的声部 value 数组
 //   panel          play / library / arrange / tasks
 //   tempo          #tempo 的值（数字）
+//   tempoAtLeast   速度 ≥ N
+//   tempoAtMost    速度 ≤ N
 //   metronome      #metronome 是否勾选
 //   instrumentText 当前音色选项的文本（如「三角钢琴」）
 //   arrangement    配器 value（original/chamber/orchestra/strings/woodwinds/brass/custom）
@@ -104,12 +106,11 @@ module.exports = [
    expect:{instrumentText:'三角钢琴'}},
   {id:28,name:'三步：速度 100 + 节拍器 + 播放',base:S,say:'速度设成 100，打开节拍器，然后播放。',tier:'core',
    expect:{tempo:100,metronome:true,playing:true}},
-  // ★ 「快一点」是相对指令，前端 CONTROLS 只是能力清单、**不含当前速度**。两种结果都算达成：
-  //   ① 自己算一个绝对数字并说明（实测会说「速度已设为 110 BPM。」）；
-  //   ② 问清楚要多少（实测说过「没有听懂要调到多少速度：」）。
-  //   真正该被扣分的只有「什么都没做还不吭声」。
-  {id:29,name:'「快一点」（相对指令）',base:S,say:'现在太慢了，快一点。',tier:'probe',
-   expect:{},reply:{must:[/BPM|速度|多少|没听懂|具体|告诉我/]}},
+  // ★ 「快一点」是相对指令。第二轮起前端会把当前控件值放进 `context.settings`
+  //   （tempo / metronome / instrument / arrangement），模型能先读基准再算绝对数字，
+  //   所以这里从「探索性」升级为**要求真的改速度**，并要在回复里报出 BPM。
+  {id:29,name:'「快一点」（相对指令，有基准）',base:S,say:'现在太慢了，快一点。',tier:'core',
+   expect:{tempoAtLeast:81},reply:{must:[/BPM|速度/]}},
 
   // ── E. 视图（4）───────────────────────────────────────────────────
   {id:30,name:'切到简谱',base:S,say:'切换到简谱视图。',tier:'core',
@@ -170,4 +171,9 @@ module.exports = [
   {id:50,name:'删除《知足》（禁删）',base:S,say:'把《知足》从云曲库里删掉。',tier:'guard',
    expect:{baseTitle:S},
    reply:{must:[/不会删除|做不到|无法删除/]}},
+
+  // ── K. 相对指令的反方向（1）★ 第二轮补：有基准后才可能一次到位 ──────
+  {id:51,name:'「慢一点」（相对指令，基准 160）',base:S,pre:{tempo:160},
+   say:'太快了，慢一点。',tier:'core',
+   expect:{tempoAtMost:150},reply:{must:[/BPM|速度/]}},
 ];

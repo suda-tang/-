@@ -24,7 +24,7 @@ const OUT=path.join(__dirname,'_longflow-result.jsonl');
 const argv=process.argv.slice(2);
 const numArg=(name,def)=>{const i=argv.indexOf('--'+name);return i>=0?Number(argv[i+1]):def;};
 const FROM=numArg('from',1);
-const TO=numArg('to',50);
+const TO=numArg('to',99);
 const ONLY=numArg('only',0);          // --only 3 只跑第 3 条（调试用）
 
 const CASE_TIMEOUT_MS=150000;
@@ -72,7 +72,11 @@ function resolvePart(token,before,after){
 // ── 前置状态：用前端自己的事件/控件设，不经过模型（快且可靠）──────────
 async function applyPre(page,pre,parts){
   if(!pre)return;
-  await page.evaluate(async(pre,parts)=>{
+  // ★ playwright 的 page.evaluate 只接受**一个**参数：传两个会报
+  //   「Too many arguments. If you need to pass more than 1 argument to the function
+  //   wrap them in an object.」——所以这里包成对象。这条路径在 #51（第一条带 pre 的
+  //   用例）之前从没被走到过，一直藏着没暴露。
+  await page.evaluate(async({pre,parts})=>{
     const sleep=ms=>new Promise(r=>setTimeout(r,ms));
     const fire=(name,detail)=>new Promise(resolve=>{
       const timer=setTimeout(()=>resolve(null),4000);
@@ -116,7 +120,7 @@ async function applyPre(page,pre,parts){
       if(el)el.click();
       await sleep(750);
     }
-  },pre,parts);
+  },{pre,parts});
 }
 
 // ── 断言 ────────────────────────────────────────────────────────────
@@ -148,6 +152,8 @@ function checkExpect(exp,before,after){
         if(after.tempo!==v)fails.push(`速度应为 ${v}，实际 ${after.tempo}`);break;
       case 'tempoAtLeast':
         if(!(after.tempo>=v))fails.push(`速度应 ≥ ${v}，实际 ${after.tempo}`);break;
+      case 'tempoAtMost':
+        if(!(after.tempo<=v))fails.push(`速度应 ≤ ${v}，实际 ${after.tempo}`);break;
       case 'metronome':
         if(after.metronome!==v)fails.push(`节拍器应为 ${v}，实际 ${after.metronome}`);break;
       case 'instrumentText':

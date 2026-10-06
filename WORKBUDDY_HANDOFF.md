@@ -891,6 +891,27 @@ python scripts/_probe-fastplan.py                     # 看规则通道对某句
    是前端侧连接中断，环境抖动。单独复跑 5/5 全过。
    → **「全绿却失败」先按第 0 节数请求频率、看 `/health`，别急着改代码。**
 
+### 第四轮·第三轮：把「当前控件值」放进上下文 → 51/51
+
+第一轮留下的已知项「相对指令没有基准」：`CONTROLS` 只是**能力清单**，不含任何当前值。
+
+1. `dist/workspace-ai.js` 新增 `currentSettings()`，`workspaceContext()` 里带
+   `settings:{tempo,metronome,instrument,arrangement}`。
+   ★ 放 `workspace-ai.js` 而不是 `app.js`（后者是多会话共用的在途文件）。
+   ★ **后端零改动** —— `plan_data` 本来就把整个 `context` 原样 `json.dumps` 进提示词。
+2. 后端提示词改成**明确指向 `context.settings`**（「先读当前值再算，不要反问也不要猜」）。
+
+实测：tempo=80「现在太慢了，快一点。」→「当前速度是80 BPM，我帮你调到100 BPM吧！」+`set_tempo 100`；
+tempo=160「太快了，慢一点。」→「当前速度是160BPM……调到120BPM」+`set_tempo 120`。
+
+用例：#29 从 `probe` 升为 `core`（要求真提速 + 回复报 BPM）；**新增 #51** 覆盖反方向
+（`pre:{tempo:160}` + `tempoAtMost:150`），总数 50 → **51**。
+
+★ **顺带修掉执行器一个真 bug**：`applyPre` 里 `page.evaluate(fn,pre,parts)` 传了两个参数，
+而 playwright 的 `evaluate` **只接受一个**（`Too many arguments…`）。因为 #51 是**第一条带 `pre`
+的用例**，这条路径一直没被走到过。→ 包成一个对象。**用例覆盖面本身会暴露工具 bug。**
+
+
 
 
 
