@@ -397,7 +397,10 @@ if normalized:reply='本地曲库找到了这些作品，请选择一首。' if 
 ```bash
 cd "C:/Users/mail/Documents/ChatGPT/自动钢琴陪练系统"
 
-# 全量 56 条（约 28 分钟，必须串行 —— 后端是单页面串行处理）
+# ★ 一条命令跑完全部回归（12 项专项 + 56 条长流程，约 34 分钟，见 11.7）
+node scripts/check-ai-regression.cjs --long
+
+# 只跑长流程（约 28 分钟，必须串行 —— 后端是单页面串行处理）
 node scripts/check-ai-longflow.cjs --from 1 --to 56
 
 # 只跑某几条 / 只跑一条
@@ -696,5 +699,25 @@ else: actions.append({'type':'play','value':''})     # ← 两者互斥
 ★ 顺带做了一处**上下文优化**：`saved`（上传时间）**只在重名条目上带**（前端算 `counts`）——
 它唯一的用途是区分同名曲谱，79 首全带上会白占 1000+ 字符。
 （`check-ai-library-visibility.cjs` 的 20000 是**预警线**，包装层实际上限是 50000。）
+
+### 11.7 统一回归入口（`check-ai-regression.cjs`）
+
+11 个专项检查 + 56 条长流程的命令散在文档里，改完代码容易漏跑（这一轮就漏过一次）。
+新增 `scripts/check-ai-regression.cjs`：一条命令按「快 → 慢」串行跑完，末尾给汇总表，
+失败时把该项输出的尾部打出来，退出码非 0。
+
+```bash
+node scripts/check-ai-regression.cjs                  # 12 项快的（约 6 分钟）
+node scripts/check-ai-regression.cjs --long           # 再加 56 条长流程（约 34 分钟）
+node scripts/check-ai-regression.cjs --only library   # 按名字子串过滤
+node scripts/check-ai-regression.cjs --list           # 只看会跑哪些，不执行
+```
+
+首次跑（12 项）：**12/12 PASS，全绿**（6 分 0 秒）。最慢的三项是
+`control-actions` 95s、`action-guard` 83s、`retract` 64s。
+
+★ 为什么不写成 bash 串：`control-actions` 单跑就 95 秒，几条串起来会撞 bash 超时；
+node 里 `spawnSync` 子进程没这个限制，还能各自设超时 —— 超时被 kill 时会明确提示
+「检查是不是有别的会话在压测」。
 
 

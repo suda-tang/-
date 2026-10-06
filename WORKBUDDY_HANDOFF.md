@@ -1007,6 +1007,25 @@ AI 的 `open` 走 `ai-open-score` 事件、不写它）。
 另一个 Edit 覆盖，直到这轮才发现（用例数已经 56、注释还写着 50）。
 → 同文件多处改动必须串行 + 改完回读。
 
+### 第四轮·第八轮：统一回归入口（`check-ai-regression.cjs`）
+
+11 个专项检查 + 56 条长流程的命令散在文档里，改完代码容易漏跑（这一轮就漏过一次）。
+新增 **`scripts/check-ai-regression.cjs`**：一条命令按「快 → 慢」串行跑完，
+末尾给汇总表，失败时打印该项输出尾部，退出码非 0。
+
+```bash
+node scripts/check-ai-regression.cjs            # 12 项快的（约 6 分钟）
+node scripts/check-ai-regression.cjs --long     # 再加 56 条长流程（约 34 分钟）
+node scripts/check-ai-regression.cjs --only library   # 按名字子串过滤
+node scripts/check-ai-regression.cjs --list     # 只看会跑哪些
+```
+
+首次跑：**12/12 PASS**（6 分 0 秒）。最慢三项：`control-actions` 95s、
+`action-guard` 83s、`retract` 64s。
+
+★ 用 node `spawnSync` 而不是 bash 串：`control-actions` 单跑就 95 秒，几条串起来会撞
+bash 超时；子进程各自设超时，被 kill 时会提示「检查是不是有别的会话在压测」。
+
 
 
 
