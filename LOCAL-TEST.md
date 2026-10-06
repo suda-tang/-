@@ -43,3 +43,22 @@ powershell -File scripts/setup-omr.ps1 -Installer "C:\path\Audiveris-5.11.0-wind
 `node scripts/check-playback.cjs`：当前工作机 Edge 浏览器测试，覆盖内网 PDF 预览与错误、MusicXML 自动播放、暂停继续、调速、延音/休止解析、实际非零音频输出与窄屏布局；识谱接口在该脚本中使用模拟响应以保持测试快速。
 
 `node scripts/check-omr-real.cjs`：使用 `outputs/Dichterliebe01.pdf`（Audiveris 官方示例）做真实端到端识谱，确认浏览器最终得到可播放音符。
+
+## AI 工作区（需本地 5173 已在跑）
+
+这三个用**桩响应**驱动，不依赖模型发挥，也不产生副作用：
+
+`node scripts/check-ai-action-guard.cjs`：动作执行守护 —— 空转必须报警、已在目标面板不误报、
+面板中文别名归一、未知动作不静默、「只答应不给动作」有提示、空关键词搜索先问清楚。
+
+`node scripts/check-ai-control-actions.cjs`：控件类动作 —— 说「暂停」绝不能变成开始播放、
+`pause`/`stop` 真的改变播放状态、变速/节拍器/音色/配器四个动作落到控件上、
+无效取值必须报错、「全部静音」能关掉所有声部。
+
+`node scripts/check-ai-library-visibility.cjs`：钉住发给模型的上下文载荷 ——
+曲名索引（含总数）必须在、必须是上下文第一个键、完整 64 位 id 必须覆盖全部曲目、
+整体不得超过包装层 20000 字符的 system 预算。
+
+真实模型（会真的调用 8765，较慢）的探针放在 `D:\code\2026-10-02-01-58-59\`：
+`probe_context_budget.py`（上下文排布对比）、`probe_open_whitelist.py`（scores 空否对 open 的影响）、
+`probe_new_actions.py`（暂停/变速/节拍器/音色/配器/越界小节）。

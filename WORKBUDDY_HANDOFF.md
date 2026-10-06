@@ -235,3 +235,80 @@ system 提示被撑爆 → 模型实际只看得见头尾 6 首 → 于是答「
 已按 `suda-deepseek-recovery-verification` 的流程确认「无 VPN 隧道 + 直连 ds 返回 302」后拉起
 `launcher.py --supervise`。**注意它是挂在本会话的后台任务上，会话结束可能再被回收**；
 重启/重新登录则由启动文件夹的 `SudaDeepSeek-autostart.vbs` / `WvpnGuard-autostart.vbs` 拉起。
+
+## 放开上下文 + 按测试报告修 P0/P1（2026-10-06 晚·第二轮）
+
+唐老师把包装层上限彻底放开了：`WEB_PROMPT_LIMIT` **5800 → 150000**、
+`WEB_SYSTEM_LIMIT` **1500 → 4000 → 20000**、`WEB_CONTEXT_TURNS` 6 → 30、
+`WEB_CONTEXT_MESSAGE_LIMIT` 600 → 6000（`~/.workbuddy/suda-deepseek/suda_api.py`）。
+「6000 字」原来只是网页输入框的前端 UI 限制，服务端并不校验。
+
+### 1. 先纠一个我自己上一轮引入的回归（比放开上下文更要紧）
+
+上一轮为了省额度，普通提问时把 `context.scores` 置空。但 `ai_workspace.plan_data` 用
+`context.scores` 当 `open` 的 **id 白名单**（不在表里就 `raise ValueError('模型选择了不存在的曲谱')`），
+于是「打开曲谱」这条路被整条砍断。实测对照（`probe_open_whitelist.py`）：
+
+| 指令 | `scores:[]`（旧写法） | `scores:完整` |
+|---|---|---|
+| 打开《月亮代表我的心》 | `search`（只搜到卡片，不打开） | `choose_scores` ✅ |
+| 我要听《起风了》 | `play value="起风了"` ❌ **去播当前那首** | `open` + `play` ✅ |
+| 换成《知足》 | `search` | `choose_scores` ✅ |
+
+**现在的做法：索引和完整 id 列表一起发**，两者分工不同，缺一不可 ——
+`library` 一行紧凑索引（含总数）负责「有几首/都有哪些」，`scores` 完整 `{id,title,ready}`
+负责 `open` / `choose_scores` / `ai_catalog` 读谱面缓存。`ID_QUERY` 那套自适应门控已删除。
+
+实测（`probe_context_budget.py`，65 个去重曲名）：
+- system 段只发完整清单 → **54/65**（模型还自作主张按 `ready:true` 过滤掉一批）
+- 上下文改走 user 段 → **37/65**（更差，模型开始重复、幻觉）
+- system 段只发紧凑索引 → **65/65**
+- **索引 + 完整清单一起发 → 65/65，且 `open` 拿到真实 id** ✅（上下文 8854 字符，装得下 20000）
+
+### 2. 按报告修掉的项
+
+`dist/workspace-ai.js` + `dist/app.js` + `ai_workspace.py`：
+
+- **A1 说「暂停」反而开始播放**（最严重的信任问题）。以前只有 `play`，而 `ai-play-score`
+  的语义是「确保在播放」。现在新增独立动作 `pause` / `stop`（新事件 `ai-transport`），
+  并且**后端 + 前端双层拦截** `play` 的 value 里带「暂停/停止」的情况 —— 只拦一层都会漏。
+- **B1/C5 模型不知道界面有哪些控件**。上下文新增 `context.controls`（界面真实控件清单），
+  并补齐动作 `set_tempo` / `set_metronome` / `set_instrument` / `set_arrangement`，
+  另加 `generate_arrangement`（选中编制 ≠ 生成总谱，UI 上就是两步）。
+- **P1-④ 变速「假装成功」**：`app.js` 的 `setTempo()` 开头是 `if(running)return`，
+  跟练进行中改速度被**静默丢弃**，而调用方照样打印「速度已设为 X BPM」。
+  现在走新事件 `ai-set-tempo`，改不动就明确报错。
+- **A4「全部静音」必然失败**：`findMix` 只认单个声部名，`all` 找不到就报错并触发一次
+  注定无效的「重新核对」。改为 `findMixes`（返回数组，`all` 匹配整组）。
+- **B5 小节号幻觉**：`seek_measure` 现在按 `context.measureNumbers` 校验，越界直接回
+  「当前曲谱没有第 999 小节，可用范围是第 1 到第 40 小节」。★ 注意 `fast_plan` 在小节类
+  指令上是**直接 return** 的，绕过 `plan_data`，所以**两处都要拦**（第一版只改了 `plan_data`，
+  实测没拦住）。
+- **A2 重新核对的提示词太软**：改成三条硬要求（不重复成功项 / 不用同一个动作重试 /
+  必须给出至少一个可执行 action 或明确说做不到）。
+- **A3 关闭对话不中止在途请求**：新增 `closeByUser()`，用 `AbortController` 中止，
+  并且中止后**不再把对话弹回来**（`showResults()` 会 `showModal`）。
+  ★ 中止逻辑不能放进 `close()` 本身 —— `runActions` 开头也会调 `close()`，那时 `busy` 仍为真，
+  会把「用户关闭」标记错误地置上。
+
+### 3. 回归用例
+
+- `node scripts/check-ai-control-actions.cjs`（**本轮新增**，桩响应驱动，不产生副作用）：
+  A1 暂停/停止、变速、节拍器、音色、配器、全部静音。PASS。
+- `node scripts/check-ai-action-guard.cjs`：原有四项。注意里面拿 `set_tempo` 当「未知动作」
+  的反例**已失效**（它现在是受支持动作），已改成 `explode`。PASS。
+- `node scripts/check-ai-library-visibility.cjs`：钉住「索引 + 完整 id 并存、索引必须排在
+  上下文首位、整体 < 20000」。PASS。
+
+### 4. 遗留
+
+- `scripts/restart-server.py` 的自动重载**日志上看不到新进程的启动行**（只有
+  「检测到源码变更，交由重启器重建进程」），但功能实测已生效（新动作能返回）——
+  重启链路本身值得再看一眼。
+- 报告里还没动的：B2（`view` 支持原稿/音轨）、B3（执行记录挤占消息预算）、
+  B4（401 透传可读化）、B6（响应最大 58s 且无法取消 → 取消按钮 + 超时降到 90s）、
+  C1（不透传 Python 堆栈）、P2 里的小节定位 off-by-one、声部名容错（贝司/左手右手）、
+  `choose_scores:[]` 死按钮、5 首 `status=failed` 却 `ready=true`、回复乱码、任务无法删除、
+  越界输入未拦截。
+- 端口 5173 上会出现**两个** `server.py` 监听进程（父重载器 + 子进程，SO_REUSEADDR 双绑定），
+  排查时别误判成「有僵尸进程」。

@@ -74,11 +74,15 @@ const sse=(reply,actions)=>[
     }
 
     // 4. 未知动作不能静默
-    r=await send('我来处理。',[{type:'set_tempo',value:'120'}]);
+    //    注意：别拿 set_tempo 当反例了 —— 它现在是受支持的动作（见 check-ai-control-actions.cjs）。
+    r=await send('我来处理。',[{type:'explode',value:'120'}]);
     assert.ok(/不支持这个操作/.test(JSON.stringify(r.tail)),'未知动作被静默吞掉了，用户看不到任何反馈');
     // 只答应不给动作也要说清楚
     r=await send('我来处理。',[]);
     assert.ok(r.tail.some(t=>t.includes('没有生成可执行的操作')),'「只答应不给动作」没有任何提示');
+    // 搜索关键词为空时，不能把整个曲库倒出来（includes('') 会命中所有曲子）
+    r=await send('我来处理。',[{type:'search',value:''}]);
+    assert.ok(r.tail.some(t=>t.includes('你想找哪一首')),'空关键词搜索没有先问清楚，会把整个曲库列出来');
 
     assert.deepEqual(errors,[],'页面出现脚本错误：'+errors.join(' | '));
     console.log('PASS AI 动作守护检查（空转报警 / 不误报 / 面板名归一 / 未知动作不静默）');
