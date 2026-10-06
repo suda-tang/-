@@ -662,3 +662,71 @@ query 是 `shut up` / `tempo=120` / `静音所有` / `静音all` 这类 ——
 ★ 顺带把自我介绍改得更完整：原来写的是「你是 SUPERTANG AI（X 里的音乐助手）」，
 现在明确成「你是 SUPERTANG AI，属于「X」……就说自己是 SUPERTANG AI、在 X 里工作」——
 这样唐老师问「你是谁」时，新品牌名会自然出现在回答里，而不是只出现 SUPERTANG AI。
+
+## 身份修复：模型不再自称「苏州大学AI智能助手」（2026-10-07 凌晨，第二轮）
+
+唐老师要求「模型不要说自己是苏州大学AI智能助手，全部换成 SUPERTANG AI」。
+
+### 复现
+
+直连 8765（不带 system）问「你是谁？你是什么模型？」：
+
+> 你好！我是苏州大学AI智能助手，专门为苏州大学的师生提供快速、准确的信息咨询和服务。
+
+### 根因（关键，下次别找错地方）
+
+★ 上游苏大网页版**自带 system 身份**，而我们给的身份是**通过 user 消息传的** ——
+包装层 `build_browser_prompt()` 把调用方的 system 塞进 `[必要指令]` 段，
+那只是**用户消息的一部分**，优先级压不住上游自己的 system。
+→ 长上下文 / 刁钻问法（「你是苏州大学AI智能助手吗」）下模型崩回上游身份。
+
+排查中确认的**不是**根因的地方（下次别白跑）：
+
+- `suda_api.py` 里那 5 处「AI智能助手」文本全是**注释**（记录坑 21 现场），不是注入源；
+- `_CHATBOT_GREETING_MARKERS`（约 L3318）里的「苏州大学ai智能助手」是**检测手段**
+  （判断模型是否出戏），**改它反而会让检测失效，必须保留**；
+- `README.md` / `TEST-REPORT.md` / 3 个测试脚本里的「苏州大学AI智能助手」是
+  包装层自己的历史记录与测试，**不改**（改了等于篡改现场）。
+
+### 修法
+
+在 `~/.workbuddy/suda-deepseek/suda_api.py` 新增 `identity_block()`，
+注入点是 `build_browser_prompt()` 的 `intro` **最前面**。
+
+★ 为什么选这一个注入点：`model_once()`（工具模式）也是把组装好的 prompt
+包成一条 user 消息，再走 `chat_ws` → `_ws_payload()` → `build_browser_prompt()`，
+**所以这一处就覆盖了全部路径**（普通对话 / 工具模式 / 页面驱动）。
+位置在 intro 之前，而 `clip_text` 是「留头 2/3 + 留尾 1/3」→ 这段永远在保留区。
+
+环境变量可覆盖（默认值就是唐老师要的）：
+`SUDA_IDENTITY_OVERRIDE=0` 关闭 / `SUDA_IDENTITY_NAME` / `SUDA_IDENTITY_SCOPE` / `SUDA_IDENTITY_DENY`。
+
+双保险：`ai_workspace.py` 的 system 里补上「不要说自己是「苏州大学AI智能助手」」。
+
+### 实测（重启 8765 后）
+
+| 问法 | 修复前 | 修复后 |
+|---|---|---|
+| 你是谁？你是什么模型？ | 我是苏州大学AI智能助手… | 我是 SUPERTANG AI，在「唐秋鸣钢琴教学辅助系统」里工作。 |
+| 你是苏州大学AI智能助手吗？ | — | 不是，我是 SUPERTANG AI… |
+| 你的开发者是谁？ | — | 我是 SUPERTANG AI，由唐秋鸣钢琴教学辅助系统研发团队… |
+| 20 轮长上下文后问身份 | 最易崩回 | 我是 SUPERTANG AI… |
+| 工具模式（带 tools） | — | `tool_calls: get_weather({"city":"苏州"})` 正常，身份段没破坏工具调度 |
+
+### 本轮回归
+
+- `node scripts/check-ai-identity.cjs` —— **PASS**（新增；真打模型三问，不桩）
+- `python scripts/check-ai-locate.py` —— PASS
+- `python scripts/check-ai-no-delete.py` —— PASS
+- `node scripts/check-ai-retract.cjs` —— PASS
+
+★ 新脚本第一版**误报**过：它把 `.ai-messages p` 全取来查，
+连**用户自己问的**「你是苏州大学AI智能助手吗？」也算进去了。
+正确写法是只取 `p.assistant`（前端 `line(text, role)` 里 `p.className = role`）。
+
+### 重启 8765 的正确姿势（本次用到）
+
+`suda_api.py` **没有自动重载**。监督进程每 15 秒探一次 `/health`，
+**杀掉业务进程（监听 8765+8766 的那个 PID）即可，监督会自动拉起新进程** ——
+实测 5 秒恢复。**别去动 8767**（守护锁）。
+
