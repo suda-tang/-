@@ -574,4 +574,109 @@ if REL_TEMPO_UP.search(text) or REL_TEMPO_DOWN.search(text):
 
 既有回归同时全绿（见第八节）。
 
+---
+
+## 十一、收尾三项（第九节剩下的建议）
+
+第九节列了 5 条「可以更好」，第十节做掉了第 1 条。剩下这几条也一并做了。
+
+### 11.1 重名列表：让两份**可区分**（而不是只有序号）
+
+`choose_payload` 早就给重名项加了序号（`知足（1/2）`），但**两份除了序号一模一样** ——
+因为曲库的 `evidence` 实测**全是空的**（《知足》两份都是 `None`）。真正有区分度的是
+`saved`（上传时间，两份相差约 25 小时）。
+
+- 前端 `libraryContext()` 给每条带上 `saved`
+- 后端 `choose_payload()` 用 `saved_label()` 生成 hover 提示
+
+实测输出：
+
+| 按钮 | hover 提示 |
+|---|---|
+| 知足（1/2） | 上传于 10-04 23:17 |
+| 知足（2/2） | 上传于 10-03 22:00 |
+| 星海欢迎你（1/3、2/3、3/3） | 10-04 01:12、10-03 22:01、09-30 15:19 |
+
+★ 列表按钮点了就是 `open + play` —— **它本身就是「换另一份」的按钮**，
+配合第十节的「自动挑一份 + 点明 + 换另一首《X》」，两条路都通。
+
+### 11.2 `ai-seek-measure` 的 resolve 兜底（已知项）
+
+**根因查清了**：链路是 `ai-seek-measure` → `app.js` 监听器 `await playFromNote` →
+`playScore`，而 `playScore` 里有 `await player.unlock()` / `await player.play()` ——
+**没有用户手势时受浏览器自动播放策略限制会挂住**，于是 `resolve` 一直不调用，
+`runActions` 卡在这一步直到外层 deadline（用户看到的是「整个流程莫名卡死」）。
+
+修法（**不改在途的 `app.js`**，只在 `dist/workspace-ai.js` 的 seek 分支加兜底）：
+
+```js
+await new Promise((resolve,reject)=>{
+  const timer=setTimeout(resolve,15000);                     // 15 秒没动静 → 当完成放行
+  const done=()=>{clearTimeout(timer);resolve();};
+  const fail=error=>{clearTimeout(timer);reject(error);};    // 小节不存在仍照旧抛错走 repair
+  document.dispatchEvent(new CustomEvent('ai-seek-measure',{detail:{measure:Number(a.value),resolve:done,reject:fail}}));
+});
+```
+
+三种结果都对：正常 → 继续；`reject`（小节不存在）→ 照旧抛错走 repair；挂住 → 15 秒放行。
+★ 放行后 `verifyAction` 仍比对 `position`，真没跳过去会**如实报**「界面没有变化」，不会假装成功。
+★ **15 秒这个数字是被 #2 教出来的**（见 11.4）：一开始写 10 秒，结果在音源加载完成前就放行，
+把「还在加载」误判成了「挂住」。
+
+### 11.3 把「要么完整处理，要么 `return None`」写进代码
+
+`fast_plan` 补了 docstring 铁律（第一轮 4 条失败就是「只处理一半」造成的），
+并指向 `UNSUPPORTED_IN_RULES`。以后新增规则时，读函数第一眼就能看到。
+
+### 11.4 ★ 全量复核又抓出两条（都是真 bug）
+
+加完 11.1~11.3 后跑全量，**51/53**。两条失败都值得记下来：
+
+**#2「打开《知足》，跳到第 30 小节，然后播放」→ 跳到了，但没播放。**
+探针一跑就复现：规则通道只发了 `[seek_measure 30]`，**没有 play**。源码是
+
+```python
+if number is not None:
+    actions.append({'type':'seek_measure','value':str(number)})
+else: actions.append({'type':'play','value':''})     # ← 两者互斥
+```
+
+「跳到第 N 小节」就再也不加 play 了 —— 它一直在靠 `ai-seek-measure` 的**副作用**
+自动播放（`playFromNote → playScore`）。而那个副作用正是 11.2 里会挂住的东西，
+于是 11.2 的兜底一放行、播放还没起来，`playing=false`。
+
+修法：**用户说了「播放」就补一个显式 play**（两个分支都要改：`matches` 分支 +
+「简谱 / 只听 / 跳 N 小节」分支）。
+★ 敢这么补是因为 `ai-play-score` 的监听器**幂等**：`if(!player.playing)await playScore();`
+—— 已经在播就什么都不做，**不会重复播、也不破坏 seek 的位置**；启动不了还会抛
+「声音尚未启动」如实报错。同时把兜底从 10 秒放宽到 **15 秒**。
+
+**#7「打开《小星星变奏曲》」→ 真的打开了《小星星》。**
+**不是代码回归，是曲库变了**：曲库里新出现了一首《小星星》（`e9aa64afc3`）。
+规则通道对带《》的曲名只认完全同名 → `return None` → **模型接手后模糊匹配**，
+把《小星星》打开了，还附了个 `choose_scores`。
+
+修法：曲库里没有点名的曲子时，若存在「名字是它的一部分 / 它是一部分」的近似曲目，
+**问一句**而不是 `return None`：
+
+> 曲库里没有《小星星变奏曲》，但有《小星星》。要我打开这首吗？
+
+既不会擅自替换，也不像以前那样把「点名了不存在的曲子」直接丢给模型去猜。
+（探针复验：「打开《卡农》」曲库既没有也不近似 → 仍 `return None` 交模型；
+「打开《小星星》」→ 正常打开。）
+
+★ **教训**：全量用例的价值不只在「验证这次改的东西」—— 它同时暴露了
+**曲库变化带来的行为漂移**（#7）和**互斥逻辑里的隐藏依赖**（#2）。
+
+### 11.5 结果
+
+全量 **53/53 PASS**（24 分 55 秒）。两条修复的直接证据：
+
+| id | 用例 | 修前 | 修后 |
+|---|---|---|---|
+| 2 | 打开《知足》→跳第 30 小节→播放 | 跳到了但 `playing=false` | PASS（显式补了 play）|
+| 7 | 打开不存在的曲子《小星星》 | 真的打开了《小星星》 | PASS（改问「要我打开这首吗？」）|
+
+既有回归同时全绿（见第八节）。
+
 

@@ -256,7 +256,10 @@ function libraryContext(scores){
  // ★ 带上 status：曲库里有一批 status=failed 却 ready=true 的记录（实测 5 首：
  // 未命名曲谱/兰亭序/晚安/周杰伦/12.31），只发 {id,title,ready} 的话模型看不出来，
  // 就会把它们当正常曲目推荐出去 —— 用户点了必然播不出来（报告 #14）。
- return {library:index,scores:scores.map(c=>({id:c.id,title:c.title,ready:c.ready,status:c.status||''}))};
+ // ★ 带上 saved（上传时间）：重名曲谱的 evidence 实测全空（《知足》两份都是 None），
+ //   saved 是唯一能区分两份的字段 —— 后端 choose_payload 用它给重名项生成
+ //   「上传于 09-30 22:37」的 hover 提示（见 ai_workspace.py 的 saved_label）。
+ return {library:index,scores:scores.map(c=>({id:c.id,title:c.title,ready:c.ready,status:c.status||'',saved:c.saved||0}))};
 }
 // 界面上真实存在的控件清单。模型看不见它就会答「不支持」，
 // 或者跑去 GitHub 找 "tempo control plugin"（测试报告 B1/C5）。
@@ -364,7 +367,22 @@ const CONTROLS=[
    // 三个数分开说。以前只说「N 个得到和弦候选，其余需核对」，而下面按小节列了全部行，
    // 用户会觉得「说 8 个却列了 35 行」是错的（报告 #6）。把总数/命中/待核对都写出来。
    line('《'+result.title+'》：共分析 '+result.chords.length+' 个小节，其中 '+known+' 个得到和弦候选，另有 '+(result.chords.length-known)+' 个需核对。以下按小节列出，属于音符匹配结果，不是已核定的和声分析。');line(result.chords.map(c=>'第 '+c.measure+' 小节：'+(c.name||'待核对')).join('\n'));messages.push({role:'assistant',content:JSON.stringify(result)});return;}
-  if(a.type==='seek_measure'){await spotlight(document.querySelector('#sheet-scroll'));await new Promise((resolve,reject)=>document.dispatchEvent(new CustomEvent('ai-seek-measure',{detail:{measure:Number(a.value),resolve,reject}})));}
+  // ★ 这个事件的 resolve **可能永不触发**，必须加超时兜底。
+  //   链路：ai-seek-measure → app.js 监听器 await playFromNote → playScore，
+  //   而 playScore 里有 `await player.unlock()` / `await player.play()` ——
+  //   没有用户手势时受浏览器自动播放策略限制会挂住，于是 resolve 一直不调用，
+  //   runActions 就卡在这一步直到外层 deadline，用户看到的是「整个流程莫名卡死」。
+  //   正常路径 resolve 很快（实测各 seek 用例都通过），这里只是兜底：
+  //   · resolve → 继续；· reject（小节不存在）→ 照旧抛错走 repair；· 15 秒没动静 → 当完成放行。
+  //   （为什么是 15 秒：音源加载通常 5~10 秒，10 秒太紧 —— 长流程 #2 实测就是被
+  //    「10 秒就放行、可播放还没起来」误伤的。放行后 verifyAction 仍比对 position。）
+  //   （放行后 verifyAction 仍会比对 position，真没跳过去会如实报「界面没有变化」。）
+  if(a.type==='seek_measure'){await spotlight(document.querySelector('#sheet-scroll'));await new Promise((resolve,reject)=>{
+   const timer=setTimeout(resolve,15000);
+   const done=()=>{clearTimeout(timer);resolve();};
+   const fail=error=>{clearTimeout(timer);reject(error);};
+   document.dispatchEvent(new CustomEvent('ai-seek-measure',{detail:{measure:Number(a.value),resolve:done,reject:fail}}));
+  });}
   // 模型会用 play 的 value 带速度意图（tempo=1.2 表示「再快一点」），
   // 也常把「暂停/停止」塞进同一个 value（测试报告 A1）。
   // 后者必须拦住：ai-play-score 的语义是「确保在播放」，不拦就会「说暂停反而开始播放」。
