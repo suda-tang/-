@@ -305,10 +305,106 @@ system 提示被撑爆 → 模型实际只看得见头尾 6 首 → 于是答「
 - `scripts/restart-server.py` 的自动重载**日志上看不到新进程的启动行**（只有
   「检测到源码变更，交由重启器重建进程」），但功能实测已生效（新动作能返回）——
   重启链路本身值得再看一眼。
-- 报告里还没动的：B2（`view` 支持原稿/音轨）、B3（执行记录挤占消息预算）、
-  B4（401 透传可读化）、B6（响应最大 58s 且无法取消 → 取消按钮 + 超时降到 90s）、
-  C1（不透传 Python 堆栈）、P2 里的小节定位 off-by-one、声部名容错（贝司/左手右手）、
-  `choose_scores:[]` 死按钮、5 首 `status=failed` 却 `ready=true`、回复乱码、任务无法删除、
-  越界输入未拦截。
 - 端口 5173 上会出现**两个** `server.py` 监听进程（父重载器 + 子进程，SO_REUSEADDR 双绑定），
   排查时别误判成「有僵尸进程」。
+- 详见下面「第三轮」的收尾清单。
+
+## 第三轮：把测试报告的剩余项清完（2026-10-06 深夜）
+
+第二轮之后，报告里还挂着 B2/B3/B4/B6/C1/C2/C3 和 P2 的一堆小项。这轮全部落地。
+
+### 1. 前端 `dist/workspace-ai.js`
+
+- **B4 错误信息可读化**：`readableNetworkError()` 从「原样透传」改成按状态码分档 ——
+  `401` → 「AI 服务鉴权失败（401）：本机模型服务的访问凭据可能已失效，请在服务器电脑上
+  重启模型服务后重试。」；`403` / `429` / `5xx` 各有各的说法。以前用户看到的是
+  `401 Client Error: Unauthorized for url: http://127.0.0.1:8765/...`（Python 内部错误），
+  完全不知道该做什么。
+- **B3 执行记录挤占消息预算**：以前每执行一个动作就往 `messages` 里 push 一条
+  「实际执行完成：{...}」，一轮多动作对话能产生 5 条，20 条上限撑不过 4 轮 ——
+  最早的 user 指令被挤掉，模型就不知道用户到底要什么。现在执行记录改存
+  `executedActions`（单独数组，上限 30，只在提交时作为 `context.executed` 发最近 12 条），
+  `messages` 上限 20 → 40，并且 `historyForModel()` 在截断时**永远保住第一条 user 消息**。
+- **B6 响应慢且不能取消**：发送按钮复用为取消按钮（发送中变 `■`，点一下
+  `abortCurrent.abort()`）；`cancelledByUser` 标记让中止**不触发重试**；
+  主请求超时 300s → 90s，修复请求 100s；15 秒后出「还在处理，可以点 ■ 取消」的提示。
+- **B2 视图四值**：`snapshot().viewMode` 从只认 `engraved/simple` 扩到
+  `engraved / simple / pdf / daw`（分别对应 `#notation-button` / `#simple-button` /
+  `#original-button` / `#daw-button` 的选中态）。以前切到「原稿」或「音轨」时回读永远是空串，
+  `view` 动作会被误判成「执行后界面没有变化」。`CONTROLS` 清单同步写成四值。
+- **#14 `status=failed` 却 `ready=true`**：`libraryContext()` 现在带 `status`；
+  `choose_scores` 的按钮文案区分 `（识谱失败）` / `（识谱中）`。
+  实测这批有 5 首：未命名曲谱 / 兰亭序 / 晚安 / 周杰伦 / 12.31。
+- **#12 `choose_scores:[]` 死按钮**：空数组现在短路成
+  「没有找到可以打开的曲谱。换个曲名或歌手再说一次，或者直接点曲库里的卡片。」
+- **#13 `mute` 单向**：新增 `unmute` 动作（`all` 表示全部恢复）。
+- **和弦口径**：`chords` 播报改成三个数 ——「共分析 N 个小节，其中 K 个得到和弦候选，
+  另有 N−K 个需核对」，不再把「没匹配上」和「没有和弦」混为一谈。
+- 新增 `findOption(select,value)`（value / 文本精确 / 包含 / 反向包含 四级匹配），
+  `set_instrument` / `set_arrangement` 用它落值，避免中文名对不上就静默失败。
+
+### 2. 前端 `dist/app.js`
+
+- `ai-set-view` 放开 `pdf` / `daw`（原来只认 `simple/engraved`，说「打开原稿」会掉回简谱）；
+  没有 PDF 时明确报「这首曲谱没有原始 PDF，只能看电子谱」。
+- 新增 `ai-transport`（pause / stop 独立实现）与 `ai-set-tempo`（`running` 时报
+  「跟练进行中不能改速度，请先停止跟练」，不再静默丢弃）。
+- `ai-seek-measure` 加回退：精确匹配失败后用 `events.findIndex(e=>Number(e.measure)>=measure)`
+  兜一次（修报告 P2 #10「第 1 小节定位失败」），resolve 里带 `landedAt`。
+- `ai-workspace-context` 增加 `measureCount`，`view` 统一成动作侧叫法（`notation → engraved`）。
+
+### 3. 后端 `ai_workspace.py` / `ai_web_import.py` / `ai_task_store.py`
+
+- **C1 不透传 Python 堆栈**：新增 `friendly_error(error)` —— `ValueError` 原样返回（那是
+  我们自己写的给用户看的话），其余打日志 + 回一句人话。所有 `except` 分支统一走它。
+- 输入长度分级（C4）：`MAX_BODY=512KB`，单条消息 `MAX_MESSAGE_CHARS=4000`，
+  超了报「单条消息最多 4000 字，这条有 N 字…」。
+- `measure_bounds()` 收 `measureNumbers` + `measureCount`；**判据从「集合精确匹配」改成
+  `1 ≤ N ≤ max`** —— 初版用 `number not in numbers` 会把「整小节休止符、没有音符事件」
+  的真实小节（尤其第 1 小节）判成不存在。
+- `fast_plan` 的**两处** `seek_measure` 分支都加 `measure_problem` 拦截（同 B5 的教训：
+  小节类指令走 `fast_plan` 直接 return，绕过 `plan_data`，两处都要拦）。
+- `plan_data`：system 提示词补上 pause/stop/unmute/四值 view/`status=failed`/`executed` 语义；
+  `allowed` 加 `pause,stop,unmute,set_*,generate_arrangement`；`play` 的 value 带暂停/停止
+  自动拆成 `pause`/`stop`。
+- **C2 未知请求类型**：`ai_web_import` 的未知 `mode` 现在报「未知的请求类型：bogus」
+  （原来静默什么都不做）；skills 空 query 报「请先说明想要什么能力…」；
+  搜索改 `sort=stars` 并按关键词相关性过滤，无结果时提示换英文说法。
+- **#16 任务无法删除**：`ai_task_store.py` 新增 `do_DELETE`（从 body 或 `?id=` 取 id），
+  `server.py` 新增 `do_DELETE` 把 `/api/ai-tasks` 转给它。
+
+### 4. 回归
+
+- `node scripts/check-ai-control-actions.cjs` —— **本轮加视图四值断言**（B2 回归：
+  simple / engraved / pdf / daw 都要真的切过去，无效值必须报「谱面类型无效」）。PASS。
+- `node scripts/check-ai-action-guard.cjs` —— 空转反例从 `choose_scores:[]`（已修好，不再空转）
+  改成「把已经静音的声部再静音一次」；**用例前面必须先打开一首 ready 曲谱**，
+  否则 `#part-mix` 是空的，用例会直接失效。PASS。
+- `node scripts/check-ai-library-visibility.cjs` —— 索引 548 字符含总数 / 上下文 10850 字符 /
+  75 条完整 id。PASS。
+- `node scripts/check-frontend-syntax.cjs` —— 67 个文件。PASS。
+- 端点直测：`DELETE /api/ai-tasks?id=…` → 404 带 id 语义；skills 空 query →
+  「请先说明想要什么能力…」；未知 mode → 「未知的请求类型：bogus」。
+- 真实模型端到端（`e2e-real-ai.cjs`，非打桩）：初始 `play=自动演奏 tempo=77 节拍器=false`
+  → 变速 `tempo=150`「速度已设为 150 BPM。」→ 暂停 `play=自动演奏`（未误播）
+  「当前没有在播放，不需要暂停。」→ 节拍器 `节拍器=true`「节拍器已开启。」
+
+### 5. 仍未动 / 待定
+
+- **P1-⑦ 联网搜索 `directPdf` 恒 false** —— 没找到可靠的判定依据，先留着。
+- **#11 声部名容错**（贝司 / 左手右手）—— 报告 §D 已澄清一部分是测试数据本身的问题，
+  真实曲谱的声部名来自 MIDI track name，`findPart` 已有包含匹配兜底。
+- **#15 回复乱码 `ä`** —— 只在个别回复里出现，怀疑是模型输出而非编码链路，未复现。
+- **P1-⑤ 乐理问题全答成和弦** —— 属提示词策略，改动面大，等唐老师确认口径再动。
+- **P1-⑧ 僵尸任务 TTL** —— 任务中心里失败/中断的任务没有过期回收。
+- **B3 的「截断按 token 而非条数」** —— 现在按条数 + 保首条，够用；真要按 token 得引入
+  分词估算，收益不大。
+- **C3 `ConnectionResetError`（HTTP 422）稳定性** —— 只偶发，没抓到稳定复现路径。
+- ⚠ **本轮的 `dist/app.js` / `dist/index.html` / `server.py` 未提交**：这三个文件里混有
+  其他并行会话的大量在途工作（DAW 视图、mentor 系列、upload_auth、gzip 压缩…），
+  整文件提交会把别人的半成品裹进本次提交。本轮提交只含
+  `dist/workspace-ai.js` + `scripts/check-ai-*.cjs` + 本文档 + `LOCAL-TEST.md`。
+- ⚠ **AI 后端 `ai_workspace.py` / `ai_web_import.py` / `ai_task_store.py` / `ai_catalog.py`
+  仍是未跟踪文件**。它们是这套 AI 功能的必需件，但仓库是公开的，而 `ai_workspace.py` 里
+  写着本机包装层地址（`http://127.0.0.1:8765` + `Bearer suda-local`）。
+  是否纳入版本管理请唐老师定夺 —— 若要纳入，建议先把这两处挪到环境变量。

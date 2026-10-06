@@ -4,7 +4,7 @@
 //  2. 已经站在目标面板上时，不要误报「没有生效」；
 //  3. 面板名要归一：模型回中文名（「演奏」「任务中心」）也必须切对，不能一律掉回曲库；
 //  4. 不认识的动作类型不能静默空转；「只答应不给动作」也要有提示。
-// 前提：本地 http://127.0.0.1:5173 已经在跑。
+// 前提：本地 http://127.0.0.1:5173 已经在跑，且曲库里有 ready 的曲谱。
 const {chromium}=require('C:/Users/mail/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 const assert=require('node:assert/strict');
 
@@ -35,6 +35,14 @@ const sse=(reply,actions)=>[
 
     await page.goto('http://127.0.0.1:5173/',{waitUntil:'load'});
     await page.waitForFunction(()=>document.documentElement.classList.contains('boot-ready'),null,{timeout:40000});
+
+    // 先打开一首 ready 的曲谱：第 1 条用例拿「已经静音的声部再静音一次」当空转反例，
+    // 没有载入曲谱时 #part-mix 是空的，用例会直接失效。
+    const score=await page.evaluate(async()=>{const r=await fetch('/api/scores');const d=await r.json();return (d.scores||[]).find(x=>x.ready)||null;});
+    assert.ok(score,'曲库里没有 ready 的曲谱，无法测试空转动作');
+    await page.evaluate(id=>new Promise((res,rej)=>document.dispatchEvent(new CustomEvent('ai-open-score',{detail:{id,resolve:res,reject:rej}}))),score.id);
+    await page.waitForTimeout(3500);
+
     await page.locator('#workspace-ai').click();
     await page.waitForTimeout(1000);
 
@@ -53,8 +61,14 @@ const sse=(reply,actions)=>[
       return {...state,warned:(await notices())>base};
     };
 
-    // 1. 空转动作必须报警
-    let r=await send('我来处理。',[{type:'choose_scores',value:'[]'}]);
+    // 1. 空转动作必须报警。
+    //    注意：以前这里用「choose_scores 传空数组」当反例，但那个 bug 已经修好了
+    //    （空数组现在会明确说「没有找到可以打开的曲谱」，不再是死按钮，见下面第 5 条）。
+    //    改用真正空转的场景：把一个**已经静音**的声部再静音一次 —— 界面确实什么都没变。
+    let r=await send('我来处理。',[{type:'mute',value:'all'}]);
+    const partId=await page.evaluate(()=>document.querySelector('#part-mix input[data-part]')?.dataset.part||null);
+    assert.ok(partId,'曲谱没有可操作的声部，用例失效');
+    r=await send('我来处理。',[{type:'mute',value:partId}]);
     assert.equal(r.warned,true,'空转动作没有提示「没有生效」，静默失败会漏检');
     assert.ok(r.tail.some(t=>t.includes('个子操作执行后界面没有变化')),'有步骤没生效时，结尾没有给总账');
 

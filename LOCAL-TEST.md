@@ -44,21 +44,29 @@ powershell -File scripts/setup-omr.ps1 -Installer "C:\path\Audiveris-5.11.0-wind
 
 `node scripts/check-omr-real.cjs`：使用 `outputs/Dichterliebe01.pdf`（Audiveris 官方示例）做真实端到端识谱，确认浏览器最终得到可播放音符。
 
-## AI 工作区（需本地 5173 已在跑）
+## AI 工作区（需本地 5173 已在跑，且曲库里有 ready 的曲谱）
 
 这三个用**桩响应**驱动，不依赖模型发挥，也不产生副作用：
 
 `node scripts/check-ai-action-guard.cjs`：动作执行守护 —— 空转必须报警、已在目标面板不误报、
 面板中文别名归一、未知动作不静默、「只答应不给动作」有提示、空关键词搜索先问清楚。
+（★ 开头会先打开一首 ready 曲谱：空转反例用的是「把已经静音的声部再静音一次」，
+没有载入曲谱时 `#part-mix` 是空的，用例会直接失效。）
 
 `node scripts/check-ai-control-actions.cjs`：控件类动作 —— 说「暂停」绝不能变成开始播放、
 `pause`/`stop` 真的改变播放状态、变速/节拍器/音色/配器四个动作落到控件上、
-无效取值必须报错、「全部静音」能关掉所有声部。
+视图四值（简谱/五线谱/原稿/音轨）都要真的切过去、无效取值必须报错、「全部静音」能关掉所有声部。
 
 `node scripts/check-ai-library-visibility.cjs`：钉住发给模型的上下文载荷 ——
 曲名索引（含总数）必须在、必须是上下文第一个键、完整 64 位 id 必须覆盖全部曲目、
 整体不得超过包装层 20000 字符的 system 预算。
 
+`node scripts/check-frontend-syntax.cjs`：前端脚本语法（67 个文件），改动前端后先跑这个。
+
+端点级直测（curl 即可，不经过模型）：
+- `curl -X DELETE 'http://127.0.0.1:5173/api/ai-tasks?id=不存在的id'` → 404 且回执里带这个 id
+- 未知请求类型 → 回「未知的请求类型：bogus」；skills 空 query → 回「请先说明想要什么能力…」
+
 真实模型（会真的调用 8765，较慢）的探针放在 `D:\code\2026-10-02-01-58-59\`：
 `probe_context_budget.py`（上下文排布对比）、`probe_open_whitelist.py`（scores 空否对 open 的影响）、
-`probe_new_actions.py`（暂停/变速/节拍器/音色/配器/越界小节）。
+`probe_new_actions.py`（暂停/变速/节拍器/音色/配器/越界小节）、`e2e-real-ai.cjs`（端到端）。

@@ -4,6 +4,7 @@
 //   A1  独立的 pause / stop 动作要真的改变播放状态
 //   P1-④ 变速不能「假装成功」（跟练中改不动就必须报错，不能照样说已设置）
 //   B1/C5 set_tempo / set_metronome / set_instrument / set_arrangement 四个动作真的落到控件上
+//   B2  view 四值（simple / engraved / pdf / daw）都要能切，不能一律掉回简谱
 //   A4  mute all（全部静音）以前必然失败并触发一次无效重试
 // 前提：本地 http://127.0.0.1:5173 已经在跑，且曲库里有 ready 的曲谱。
 const {chromium}=require('C:/Users/mail/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
@@ -49,6 +50,7 @@ const sse=(reply,actions)=>[
       instrumentText:document.querySelector('#instrument-select')?.selectedOptions?.[0]?.textContent?.trim()||'',
       arrangement:document.querySelector('#arrangement-select')?.value||'',
       panel:document.body.dataset.workspace||'',
+      activeView:['notation-button','simple-button','original-button','daw-button'].find(id=>document.querySelector('#'+id)?.classList.contains('active'))||'',
       mix:[...document.querySelectorAll('#part-mix input[data-part]')].map(x=>x.checked),
       tail:[...document.querySelectorAll('.ai-messages p')].slice(-4).map(x=>x.textContent.slice(0,90))
     }));
@@ -100,12 +102,29 @@ const sse=(reply,actions)=>[
     r=await act([{type:'set_arrangement',value:'不存在的编制'}]);
     assert.ok(r.tail.some(t=>/没有这个配器方案/.test(t)),'不存在的编制没有报错：'+JSON.stringify(r.tail));
 
+    // ── B2：视图四值（简谱 / 五线谱 / 原稿 / 音轨）───────────────────
+    //    以前 ai-set-view 只认 simple/engraved，说「打开原稿」只会掉回简谱。
+    r=await act([{type:'view',value:'simple'}]);
+    assert.equal(r.activeView,'simple-button','view=simple 没有切到简谱，实际 '+r.activeView);
+    r=await act([{type:'view',value:'engraved'}]);
+    assert.equal(r.activeView,'notation-button','view=engraved 没有切到五线谱，实际 '+r.activeView);
+    const hasPdf=await page.evaluate(()=>!document.querySelector('#original-button')?.disabled);
+    r=await act([{type:'view',value:'pdf'}]);
+    if(hasPdf)assert.equal(r.activeView,'original-button','★ B2 回归：view=pdf 没有切到原稿视图，实际 '+r.activeView);
+    else assert.ok(r.tail.some(t=>/没有原始 PDF/.test(t)),'没有 PDF 时 view=pdf 没有给出说明：'+JSON.stringify(r.tail));
+    r=await act([{type:'view',value:'daw'}]);
+    assert.equal(r.activeView,'daw-button','★ B2 回归：view=daw 没有切到音轨视图，实际 '+r.activeView);
+    r=await act([{type:'view',value:'乱写'}]);
+    assert.ok(r.tail.some(t=>/谱面类型无效/.test(t)),'view 的无效取值被静默吞掉了：'+JSON.stringify(r.tail));
+    r=await act([{type:'view',value:'engraved'}]);
+    assert.equal(r.activeView,'notation-button','收尾没有回到五线谱，实际 '+r.activeView);
+
     // ── A4：全部静音 ───────────────────────────────────────────────
     r=await act([{type:'mute',value:'all'}]);
     assert.ok(r.mix.length>0,'没有可静音的声部，测不出 mute all');
     assert.equal(r.mix.every(x=>x===false),true,'mute all 之后仍有声部没关掉：'+JSON.stringify(r.mix));
 
     assert.deepEqual(errors,[],'页面出现脚本错误：'+errors.join(' | '));
-    console.log('PASS AI 控件动作检查（暂停/停止 / 速度 / 节拍器 / 音色 / 配器 / 全部静音）');
+    console.log('PASS AI 控件动作检查（暂停/停止 / 速度 / 节拍器 / 音色 / 配器 / 视图四值 / 全部静音）');
   }finally{await browser.close();}
 })().catch(error=>{console.error('FAIL',error.message);process.exitCode=1;});

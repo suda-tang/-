@@ -1,6 +1,18 @@
 import {reportTask} from './task-center.js?v=scan3';
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
-function readableNetworkError(error){if(['AbortError','TimeoutError'].includes(error?.name)||/fetch is aborted|signal.*abort/i.test(error?.message||''))return '请求等待超时或连接被中止，操作尚未完成。请重试；若持续出现，请检查外网隧道连接。';if(error?.name==='TypeError'||/load failed|failed to fetch/i.test(error?.message||''))return 'AI 请求未能连接服务，网络或隧道连接已中断。';return error?.message||'连接失败';}
+function readableNetworkError(error){
+ const text=String(error?.message||error||'');
+ // 模型服务自己的故障要和「连不上」分开说。以前 401 会原样透出
+ // 「401 Client Error: Unauthorized for url: http://127.0.0.1:8765/...」——
+ // 用户看到的是 Python 内部错误，根本不知道该做什么（报告 B4）。
+ if(/401|Unauthorized/i.test(text))return 'AI 服务鉴权失败（401）：本机模型服务的访问凭据可能已失效，请在服务器电脑上重启模型服务后重试。';
+ if(/403|Forbidden/i.test(text))return 'AI 服务拒绝了这次请求（403），请检查本机模型服务的配置。';
+ if(/429|Too Many Requests|rate.?limit/i.test(text))return 'AI 服务请求过于频繁（429），请稍等十几秒再试。';
+ if(/HTTP\s*5\d\d|Internal Server Error|Bad Gateway|Service Unavailable|Gateway Time-?out/i.test(text))return 'AI 服务端出错了（5xx），通常稍后重试即可；若持续出现，请查看服务器电脑上的模型服务日志。';
+ if(['AbortError','TimeoutError'].includes(error?.name)||/fetch is aborted|signal.*abort/i.test(text))return '请求等待超时或连接被中止，操作尚未完成。请重试；若持续出现，请检查外网隧道连接。';
+ if(error?.name==='TypeError'||/load failed|failed to fetch/i.test(text))return 'AI 请求未能连接服务，网络或隧道连接已中断。';
+ return text||'连接失败';
+}
 async function requestAI(payload,onEvent,signal){
  const isConnectionError=error=>['TypeError','AbortError','TimeoutError','SyntaxError'].includes(error?.name)||/load failed|failed to fetch|network|连接已结束/i.test(error?.message||'');
  const deadline=signal||AbortSignal.timeout(300000);
@@ -30,12 +42,21 @@ function init(){
  const trigger=document.createElement('button');trigger.id='workspace-ai';trigger.type='button';trigger.innerHTML='<span>AI</span><svg class="ai-task-ring" viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="ai-task-gradient" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#74bfff"/><stop offset=".5" stop-color="#bf88ef"/><stop offset="1" stop-color="#f8a487"/></linearGradient></defs><circle cx="24" cy="24" r="22"/></svg>';trigger.setAttribute('aria-label','打开音乐助手');const dock=document.createElement('div');dock.className='ai-navigation-dock';nav.before(dock);dock.append(nav,trigger);
  const dialog=document.createElement('dialog');dialog.className='ai-conversation';
  dialog.innerHTML='<div class="ai-screen-aura" aria-hidden="true"><i></i><i></i><i></i><i></i></div><div class="ai-history-frame"><div class="ai-messages" role="log" aria-live="polite"></div></div><form><input aria-label="告诉我你想做什么" placeholder="告诉我你想做什么" maxlength="2000" required><button type="submit" aria-label="发送">↑</button><button type="button" class="ai-close" aria-label="关闭">×</button></form>';
- document.body.append(dialog);const log=dialog.querySelector('.ai-messages'),input=dialog.querySelector('input'),form=dialog.querySelector('form');let messages=[],busy=false,transitioning=false,selectedScoreId=null,lastUserText="";
+ document.body.append(dialog);const log=dialog.querySelector('.ai-messages'),input=dialog.querySelector('input'),form=dialog.querySelector('form');let messages=[],executedActions=[],busy=false,transitioning=false,selectedScoreId=null,lastUserText="";
  // 关掉对话时要能中止在途请求：否则用户以为关了，服务端还在跑，回复还会把对话重新弹开。
- let abortCurrent=null,userClosed=false;
+ let abortCurrent=null,userClosed=false,cancelledByUser=false;
  // 给请求同时挂上「超时」和「用户关闭」两个中止源。
  const deadline=ms=>abortCurrent?.signal&&typeof AbortSignal.any==='function'?AbortSignal.any([abortCurrent.signal,AbortSignal.timeout(ms)]):AbortSignal.timeout(ms);
- function trimConversation(){while(log.children.length>60)log.firstElementChild.remove();if(messages.length>20)messages=messages.slice(-20);}
+ function trimConversation(){while(log.children.length>60)log.firstElementChild.remove();if(messages.length>40)messages=messages.slice(-40);}
+ // 发给模型的历史。★ 执行记录不再进 messages（见 runActions）：以前每执行一个动作就 push 一条
+ // 「实际执行完成：{...}」，一轮多动作对话能产生 5 条，20 条上限撑不过 4 轮 ——
+ // 最早的 user 指令被挤掉，模型就不知道用户到底要什么（报告 B3）。
+ // 这里再兜一层：截断时永远保住第一条用户消息，它是这轮任务的起点。
+ function historyForModel(){
+  const recent=messages.slice(-24);
+  const first=messages.find(m=>m.role==='user');
+  return first&&!recent.includes(first)?[first,...recent]:recent;
+ }
  function line(text,role='assistant'){if(role==='assistant'&&aiTask)taskLines.push(text);trimConversation();const p=document.createElement('p');p.className=role;p.textContent=text;log.append(p);log.scrollTop=log.scrollHeight;}
  const reduced=()=>matchMedia('(prefers-reduced-motion:reduce)').matches;
  const operation=document.createElement('div');operation.className='ai-operation-layer';operation.innerHTML='<div class="ai-screen-aura" aria-hidden="true"><i></i><i></i><i></i><i></i></div><span role="status"></span>';document.body.append(operation);
@@ -44,7 +65,7 @@ function init(){
 
  function taskProgress(percent,label){taskPercent=Math.max(taskPercent,Math.min(100,percent));trigger.dataset.taskProgress=String(Math.round(taskPercent));trigger.style.setProperty('--ai-task-progress',taskPercent/100);trigger.classList.add('has-task');trigger.title=label+' '+Math.round(taskPercent)+'%';trigger.setAttribute('aria-label',trigger.title);operation.querySelector('span').textContent=trigger.title;taskReport({progress:Math.round(taskPercent),detail:label});}
  async function showResults(){while(transitioning)await wait(30);if(!dialog.open)await trigger.onclick({result:true});log.scrollTop=log.scrollHeight;}
- const labels={panel:'切换工作区',view:'切换谱面',search:'查找曲谱',open:'打开曲谱',play:'开始播放',pause:'暂停播放',stop:'停止播放',solo:'选择独奏声部',solo_group:'声部分组',mute:'调整声部',set_tempo:'调整速度',set_metronome:'开关节拍器',set_instrument:'切换音色',set_arrangement:'选择配器',generate_arrangement:'生成总谱',web_search:'联网搜索',skill_search:'查找技能',choose_scores:'列出曲谱',seek_measure:'定位小节',chords:'提取和弦'};
+ const labels={panel:'切换工作区',view:'切换谱面',search:'查找曲谱',open:'打开曲谱',play:'开始播放',pause:'暂停播放',stop:'停止播放',solo:'选择独奏声部',solo_group:'声部分组',mute:'调整声部',unmute:'恢复声部',set_tempo:'调整速度',set_metronome:'开关节拍器',set_instrument:'切换音色',set_arrangement:'选择配器',generate_arrangement:'生成总谱',web_search:'联网搜索',skill_search:'查找技能',choose_scores:'列出曲谱',seek_measure:'定位小节',chords:'提取和弦'};
 // 动作执行后回读界面，确认它真的生效了。
 // 为什么需要：AI 常说「我来处理」并发回动作，但动作在界面上什么都没改变 ——
 // 这类「嘴上说好了、界面没动」的失败最难发现，只能靠执行后回读来兜住。
@@ -53,7 +74,7 @@ const PANELS=['library','play','arrange','tasks'];
 // 于是「切换到演奏」会跳到曲库——看着像执行了，其实跑偏。这里先归一，认不出才退回曲库。
 const PANEL_ALIAS={library:'library',曲库:'library',乐谱库:'library',乐谱:'library',play:'play',演奏:'play',播放:'play',弹奏:'play',arrange:'arrange',改编:'arrange',tasks:'tasks',任务:'tasks',任务中心:'tasks'};
 const panelValue=value=>PANEL_ALIAS[String(value??'').trim().toLowerCase()]||'library';
-const KNOWN_TYPES=new Set(['view','solo_group','choose_scores','panel','search','open','chords','seek_measure','play','pause','stop','solo','mute','set_tempo','set_metronome','set_instrument','set_arrangement','generate_arrangement','skill_search','web_search']);
+const KNOWN_TYPES=new Set(['view','solo_group','choose_scores','panel','search','open','chords','seek_measure','play','pause','stop','solo','mute','unmute','set_tempo','set_metronome','set_instrument','set_arrangement','generate_arrangement','skill_search','web_search']);
 // 声部名称对不上就用显示名模糊匹配：模型回「左手」而选项里是「Left Hand」时也能命中。
 function findPart(value){const want=String(value??'').trim();if(!want)return null;
  const options=parts();return options.find(p=>p.value===want)||options.find(p=>p.name&&(p.name.includes(want)||want.includes(p.name)))||null;}
@@ -78,7 +99,9 @@ function findOption(select,value){
 function snapshot(){
  const play=document.querySelector('#play-button'),select=document.querySelector('#part-solo-select');
  return {panel:document.body.dataset.workspace||'',
-  viewMode:document.querySelector('#notation-button')?.classList.contains('active')?'engraved':document.querySelector('#simple-button')?.classList.contains('active')?'simple':'',
+  // 四个谱面视图都要认：以前只认五线谱/简谱，切到「原稿」或「音轨」时回读永远是空串，
+  // 于是 view 动作会被误判成「执行后界面没有变化」。
+  viewMode:(()=>{const on=id=>document.querySelector('#'+id)?.classList.contains('active');return on('notation-button')?'engraved':on('simple-button')?'simple':on('original-button')?'pdf':on('daw-button')?'daw':'';})(),
   title:document.querySelector('#score-title')?.textContent||'',
   playing:play?play.textContent.trim():'',playDisabled:play?play.disabled:null,
   solo:select?select.value:'',muted:[...document.querySelectorAll('#part-mix input')].filter(x=>!x.checked).map(x=>x.dataset.part),
@@ -89,7 +112,7 @@ function snapshot(){
 }
 // 每种动作预期会改动哪些字段；产出文字/按钮的动作以「对话多了一行」为准。
 // view 看谱面按钮的选中态（切谱面不会动工作区面板），solo_group 看声部勾选。
-const EXPECT={panel:['panel'],view:['viewMode'],open:['title'],play:['playing','playDisabled'],pause:['playing','playDisabled'],stop:['playing','playDisabled'],solo:['solo'],mute:['muted'],solo_group:['solo','muted'],set_tempo:['tempo'],set_metronome:['metronome'],set_instrument:['instrument'],set_arrangement:['arrangement'],generate_arrangement:['logLines'],seek_measure:['position'],chords:['logLines'],search:['logLines'],web_search:['logLines'],skill_search:['logLines'],choose_scores:['logLines']};
+const EXPECT={panel:['panel'],view:['viewMode'],open:['title'],play:['playing','playDisabled'],pause:['playing','playDisabled'],stop:['playing','playDisabled'],solo:['solo'],mute:['muted'],unmute:['muted'],solo_group:['solo','muted'],set_tempo:['tempo'],set_metronome:['metronome'],set_instrument:['instrument'],set_arrangement:['arrangement'],generate_arrangement:['logLines'],seek_measure:['position'],chords:['logLines'],search:['logLines'],web_search:['logLines'],skill_search:['logLines'],choose_scores:['logLines']};
 // 回读留一个观察窗口：切面板、换谱面这类改动要过一帧才落到 DOM，
 // 立刻比对会把「其实成功了」误判成「没生效」。已经站在目标面板上则直接算完成。
 async function verifyAction(a,before){
@@ -106,8 +129,8 @@ async function verifyAction(a,before){
  function readLiveContext(){return Promise.race([new Promise(resolve=>document.dispatchEvent(new CustomEvent('ai-workspace-context',{detail:{resolve}}))),new Promise((_,reject)=>setTimeout(()=>reject(Error('播放工作区尚未响应，请关闭并重新打开 AI')),3000))]);}
  async function currentScoreId(){try{const live=await readLiveContext();return live?.currentId||null;}catch(e){return null;}}
 async function workspaceContext(){const data=await readCloudLibrary();const live=await readLiveContext();return {...libraryContext(data.scores),...live,controls:CONTROLS,parts:parts(),current:document.querySelector('#score-title')?.textContent};}
- async function repairActions(failed,error,completed){line('操作没有完成，正在重新核对曲谱、声部和播放位置…');const context=await workspaceContext();const response=await fetch('/api/workspace-ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:messages.slice(-16),context,repair:{failed,error:readableNetworkError(error),completed}}),signal:deadline(100000)});const result=await response.json();if(!response.ok)throw Error(result.error);line(result.reply);if(!result.actions?.length)throw Error('重新核对后仍无法完成：'+error.message);return result.actions;}
- async function runActions(actions){if(!actions.length)return;actions=[...actions];let repairCount=0,unverified=0;const failedStates=new Set();const completed=[];await close();document.body.classList.add('ai-executing');trigger.disabled=true;taskPercent=0;taskProgress(0,'准备操作');try{for(let i=0;i<actions.length;i++){const a=actions[i];taskProgress(i/actions.length*100,labels[a.type]||'正在操作');const snapBefore=snapshot();try{const outcome=await action(a,p=>taskProgress((i+p)/actions.length*100,labels[a.type]||'正在操作'));if(outcome!=='skipped'&&!await verifyAction(a,snapBefore)){unverified++;line('注意：'+(labels[a.type]||'这一步')+'执行后界面没有变化，可能没有真正生效。');}}catch(error){const signature=JSON.stringify(a)+'|'+error.message;if(repairCount>=2||failedStates.has(signature))throw error;failedStates.add(signature);repairCount++;const replacement=await repairActions(a,error,completed);actions.splice(i,actions.length-i,...replacement.slice(0,6));i--;continue;}completed.push(a);messages.push({role:'assistant',content:'实际执行完成：'+JSON.stringify(a)});taskProgress((i+1)/actions.length*100,labels[a.type]||'正在操作');}if(unverified)line('这一步里共有 '+unverified+' 个子操作执行后界面没有变化，可能没有真正生效。建议换个更具体的说法再试一次（例如直接点曲名或说面板名）。');taskProgress(100,'已完成');await wait(reduced()?0:350);}catch(error){trigger.classList.add('task-failed');throw error;}finally{document.body.classList.remove('ai-executing');trigger.disabled=false;}await showResults();}
+ async function repairActions(failed,error,completed){line('操作没有完成，正在重新核对曲谱、声部和播放位置…');const context=await workspaceContext();const response=await fetch('/api/workspace-ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:historyForModel(),context:{...context,executed:executedActions.slice(-12)},repair:{failed,error:readableNetworkError(error),completed}}),signal:deadline(100000)});const result=await response.json();if(!response.ok)throw Error(result.error);line(result.reply);if(!result.actions?.length)throw Error('重新核对后仍无法完成：'+error.message);return result.actions;}
+ async function runActions(actions){if(!actions.length)return;actions=[...actions];let repairCount=0,unverified=0;const failedStates=new Set();const completed=[];await close();document.body.classList.add('ai-executing');trigger.disabled=true;taskPercent=0;taskProgress(0,'准备操作');try{for(let i=0;i<actions.length;i++){const a=actions[i];taskProgress(i/actions.length*100,labels[a.type]||'正在操作');const snapBefore=snapshot();try{const outcome=await action(a,p=>taskProgress((i+p)/actions.length*100,labels[a.type]||'正在操作'));if(outcome!=='skipped'&&!await verifyAction(a,snapBefore)){unverified++;line('注意：'+(labels[a.type]||'这一步')+'执行后界面没有变化，可能没有真正生效。');}}catch(error){const signature=JSON.stringify(a)+'|'+error.message;if(repairCount>=2||failedStates.has(signature))throw error;failedStates.add(signature);repairCount++;const replacement=await repairActions(a,error,completed);actions.splice(i,actions.length-i,...replacement.slice(0,6));i--;continue;}completed.push(a);executedActions.push({type:a.type,value:a.value});if(executedActions.length>30)executedActions=executedActions.slice(-30);taskProgress((i+1)/actions.length*100,labels[a.type]||'正在操作');}if(unverified)line('这一步里共有 '+unverified+' 个子操作执行后界面没有变化，可能没有真正生效。建议换个更具体的说法再试一次（例如直接点曲名或说面板名）。');taskProgress(100,'已完成');await wait(reduced()?0:350);}catch(error){trigger.classList.add('task-failed');throw error;}finally{document.body.classList.remove('ai-executing');trigger.disabled=false;}await showResults();}
 
 
  let layoutFrame=0;
@@ -172,7 +195,10 @@ async function workspaceContext(){const data=await readCloudLibrary();const live
 function libraryContext(scores){
  const titles=scores.map(c=>c.title).filter(Boolean);
  const index='共'+titles.length+'首：'+titles.join('/');
- return {library:index,scores:scores.map(c=>({id:c.id,title:c.title,ready:c.ready}))};
+ // ★ 带上 status：曲库里有一批 status=failed 却 ready=true 的记录（实测 5 首：
+ // 未命名曲谱/兰亭序/晚安/周杰伦/12.31），只发 {id,title,ready} 的话模型看不出来，
+ // 就会把它们当正常曲目推荐出去 —— 用户点了必然播不出来（报告 #14）。
+ return {library:index,scores:scores.map(c=>({id:c.id,title:c.title,ready:c.ready,status:c.status||''}))};
 }
 // 界面上真实存在的控件清单。模型看不见它就会答「不支持」，
 // 或者跑去 GitHub 找 "tempo control plugin"（测试报告 B1/C5）。
@@ -181,9 +207,9 @@ const CONTROLS=[
  '演奏速度 set_tempo 30–240 BPM（原谱 BPM 会显示在旁）',
  '节拍器 set_metronome 开/关（音量 metronome-volume 0.1–1，界面上手动调）',
  '音色 set_instrument（音乐会钢琴/三角钢琴等，选项见 #instrument-select）',
- '配器 set_arrangement（原谱/原谱加鼓/室内乐/管弦乐/弦乐四重奏/木管四重奏/铜管四重奏/自选编制）',
- '播放声部 solo/声部分组 solo_group/静音 mute（全部乐器 + 各真实声部，见 context.parts）',
- '谱面 view：五线谱 engraved / 简谱 simple（另有原稿、音轨两个视图按钮）',
+ '配器 set_arrangement（原谱/原谱加鼓/室内乐/管弦乐/弦乐四重奏/木管四重奏/铜管四重奏/自选编制），generate_arrangement 生成总谱',
+ '播放声部 solo 独奏 / solo_group 声部分组 / mute 静音 / unmute 取消静音（值用 context.parts 里的真实声部名，mute/unmute 用 all 表示全部）',
+ '谱面 view：engraved 五线谱 / simple 简谱 / pdf 原稿 / daw 音轨',
  '和弦分析 chords（value=all 或 piano）',
  '播放 pause 暂停 / stop 停止并回到开头 / play 开始播放 / seek_measure 跳到第 N 小节',
  '工作区面板 panel：library 曲库 / play 演奏 / arrange 改编 / tasks 任务',
@@ -245,7 +271,10 @@ const CONTROLS=[
   }
   if(a.type==='view'){await new Promise((resolve,reject)=>document.dispatchEvent(new CustomEvent('ai-set-view',{detail:{mode:a.value,resolve,reject}})));return;}
   if(a.type==='solo_group'){await new Promise((resolve,reject)=>document.dispatchEvent(new CustomEvent('ai-solo-group',{detail:{ids:(Array.isArray(a.value)?a.value:JSON.parse(a.value)),resolve,reject}})));return;}
-  if(a.type==='choose_scores'){const items=(Array.isArray(a.value)?a.value:JSON.parse(a.value));for(const item of items){const button=document.createElement('button');button.type='button';button.textContent=item.title+(item.ready===false?'（识谱中）':'');if(item.evidence)button.title=item.evidence;button.onclick=()=>{if(busy)return;selectedScoreId=item.id;input.value=lastUserText;form.requestSubmit();};log.append(button);}return;}
+  if(a.type==='choose_scores'){const items=(Array.isArray(a.value)?a.value:JSON.parse(a.value));if(!items.length){line('没有找到可以打开的曲谱。换个曲名或歌手再说一次，或者直接点曲库里的卡片。');return;}for(const item of items){const button=document.createElement('button');button.type='button';
+   // 「识谱中」和「识谱失败」是两回事，别都写成识谱中 —— 失败的那批点开也播不出来。
+   button.textContent=item.title+(item.status==='failed'?'（识谱失败）':item.ready===false?'（识谱中）':'');
+   if(item.evidence)button.title=item.evidence;button.onclick=()=>{if(busy)return;selectedScoreId=item.id;input.value=lastUserText;form.requestSubmit();};log.append(button);}return;}
 
   // 已经站在目标面板上就别再点一遍：省掉 650ms 的聚光动画，也不会被回读当成「没生效」。
   if(a.type==='panel'){const value=panelValue(a.value);if(document.body.dataset.workspace===value)return;const el=document.querySelector(`.workspace-nav [data-panel="${value}"]`);await spotlight(el);el?.click();return;}
@@ -268,7 +297,10 @@ const CONTROLS=[
    const card=[...document.querySelectorAll('.library-score')].find(c=>c.dataset.scoreId===a.value);if(card)await spotlight(card);
    await new Promise((resolve,reject)=>document.dispatchEvent(new CustomEvent('ai-open-score',{detail:{id:a.value,resolve,reject,onProgress}})));
   }
-  if(a.type==='chords'){const result=await new Promise((resolve,reject)=>document.dispatchEvent(new CustomEvent('ai-analyze-chords',{detail:{part:a.value,resolve,reject,onProgress}})));const known=result.chords.filter(c=>c.name).length;line('《'+result.title+'》：'+known+' 个小节得到和弦候选，其余需核对。以下按小节列出，属于音符匹配结果，不是已核定的和声分析。');line(result.chords.map(c=>'第 '+c.measure+' 小节：'+(c.name||'待核对')).join('\n'));messages.push({role:'assistant',content:JSON.stringify(result)});return;}
+  if(a.type==='chords'){const result=await new Promise((resolve,reject)=>document.dispatchEvent(new CustomEvent('ai-analyze-chords',{detail:{part:a.value,resolve,reject,onProgress}})));const known=result.chords.filter(c=>c.name).length;
+   // 三个数分开说。以前只说「N 个得到和弦候选，其余需核对」，而下面按小节列了全部行，
+   // 用户会觉得「说 8 个却列了 35 行」是错的（报告 #6）。把总数/命中/待核对都写出来。
+   line('《'+result.title+'》：共分析 '+result.chords.length+' 个小节，其中 '+known+' 个得到和弦候选，另有 '+(result.chords.length-known)+' 个需核对。以下按小节列出，属于音符匹配结果，不是已核定的和声分析。');line(result.chords.map(c=>'第 '+c.measure+' 小节：'+(c.name||'待核对')).join('\n'));messages.push({role:'assistant',content:JSON.stringify(result)});return;}
   if(a.type==='seek_measure'){await spotlight(document.querySelector('#sheet-scroll'));await new Promise((resolve,reject)=>document.dispatchEvent(new CustomEvent('ai-seek-measure',{detail:{measure:Number(a.value),resolve,reject}})));}
   // 模型会用 play 的 value 带速度意图（tempo=1.2 表示「再快一点」），
   // 也常把「暂停/停止」塞进同一个 value（测试报告 A1）。
@@ -288,6 +320,12 @@ const CONTROLS=[
   if(a.type==='mute'){const els=findMixes(a.value);if(!els.length)throw Error('当前曲谱没有这个声部');let closed=0;
    for(const el of els){if(!el.checked)continue;await spotlight(el.parentElement);el.checked=false;el.dispatchEvent(new Event('change',{bubbles:true}));closed++;}
    if(els.length>1)line(closed?'已关闭全部 '+closed+' 个声部。':'这些声部本来就都已经关闭了。');}
+  // 静音以前是单向的：只能关不能开，用户说「把钢琴打开」时模型没法表达（报告 #13）。
+  if(a.type==='unmute'){const els=findMixes(a.value);if(!els.length)throw Error('当前曲谱没有这个声部');let opened=0;
+   for(const el of els){if(el.checked)continue;await spotlight(el.parentElement);el.checked=true;el.dispatchEvent(new Event('change',{bubbles:true}));opened++;}
+   if(!opened)line('这些声部本来就是开启的。');
+   else if(els.length>1)line('已恢复全部 '+opened+' 个声部。');
+   else line('已恢复「'+(els[0].parentElement?.querySelector('span')?.textContent||'该声部')+'」。');}
   if(a.type==='skill_search'){
    const response=await fetch('/api/workspace-ai/web',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'skills',query:a.value}),signal:AbortSignal.timeout(30000)});const result=await response.json();if(!response.ok)throw Error(result.error);line(result.notice);for(const item of result.results){line(item.title+' — '+item.description+'（许可：'+item.license+'）');const link=document.createElement('a');link.href=item.url;link.textContent='查看开源项目';link.target='_blank';link.rel='noopener';log.append(link);}if(!result.results.length)line('没有找到匹配的 Skill，请补充功能描述。');return;
   }
@@ -296,13 +334,21 @@ const CONTROLS=[
    if(result.notice)line(result.notice);for(const item of result.results){const link=document.createElement('a');link.textContent=item.title;link.href=item.url;link.target='_blank';link.rel='noopener';log.append(link);if(item.directPdf){const button=document.createElement('button');button.textContent='导入这份谱';button.onclick=async()=>{button.disabled=true;try{line('正在下载并提交识谱…');const response=await fetch('/api/workspace-ai/web',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'import',url:item.url,title:a.value}),signal:AbortSignal.timeout(90000)});const data=await response.json();if(!response.ok)throw Error(data.error);line('已加入识谱队列；完成后会尝试打开并播放。');await action({type:'panel',value:'tasks'});void watchImport(data.id);}catch(e){line(readableNetworkError(e));}finally{button.disabled=false;}};log.append(button);}}
   }
  }
- form.onsubmit=async e=>{e.preventDefault();if(busy)return;const text=input.value.trim();if(!text)return;lastUserText=text;busy=true;abortCurrent=new AbortController();userClosed=false;taskLines=[];aiTask={id:'ai-'+crypto.randomUUID(),label:text,created:Date.now(),kind:'ai',status:'running',progress:0,detail:'读取曲库'};taskReport({});trigger.classList.remove('task-failed','has-task');taskPercent=0;dialog.classList.add('is-thinking');input.value='';messages.push({role:'user',content:text});line(text,'user');form.querySelector('button').disabled=true;const status=document.createElement('p');status.className='ai-operation-detail';log.append(status);let statusTimer=0;function streamStatus(text){clearInterval(statusTimer);status.textContent='';const chars=Array.from(text);let index=0;statusTimer=setInterval(()=>{if(index>=chars.length){clearInterval(statusTimer);return;}status.textContent+=chars[index++];log.scrollTop=log.scrollHeight;},12);}streamStatus('读取云曲库，获取当前曲谱、播放位置和可用声部…');let reveal=characterStream();
-  try{const libraryData=await readCloudLibrary();const live=await readLiveContext();const context={...libraryContext(libraryData.scores),...live,controls:CONTROLS,selectionId:selectedScoreId,parts:parts(),current:document.querySelector('#score-title')?.textContent};selectedScoreId=null;const result=await requestAI({messages:messages.slice(-16),context},event=>{if(event.type==='reset'){const partial=log.querySelector('.ai-streaming-text');reveal.cancel();partial?.remove();reveal=characterStream();}if(event.type==='status'){streamStatus(event.text);taskReport({detail:event.text});}if(event.type==='delta')reveal.push(event.text);},abortCurrent.signal);clearInterval(statusTimer);status.remove();await reveal.finish();messages.push({role:'assistant',content:result.reply});await runActions(result.actions||[]);
+ form.onsubmit=async e=>{e.preventDefault();
+ // 忙的时候这个按钮变成「停止」。报告 B6：中位 6.3 秒、最大 58 秒，用户只能干等。
+ // 复用同一个圆形按钮（不新增控件，省得打乱已有的紧凑布局）。
+ if(busy){cancelledByUser=true;abortCurrent?.abort();return;}
+ const text=input.value.trim();if(!text)return;lastUserText=text;busy=true;abortCurrent=new AbortController();userClosed=false;cancelledByUser=false;taskLines=[];aiTask={id:'ai-'+crypto.randomUUID(),label:text,created:Date.now(),kind:'ai',status:'running',progress:0,detail:'读取曲库'};taskReport({});trigger.classList.remove('task-failed','has-task');taskPercent=0;dialog.classList.add('is-thinking');input.value='';messages.push({role:'user',content:text});line(text,'user');const send=form.querySelector('button[type="submit"]');send.textContent='■';send.setAttribute('aria-label','停止这次请求');send.classList.add('is-cancel');const status=document.createElement('p');status.className='ai-operation-detail';log.append(status);let statusTimer=0;function streamStatus(text){clearInterval(statusTimer);status.textContent='';const chars=Array.from(text);let index=0;statusTimer=setInterval(()=>{if(index>=chars.length){clearInterval(statusTimer);return;}status.textContent+=chars[index++];log.scrollTop=log.scrollHeight;},12);}streamStatus('读取云曲库，获取当前曲谱、播放位置和可用声部…');let reveal=characterStream();
+ // 15 秒还没回来就告诉用户「还能等，也能停」，别让人以为卡死了。
+ const slowHint=setTimeout(()=>{if(busy)status.textContent='本地模型仍在处理，可以点输入框右侧的方块停止这次请求。';},15000);
+  try{const libraryData=await readCloudLibrary();const live=await readLiveContext();const context={...libraryContext(libraryData.scores),...live,controls:CONTROLS,executed:executedActions.slice(-12),selectionId:selectedScoreId,parts:parts(),current:document.querySelector('#score-title')?.textContent};selectedScoreId=null;const result=await requestAI({messages:historyForModel(),context},event=>{if(event.type==='reset'){const partial=log.querySelector('.ai-streaming-text');reveal.cancel();partial?.remove();reveal=characterStream();}if(event.type==='status'){streamStatus(event.text);taskReport({detail:event.text});}if(event.type==='delta')reveal.push(event.text);},deadline(90000));clearInterval(statusTimer);status.remove();await reveal.finish();messages.push({role:'assistant',content:result.reply});await runActions(result.actions||[]);
   // 只答应不干活：回复里满口「我来处理」却一个动作都没给，用户看到的就是什么都没发生。
   if(!result.actions?.length&&/我来处理|我来帮|马上|没问题|好的|可以[，。]?$|已经帮你/.test(String(result.reply||'')))line('这一步没有生成可执行的操作，界面不会变化。请说得更具体一点，例如「打开《…》」「切换到演奏面板」「只听左手」。');taskReport({status:'complete',progress:100,detail:result.actions?.some(a=>['choose_scores','search','web_search'].includes(a.type))?'结果已列出，等待选择':'已完成',result:[result.reply,...taskLines].filter(Boolean).join('\n\n')}); }
-  // 用户自己关掉了对话：静默收尾，不要把对话重新弹开（showResults 会 showModal）。
-  catch(error){if(userClosed){userClosed=false;reveal.cancel();clearInterval(statusTimer);status.remove();return;}taskReport({status:'failed',detail:readableNetworkError(error),result:taskLines.join('\n\n')});reveal.cancel();clearInterval(statusTimer);status.remove();line(readableNetworkError(error));await showResults();messages.push({role:'assistant',content:'操作未完成：'+error.message});}
-  finally{clearInterval(statusTimer);clearTimeout(saveTimer);abortCurrent=null;const snapshot=aiTask?{...aiTask}:null;busy=false;dialog.classList.remove('is-thinking');form.querySelector('button[type="submit"]').disabled=false;if(snapshot){saveChain=saveChain.catch(()=>{}).then(async()=>{const saved=await fetch('/api/ai-tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(snapshot),signal:AbortSignal.timeout(8000)});if(!saved.ok)throw Error('任务结果未能保存');}).catch(error=>console.warn('AI 任务保存失败',error));}}
+  // 用户自己关掉对话、或按了停止：静默收尾，不要把对话重新弹开（showResults 会 showModal）。
+  catch(error){
+   if(userClosed||cancelledByUser){const stopped=cancelledByUser;userClosed=false;cancelledByUser=false;reveal.cancel();clearInterval(statusTimer);status.remove();if(stopped){taskReport({status:'cancelled',detail:'已由用户停止',result:taskLines.join('\n\n')});line('已停止这次请求，界面没有变化。');}return;}
+   taskReport({status:'failed',detail:readableNetworkError(error),result:taskLines.join('\n\n')});reveal.cancel();clearInterval(statusTimer);status.remove();line(readableNetworkError(error));await showResults();messages.push({role:'assistant',content:'操作未完成：'+error.message});}
+  finally{clearInterval(statusTimer);clearTimeout(slowHint);clearTimeout(saveTimer);abortCurrent=null;const snapshot=aiTask?{...aiTask}:null;busy=false;dialog.classList.remove('is-thinking');send.textContent='↑';send.setAttribute('aria-label','发送');send.classList.remove('is-cancel');if(snapshot){saveChain=saveChain.catch(()=>{}).then(async()=>{const saved=await fetch('/api/ai-tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(snapshot),signal:AbortSignal.timeout(8000)});if(!saved.ok)throw Error('任务结果未能保存');}).catch(error=>console.warn('AI 任务保存失败',error));}}
 
  };
 }
