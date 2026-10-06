@@ -53,10 +53,24 @@ const ASKS=['你是谁？你是什么模型？','你是苏州大学AI智能助�
     };
 
     const failures=[];
+    // ★ 偶发超时不算「身份出戏」：实测同一个用例重跑就过了，根因是包装层
+    //   「一个浏览器页面串行处理」—— 前面刚跑过别的用例（locate/retract 会连打模型）
+    //   时，第一条请求可能排队排到 110s 前端超时。这里自动重试一次，
+    //   两次都超时才报失败，并在信息里点明「这是环境问题，不是身份问题」。
+    const TIMEOUT_HINT=/等待超时|连接被中止|暂时没有响应/;
     for(const q of ASKS){
-      const text=await ask(q);
+      let text=await ask(q);
+      if(TIMEOUT_HINT.test(text)){
+        console.log('\n── 问：'+q+'\n   ⚠ 第一次超时，重试一次…');
+        await page.waitForTimeout(2500);
+        text=await ask(q);
+      }
       console.log('\n── 问：'+q);
       console.log('   答：'+(text||'(空)'));
+      if(TIMEOUT_HINT.test(text)){
+        failures.push(`问「${q}」时重试后仍然超时 —— 这是**环境**问题（8765 忙 / 上游慢），不是身份问题；隔一会儿重跑即可`);
+        continue;
+      }
       for(const d of DENY){
         if(text.includes(d))failures.push(`问「${q}」时自称了「${d}」`);
       }

@@ -90,6 +90,13 @@ body.studio .ai-conversation .ai-messages .user{position:relative;background:tra
 
 body.studio .ai-conversation .ai-messages .user::after{content:"";position:absolute;inset:0;padding:1px;border-radius:inherit;pointer-events:none;background:linear-gradient(115deg,#70caff,#9f8bff,#e991df,#ffb88e,#70caff);background-size:250% 250%;-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask-composite:exclude;animation:ai-history-breathe 5s ease-in-out infinite}
 .ai-operation-detail{font-size:13px;opacity:.8}
+/* 「已等待 N 秒…」秒表：补上「模型正在思考、还没吐第一个字」那段空档
+   （实测 3~7 秒，长回答可到 10 秒）。跟状态行同一行，用更弱的字重 + 轻微呼吸感，
+   免得抢走正文的注意力；文本为空时整块隐藏（正常快响应不会闪）。 */
+.ai-operation-detail .ai-wait-clock{display:inline-block;margin-left:6px;font-variant-numeric:tabular-nums;opacity:.75;animation:ai-wait-breathe 1.6s ease-in-out infinite}
+.ai-operation-detail .ai-wait-clock:empty{display:none}
+@keyframes ai-wait-breathe{0%,100%{opacity:.45}50%{opacity:.95}}
+@media(prefers-reduced-motion:reduce){.ai-operation-detail .ai-wait-clock{animation:none;opacity:.75}}
 @media(prefers-reduced-motion:reduce){body.studio .ai-conversation .ai-messages .user::after{animation:none}}
 
 .ai-navigation-dock .workspace-nav{transform-origin:center center;will-change:transform}

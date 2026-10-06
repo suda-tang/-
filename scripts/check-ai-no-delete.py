@@ -17,11 +17,36 @@ FAIL = []
 
 
 class FakeResponse:
+    """把模型返回桩成 8765 的**流式**响应。
+
+    ★ 为什么必须支持流式（2026-10-07 踩到）：
+      `ai_workspace.post_model_stream()` 用的是
+      `requests.post(..., stream=True)` + `with ... as response` + `response.iter_lines()`。
+      只实现 `json()` 的老桩会在 `with` 处抛
+      `TypeError: object does not support the context manager protocol`，
+      而 friendly_error 认不出这句话 → 兜成「这次操作没有完成，请换个说法再试一次」，
+      **看起来像禁删闸坏了，其实是桩过时了**。
+      以后只要改动模型调用方式，这个桩就得跟着改。
+    """
+
     def __init__(self, content):
         self._content = content
 
     def raise_for_status(self):
         pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def iter_lines(self):
+        # 复刻 8765 的 SSE 形状：一行一个 `data: {...}`，最后 `data: [DONE]`。
+        chunk = json.dumps({'choices': [{'delta': {'content': self._content}}]},
+                           ensure_ascii=False)
+        yield ('data: ' + chunk).encode('utf-8')
+        yield b'data: [DONE]'
 
     def json(self):
         return {'choices': [{'message': {'content': self._content}}]}

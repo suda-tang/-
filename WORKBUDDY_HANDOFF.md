@@ -730,3 +730,67 @@ query 是 `shut up` / `tempo=120` / `静音所有` / `静音all` 这类 ——
 **杀掉业务进程（监听 8765+8766 的那个 PID）即可，监督会自动拉起新进程** ——
 实测 5 秒恢复。**别去动 8767**（守护锁）。
 
+## 流式实时进展：别让用户干等（2026-10-07 凌晨，第三轮）
+
+唐老师要求「把思维链一起流式输出到前端，让用户感觉不会干等，一直知道实时进展」。
+
+### 先澄清一个事实：上游**没有**独立的思维链
+
+★ 实测（`~/.workbuddy/suda-deepseek/_probe_ws_reasoning.py`，直接连 WS 看原始事件）：
+苏大返回的 `message.reasoning.content` **不是思考过程**，而是**同一份正文的累计版** ——
+`message.text` 是增量（`'光合'` → `'作用是'` → `'植物'` → …），
+`reasoning.content` 是全文（`'光合作用是植物、藻类和某些细菌利用光'` → …），逐块完全对应。
+GraphQL 订阅 `CHAT_SUBSCRIPTION` 也只请求了
+`text / role / name / userMessage / reasoning{duration content}`，**没有**别的思考字段。
+
+**但真正的痛点不是「看不到思维链」，而是「模型生成期间界面一动不动」**：
+原先 `plan_data` 用 `stream=False` 同步等完整 JSON，用户只看到一句
+「SUPERTANG AI 正在安排操作…」，然后干等 3~20 秒。
+
+### 做法：把 JSON 里的 reply 边写边吐
+
+1. **8765 本来就是真流式** —— 实测 0.14s 首包（role）、之后每 ~50ms 一个 delta。
+2. `ai_workspace.py` 新增 `post_model_stream()` + `ReplyStreamExtractor`：
+   改用 `stream=True` 调 8765，**从流式文本里增量提取 `"reply"` 字段**并实时 emit。
+   reply 在 `{"reply":"…","actions":[…]}` 的最前面，所以第一段就是给用户看的话；
+   后面的 actions 不显示。
+3. **前端一行没改** —— `{type:'delta'}` 本来就有打字机效果（`characterStream`）。
+4. 首字前那段空档（实测 3~7 秒，长回答可到 10 秒）补一个**「已等待 N 秒…」秒表**
+   （`dist/workspace-ai.js` 的 `waitTimer` + `.ai-wait-clock`）。
+
+### 实测（真打模型，400 字长回答）
+
+| 时刻 | 用户看到 |
+|---|---|
+| 0.3s | 状态行「已取得曲库列表，核对当前曲谱…」 |
+| 3s | 「…SUPERTANG AI 正在安排操作…」+ 秒表「已等待 3 秒…」 |
+| 7s | 秒表「已等待 6 秒…」 |
+| 10s | 正文开始**逐字长出来**（气泡 89 → 252 → 417 → 556 字…），秒表自动隐去 |
+| 14s | 完成 |
+
+长回答实测 **173 条 delta**、逐字到达。
+
+### 三个必须记住的坑
+
+1. **上游对短回答会攒成一条发**（35 字回复只来 1 个 delta）。
+   → 写测试**必须用「需要长回答」的问题**，否则观察不到逐字增长，会误判成「没流式」。
+2. **桩要跟着改**：`check-ai-no-delete.py` 的 `FakeResponse` 原来只实现 `json()`，
+   新代码用 `with ... as response` + `response.iter_lines()` → 桩抛
+   `TypeError: object does not support the context manager protocol`，
+   被 `friendly_error` 兜成「这次操作没有完成，请换个说法再试一次」，
+   **看起来像禁删闸坏了，其实是桩过时了**。已给桩补上 `__enter__/__exit__/iter_lines`。
+3. **最终 reply 不能再发一遍**：`characterStream` 会把流式文本**永久保留**为助手消息，
+   所以 `Capture.json_response` 里用 `self.streamed != reply` 判重 ——
+   只有两者不一致（动作被回绝 / 被小节校验拦下）才先 `reset` 再发权威版本。
+
+### 本轮回归
+
+- `python scripts/check-ai-stream-reply.py` —— **PASS**（新增；12 项：转义 / 分块边界 / 非 JSON 兜底）
+- `node scripts/check-ai-stream-progress.cjs` —— **PASS**（新增；真打模型，验逐字增长 + 秒表 + 无 JSON 外壳 + 无重复）
+- `python scripts/check-ai-no-delete.py` —— PASS（修桩后）
+- `python scripts/check-ai-locate.py` —— PASS
+- `node scripts/check-ai-retract.cjs` —— PASS
+- `node scripts/check-ai-identity.cjs` —— PASS（并加了「超时自动重试一次」，避免偶发假失败）
+- `node scripts/check-frontend-syntax.cjs` —— PASS（67 个文件）
+
+
