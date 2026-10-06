@@ -13,7 +13,8 @@ async function open(browser,url,block){
   const seen=[],errors=[];
   p.on('response',r=>{if(r.url().includes('/startup.js'))seen.push(r.status());});
   p.on('pageerror',e=>errors.push(e.message));
-  if(block)await p.route('**/startup.js',route=>route.fulfill({status:404,contentType:'text/plain',body:'not found'}));
+  // 注意 src 带版本号查询串（/startup.js?v=xxx），glob 必须留 * 才匹配得上，否则拦不住、对照组失效。
+  if(block)await p.route('**/startup.js*',route=>route.fulfill({status:404,contentType:'text/plain',body:'not found'}));
   await p.goto(url,{waitUntil:'load'});
   return {p,seen,errors};
 }
