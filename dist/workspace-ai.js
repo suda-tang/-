@@ -193,7 +193,17 @@ const CONTROLS=[
  async function action(a,onProgress=()=>{}){
   // 不认识的动作直接报错走「重新核对」，不要静默空转——那是「AI 说好了但什么都没发生」的主力来源。
   if(!KNOWN_TYPES.has(a.type))throw Error('暂时不支持这个操作：'+a.type);
-  if(a.type==='pause'||a.type==='stop'){const command=a.type==='pause'?'pause':'stop';await transport(command);line(command==='pause'?'已暂停播放。':'已停止播放，并回到开头。');return;}
+  if(a.type==='pause'||a.type==='stop'){
+   const command=a.type==='pause'?'pause':'stop';
+   try{await transport(command);}
+   catch(error){
+    // 「本来就没在播放」不算失败。当成错误会白跑一轮「重新核对」（多一次模型调用、约十秒），
+    // 还会给用户一句「操作没有完成」—— 什么都没坏，只是没什么可暂停的。
+    if(/没有在播放|不需要暂停/.test(error.message)){line('当前没有在播放，'+(command==='pause'?'不需要暂停。':'已经停在开头了。'));return;}
+    throw error;
+   }
+   line(command==='pause'?'已暂停播放。':'已停止播放，并回到开头。');return;
+  }
   if(a.type==='set_tempo'){
    const asked=Number(String(a.value).replace(/[^\d.]/g,''));
    if(!Number.isFinite(asked)||asked<=0)throw Error('没有听懂要调到多少速度：'+a.value);
