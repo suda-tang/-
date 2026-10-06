@@ -56,6 +56,7 @@ const sse=(reply,actions)=>[
     // 1. 空转动作必须报警
     let r=await send('我来处理。',[{type:'choose_scores',value:'[]'}]);
     assert.equal(r.warned,true,'空转动作没有提示「没有生效」，静默失败会漏检');
+    assert.ok(r.tail.some(t=>t.includes('个子操作执行后界面没有变化')),'有步骤没生效时，结尾没有给总账');
 
     // 2. 已在目标面板上不该误报
     r=await send('我来处理。',[{type:'panel',value:'library'}]);
