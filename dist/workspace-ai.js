@@ -256,10 +256,11 @@ function libraryContext(scores){
  // ★ 带上 status：曲库里有一批 status=failed 却 ready=true 的记录（实测 5 首：
  // 未命名曲谱/兰亭序/晚安/周杰伦/12.31），只发 {id,title,ready} 的话模型看不出来，
  // 就会把它们当正常曲目推荐出去 —— 用户点了必然播不出来（报告 #14）。
- // ★ 带上 saved（上传时间）：重名曲谱的 evidence 实测全空（《知足》两份都是 None），
- //   saved 是唯一能区分两份的字段 —— 后端 choose_payload 用它给重名项生成
- //   「上传于 09-30 22:37」的 hover 提示（见 ai_workspace.py 的 saved_label）。
- return {library:index,scores:scores.map(c=>({id:c.id,title:c.title,ready:c.ready,status:c.status||'',saved:c.saved||0}))};
+ // ★ saved（上传时间）**只在重名条目上带**：它唯一的用途是区分同名曲谱
+ //   （后端 choose_payload 用它生成 hover 提示，见 ai_workspace.py 的 saved_label）。
+ //   79 首全带上会白占 1000+ 字符 —— 曲库还会长，上下文预算要省着用。
+ const counts={};for(const t of titles)counts[t]=(counts[t]||0)+1;
+ return {library:index,scores:scores.map(c=>({id:c.id,title:c.title,ready:c.ready,status:c.status||'',...(c.title&&counts[c.title]>1?{saved:c.saved||0}:{})}))};
 }
 // 界面上真实存在的控件清单。模型看不见它就会答「不支持」，
 // 或者跑去 GitHub 找 "tempo control plugin"（测试报告 B1/C5）。
