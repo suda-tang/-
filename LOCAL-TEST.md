@@ -63,10 +63,22 @@ powershell -File scripts/setup-omr.ps1 -Installer "C:\path\Audiveris-5.11.0-wind
 
 `node scripts/check-frontend-syntax.cjs`：前端脚本语法（67 个文件），改动前端后先跑这个。
 
+`python scripts/check-ai-task-ttl.py`：AI 任务 TTL（纯函数，不碰真实存储、不需要服务在跑）——
+超时未更新的 running/queued 必须判 failed，新鲜的不动、已完成的不动、
+没有变化时不能报告「改动过」（否则每次 GET 都白写一次盘）。
+
+`python scripts/check-ai-web-search.py`：联网找谱（**需要外网**）—— 结构合法、
+不出现「不是 PDF 却标 directPdf」的假按钮、notice 必须说清「多数需登录或 VIP」。
+外网不通时降级为「只做结构校验」并通过。
+
 端点级直测（curl 即可，不经过模型）：
 - `curl -X DELETE 'http://127.0.0.1:5173/api/ai-tasks?id=不存在的id'` → 404 且回执里带这个 id
 - 未知请求类型 → 回「未知的请求类型：bogus」；skills 空 query → 回「请先说明想要什么能力…」
+- `curl -X POST .../api/workspace-ai/web -d '{"mode":"search","query":"卡农"}'` → 真实曲谱站结果 + notice
 
 真实模型（会真的调用 8765，较慢）的探针放在 `D:\code\2026-10-02-01-58-59\`：
 `probe_context_budget.py`（上下文排布对比）、`probe_open_whitelist.py`（scores 空否对 open 的影响）、
-`probe_new_actions.py`（暂停/变速/节拍器/音色/配器/越界小节）、`e2e-real-ai.cjs`（端到端）。
+`probe_new_actions.py`（暂停/变速/节拍器/音色/配器/越界小节）、`e2e-real-ai.cjs`（端到端）、
+`check_task_ttl.py`（任务 TTL 端到端，会临时改任务存储并还原）、
+`probe_web_search.py` / `probe_score_search.py` / `probe_engines.py` / `probe_sitemap.py`
+（联网找谱各条腿的可用性实测：Everyone Piano 验证码 / Bing `site:` 失效 / DDG 被墙 / 360、搜狗可用）。

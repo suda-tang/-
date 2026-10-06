@@ -37,7 +37,9 @@ const BUDGET=20000;   // 包装层 system 提示上限（WEB_SYSTEM_LIMIT），�
     });
 
     await page.goto('http://127.0.0.1:5173/',{waitUntil:'load'});
-    await page.waitForFunction(()=>document.documentElement.classList.contains('boot-ready'),null,{timeout:40000});
+    // 60s 而不是 40s：server.py 检测到源码变更会重建进程，那几秒页面起不来，
+    // 40s 偶尔会不够，于是报「waitForFunction Timeout」——是假失败。
+    await page.waitForFunction(()=>document.documentElement.classList.contains('boot-ready'),null,{timeout:60000});
     await page.locator('#workspace-ai').click();
     await page.waitForTimeout(1000);
 

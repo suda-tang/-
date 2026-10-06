@@ -62,6 +62,15 @@ function init(){
  const operation=document.createElement('div');operation.className='ai-operation-layer';operation.innerHTML='<div class="ai-screen-aura" aria-hidden="true"><i></i><i></i><i></i><i></i></div><span role="status"></span>';document.body.append(operation);
  let taskPercent=0,aiTask=null,saveTimer=0,saveChain=Promise.resolve(),taskLines=[];
  function taskReport(changes){if(!aiTask)return;aiTask={...aiTask,...changes,updated:Date.now()};reportTask(aiTask.id,aiTask);clearTimeout(saveTimer);saveTimer=setTimeout(()=>{const snapshot={...aiTask};saveChain=saveChain.catch(()=>{}).then(async()=>{const r=await fetch('/api/ai-tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(snapshot),signal:AbortSignal.timeout(8000)});if(!r.ok)throw Error('AI 任务保存失败');}).catch(e=>console.warn(e));},changes.status==='complete'||changes.status==='failed'?0:300);}
+ // 页面被关掉 / 刷新 / 崩溃时，下面的 finally 根本不会执行，任务就永远挂在「进行中」
+ // （测试报告 #8，实测积了 8 条）。后端有 10 分钟 TTL 兜底，这里再补一个即时上报，
+ // 让任务中心当场就能看到「中断」，而不是等十分钟。
+ const reportInterrupted=()=>{
+  if(!aiTask||aiTask.status!=='running')return;
+  const body=JSON.stringify({...aiTask,status:'failed',detail:'中断：页面已关闭或刷新，这次请求没有跑完。',updated:Date.now()});
+  try{navigator.sendBeacon('/api/ai-tasks',new Blob([body],{type:'application/json'}));}catch{}
+ };
+ addEventListener('pagehide',reportInterrupted);
 
  function taskProgress(percent,label){taskPercent=Math.max(taskPercent,Math.min(100,percent));trigger.dataset.taskProgress=String(Math.round(taskPercent));trigger.style.setProperty('--ai-task-progress',taskPercent/100);trigger.classList.add('has-task');trigger.title=label+' '+Math.round(taskPercent)+'%';trigger.setAttribute('aria-label',trigger.title);operation.querySelector('span').textContent=trigger.title;taskReport({progress:Math.round(taskPercent),detail:label});}
  async function showResults(){while(transitioning)await wait(30);if(!dialog.open)await trigger.onclick({result:true});log.scrollTop=log.scrollHeight;}
@@ -330,8 +339,12 @@ const CONTROLS=[
    const response=await fetch('/api/workspace-ai/web',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'skills',query:a.value}),signal:AbortSignal.timeout(30000)});const result=await response.json();if(!response.ok)throw Error(result.error);line(result.notice);for(const item of result.results){line(item.title+' — '+item.description+'（许可：'+item.license+'）');const link=document.createElement('a');link.href=item.url;link.textContent='查看开源项目';link.target='_blank';link.rel='noopener';log.append(link);}if(!result.results.length)line('没有找到匹配的 Skill，请补充功能描述。');return;
   }
   if(a.type==='web_search'){
-   const r=await fetch('/api/workspace-ai/web',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'search',query:a.value}),signal:AbortSignal.timeout(30000)});const result=await r.json();if(!r.ok)throw Error(result.error);line(result.results.length?'找到这些结果，您可以选择查看。直接 PDF 可以导入并加入识谱队列。':'没有找到可用结果，可以换个曲名再试。');
-   if(result.notice)line(result.notice);for(const item of result.results){const link=document.createElement('a');link.textContent=item.title;link.href=item.url;link.target='_blank';link.rel='noopener';log.append(link);if(item.directPdf){const button=document.createElement('button');button.textContent='导入这份谱';button.onclick=async()=>{button.disabled=true;try{line('正在下载并提交识谱…');const response=await fetch('/api/workspace-ai/web',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'import',url:item.url,title:a.value}),signal:AbortSignal.timeout(90000)});const data=await response.json();if(!response.ok)throw Error(data.error);line('已加入识谱队列；完成后会尝试打开并播放。');await action({type:'panel',value:'tasks'});void watchImport(data.id);}catch(e){line(readableNetworkError(e));}finally{button.disabled=false;}};log.append(button);}}
+   const r=await fetch('/api/workspace-ai/web',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'search',query:a.value}),signal:AbortSignal.timeout(30000)});const result=await r.json();if(!r.ok)throw Error(result.error);
+   // 以前这里写「直接 PDF 可以导入」，但实测乐谱站几乎不给直链 PDF（报告 #7），
+   // 于是用户等半天、按钮也不出现。改成实话实说，并把来源标出来。
+   line(result.results.length?'找到这些页面，可以点开查看：':'没有找到可用结果，可以换个曲名再试。');
+   if(result.notice)line(result.notice);
+   for(const item of result.results){const link=document.createElement('a');link.textContent=item.title+(item.source?'（'+item.source+'）':'');link.href=item.url;link.target='_blank';link.rel='noopener';log.append(link);if(item.directPdf){const button=document.createElement('button');button.textContent='导入这份谱';button.onclick=async()=>{button.disabled=true;try{line('正在下载并提交识谱…');const response=await fetch('/api/workspace-ai/web',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'import',url:item.url,title:a.value}),signal:AbortSignal.timeout(90000)});const data=await response.json();if(!response.ok)throw Error(data.error);line('已加入识谱队列；完成后会尝试打开并播放。');await action({type:'panel',value:'tasks'});void watchImport(data.id);}catch(e){line(readableNetworkError(e));}finally{button.disabled=false;}};log.append(button);}}
   }
  }
  form.onsubmit=async e=>{e.preventDefault();

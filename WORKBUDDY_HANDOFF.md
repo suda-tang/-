@@ -389,22 +389,99 @@ system 提示被撑爆 → 模型实际只看得见头尾 6 首 → 于是答「
   → 变速 `tempo=150`「速度已设为 150 BPM。」→ 暂停 `play=自动演奏`（未误播）
   「当前没有在播放，不需要暂停。」→ 节拍器 `节拍器=true`「节拍器已开启。」
 
-### 5. 仍未动 / 待定
+### 5. 仍未动 / 待定（第三轮结束时）
 
-- **P1-⑦ 联网搜索 `directPdf` 恒 false** —— 没找到可靠的判定依据，先留着。
+- **P1-⑦ 联网搜索 `directPdf` 恒 false** —— 见下面「第四轮」，已处理。
 - **#11 声部名容错**（贝司 / 左手右手）—— 报告 §D 已澄清一部分是测试数据本身的问题，
   真实曲谱的声部名来自 MIDI track name，`findPart` 已有包含匹配兜底。
 - **#15 回复乱码 `ä`** —— 只在个别回复里出现，怀疑是模型输出而非编码链路，未复现。
 - **P1-⑤ 乐理问题全答成和弦** —— 属提示词策略，改动面大，等唐老师确认口径再动。
-- **P1-⑧ 僵尸任务 TTL** —— 任务中心里失败/中断的任务没有过期回收。
+- **P1-⑧ 僵尸任务 TTL** —— 见下面「第四轮」，已处理。
 - **B3 的「截断按 token 而非条数」** —— 现在按条数 + 保首条，够用；真要按 token 得引入
   分词估算，收益不大。
 - **C3 `ConnectionResetError`（HTTP 422）稳定性** —— 只偶发，没抓到稳定复现路径。
-- ⚠ **本轮的 `dist/app.js` / `dist/index.html` / `server.py` 未提交**：这三个文件里混有
-  其他并行会话的大量在途工作（DAW 视图、mentor 系列、upload_auth、gzip 压缩…），
-  整文件提交会把别人的半成品裹进本次提交。本轮提交只含
-  `dist/workspace-ai.js` + `scripts/check-ai-*.cjs` + 本文档 + `LOCAL-TEST.md`。
+- ⚠ **`dist/app.js` / `dist/index.html` / `server.py` 未提交**：这三个文件里混有其他并行会话的
+  大量在途工作（DAW 视图、mentor 系列、upload_auth、gzip 压缩…），整文件提交会把别人的
+  半成品裹进本次提交。提交只含 `dist/workspace-ai.js` + `scripts/check-ai-*` + 文档。
 - ⚠ **AI 后端 `ai_workspace.py` / `ai_web_import.py` / `ai_task_store.py` / `ai_catalog.py`
   仍是未跟踪文件**。它们是这套 AI 功能的必需件，但仓库是公开的，而 `ai_workspace.py` 里
   写着本机包装层地址（`http://127.0.0.1:8765` + `Bearer suda-local`）。
   是否纳入版本管理请唐老师定夺 —— 若要纳入，建议先把这两处挪到环境变量。
+
+## 第四轮：联网找谱与僵尸任务（2026-10-06 深夜）
+
+第三轮剩下的两个 P1，这轮清掉。两个都不是「代码写错」，是**对外部环境的假设错了**。
+
+### 1. P1-⑦ 联网找谱只返回一条跳转链接（`directPdf` 恒 false）
+
+先把链路拆开实测（探针在 `D:\code\2026-10-02-01-58-59\probe_*.py`），结论：
+
+| 那条腿 | 实测结果 |
+|---|---|
+| Everyone Piano 站内搜索 | **302 到验证码页**（`captcha_slider.php`），自动化拿不到结果 |
+| Bing RSS 兜底（原实现） | ★ **`site:` 被 cn.bing.com 直接忽略**，并把「卡农 钢琴谱 pdf」当成**单字**「卡」查询，返回百度百科/汉典/汉语字典；再被 `host=='everyonepiano.cn'` 过滤 → **必然为空**，还白等 15 秒。这就是 `directPdf` 恒 false 的真因 |
+| DuckDuckGo | 走 Clash 代理直接 `ProxyError`（被墙） |
+| 百度 | 前 2 次能用，第 3 次起返回**安全验证**页 |
+| 360 / 搜狗 | ✅ 都能返回真实相关结果（虫虫钢琴、弹琴吧、原创力文档…） |
+
+**改法**（`ai_web_import.py` mode=search）：
+
+1. Everyone Piano 直搜保留为第一优先（它最权威，能出就直接用）。
+2. 兜底换成 **360 → 搜狗**，`+ 钢琴谱` 拼进查询词，并加 `BROWSER_HEADERS`（不带 UA 会被当机器人）。
+3. 加**总时限 `SEARCH_BUDGET=20s`**：前端 `web_search` 的 fetch 超时是 30s，几条腿加起来不能超。
+4. **收集阶段**就过滤噪声（`is_noise`）并做「像不像曲谱页」判断（`looks_like_score`）。
+   ★ 第一版把过滤放在收集**之后**，于是「致爱丽丝」这种 360 只给图片结果的查询：
+   收集时算有结果 → 不再试搜狗 → 过滤后变空 → 只剩兜底链接。顺序错了就是白跑。
+5. 结果里的跳转链**解析成真实地址**（`resolve_target`）：360 的 `/link?m=` 返回的是
+   **200 + meta refresh**（不是 302），两条路都要试。
+   ★ 踩坑：它的 `content="0;URL='https://…'"` 里 URL 是**单引号**包着的，
+   正则 `[^"\'>]` 把引号排掉 → 永远匹配不到 → 解析必然失败。改成 `URL=\s*["\']?([^"\'\s>]+)`。
+   并行解析（`ThreadPoolExecutor`，6 并发），实测整条链路 3–5 秒。
+6. 来源名本地化（`SOURCE_NAMES`）：虫虫钢琴 / 弹琴吧 / Everyone Piano / 原创力文档 / 道客巴巴 /
+   豆丁网 / 360文库 / 中国曲谱网 —— 显示「360 搜索」对用户没意义。
+7. **说实话**：notice 明确写「这些页面多数需要登录或 VIP 才能下载：打开页面把 PDF 下载下来，
+   拖进曲库就能自动识谱；也可以把文件地址发给我，我帮你导入。」
+   前端也去掉了「直接 PDF 可以导入」那句假承诺，改成「找到这些页面，可以点开查看」+ 标注来源。
+8. `ai_workspace.py` 的 system 提示词同步：不要承诺一键下载，引导用户下载后拖入或给地址。
+
+**实测**（`卡农` / `致爱丽丝` / `月亮代表我的心`）：
+
+```
+卡农          → 虫虫钢琴 gangqinpu.com/cchtml/16061.htm / 弹琴吧 tan8.com/yuepu-74911.html / bilibili   （3.2s）
+致爱丽丝      → 弹琴吧 / 虫虫钢琴 ×2 / 360视频 / 抖音 ×3                                               （4.6s）
+月亮代表我的心 → 虫虫钢琴 ×3                                                                          （3.8s）
+```
+
+★ 但要认清现实：**这些站点都不给直链 PDF**，所以 `directPdf` 仍然是 false、导入按钮仍然不会出现。
+真正的解法是「别让用户空等」—— 现在已经明确告知。要做到一键导入，只能等唐老师提供
+乐谱站的 API / 账号，或接入有授权的曲谱源。
+
+### 2. P1-⑧ 僵尸任务永不终结
+
+成因：浏览器关闭 / 页面崩溃时 `finally` 不执行，`taskReport({status:'complete'})` 从未发出；
+后端也没有超时清理。报告里实测积了 8 条永远「进行中」的任务。
+
+**后端兜底**（`ai_task_store.py`，权威，不依赖前端）：
+- `STALE_MS = 10 分钟`，`sweep()` 把超时未更新的 `running`/`queued` 判成 `failed`，
+  detail 写「中断：超过 10 分钟没有收到完成回报（多半是页面被关闭或网络断开）。」
+- ★ `updated` **故意不动** —— 那是「最后一次真的收到回报」的时刻，改了就把中断时间点抹掉了。
+- 每次 `handle()`（GET/POST/DELETE）都顺手扫一遍，有变化才落盘
+  （没变化不写盘，否则每次 GET 都白写一次）。
+
+**前端即时上报**（`dist/workspace-ai.js`）：`pagehide` 时用 `navigator.sendBeacon`
+把这条任务标成 failed，让任务中心当场就能看到「中断」，而不是等十分钟。
+
+**回归**：`scripts/check-ai-task-ttl.py`（纯函数，不碰真实存储、不需要服务）
++ `D:\code\2026-10-02-01-58-59\check_task_ttl.py`（端到端：塞一条 11 分钟前的 running →
+GET 必须看到 failed → 落盘 → DELETE 清掉 → 还原备份）。两个都 PASS。
+
+### 3. 本轮的回归
+
+- `node scripts/check-ai-action-guard.cjs` —— PASS
+- `node scripts/check-ai-control-actions.cjs` —— PASS
+- `node scripts/check-ai-library-visibility.cjs` —— PASS
+- `node scripts/check-frontend-syntax.cjs` —— PASS（67 个文件）
+- `python scripts/check-ai-task-ttl.py` —— PASS（新增）
+- `python scripts/check-ai-web-search.py` —— PASS（新增；结构校验 + 无假 `directPdf` + notice 必须说明现状）
+- ★ 三个浏览器用例的 `boot-ready` 等待从 40s 放宽到 **60s**：`server.py` 检测到源码变更会
+  重建进程，那几秒页面起不来，40s 偶尔不够，会报假失败（本轮实测踩到一次）。

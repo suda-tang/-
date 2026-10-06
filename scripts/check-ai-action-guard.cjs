@@ -34,7 +34,9 @@ const sse=(reply,actions)=>[
     });
 
     await page.goto('http://127.0.0.1:5173/',{waitUntil:'load'});
-    await page.waitForFunction(()=>document.documentElement.classList.contains('boot-ready'),null,{timeout:40000});
+    // 60s 而不是 40s：server.py 检测到源码变更会重建进程，那几秒页面起不来，
+    // 40s 偶尔会不够，于是报「waitForFunction Timeout」——是假失败。
+    await page.waitForFunction(()=>document.documentElement.classList.contains('boot-ready'),null,{timeout:60000});
 
     // 先打开一首 ready 的曲谱：第 1 条用例拿「已经静音的声部再静音一次」当空转反例，
     // 没有载入曲谱时 #part-mix 是空的，用例会直接失效。
