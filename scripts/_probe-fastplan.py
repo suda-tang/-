@@ -8,7 +8,7 @@
 用法：python scripts/_probe-fastplan.py            # 跑内置的关注清单
       python scripts/_probe-fastplan.py "打开《知足》，然后开始播放。"
 """
-import io, json, sys, importlib.util
+import io, json, sys, importlib.util, urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -25,7 +25,17 @@ def load(name, filename):
 aw = load('ai_workspace', 'ai_workspace.py')
 catalog = load('ai_catalog', 'ai_catalog.py')
 
-SCORES = json.loads((ROOT / '_scores.json').read_text(encoding='utf-8'))['scores']
+
+def cloud_scores():
+    """直接问本地服务要曲库（不再依赖手工快照文件，免得快照过期）。"""
+    try:
+        with urllib.request.urlopen('http://127.0.0.1:5173/api/scores', timeout=20) as r:
+            return json.loads(r.read().decode('utf-8'))['scores']
+    except Exception as e:                       # noqa: BLE001
+        sys.exit('读不到曲库（5173 在跑吗？）：' + str(e))
+
+
+SCORES = cloud_scores()
 ITEMS = [{'id': s['id'], 'title': s['title'], 'ready': s.get('ready', False),
           'status': s.get('status', '')} for s in SCORES]
 
