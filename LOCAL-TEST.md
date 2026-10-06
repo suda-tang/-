@@ -46,7 +46,8 @@ powershell -File scripts/setup-omr.ps1 -Installer "C:\path\Audiveris-5.11.0-wind
 
 ## AI 工作区（需本地 5173 已在跑，且曲库里有 ready 的曲谱）
 
-这三个用**桩响应**驱动，不依赖模型发挥，也不产生副作用：
+这几个用**桩响应**驱动，不依赖模型发挥，也不产生副作用
+（★ 执行完 AI 面板会自己收回，所以每个用例在提问前都会先确认面板是打开的）：
 
 `node scripts/check-ai-action-guard.cjs`：动作执行守护 —— 空转必须报警、已在目标面板不误报、
 面板中文别名归一、未知动作不静默、「只答应不给动作」有提示、空关键词搜索先问清楚。
@@ -59,7 +60,20 @@ powershell -File scripts/setup-omr.ps1 -Installer "C:\path\Audiveris-5.11.0-wind
 
 `node scripts/check-ai-library-visibility.cjs`：钉住发给模型的上下文载荷 ——
 曲名索引（含总数）必须在、必须是上下文第一个键、完整 64 位 id 必须覆盖全部曲目、
-整体不得超过包装层 20000 字符的 system 预算。
+整体不得超过包装层 50000 字符的 system 预算。
+
+`node scripts/check-ai-retract.cjs`：面板收回 —— 纯执行类动作（切面板 / 播放）跑完后
+面板必须自动收回并给出结果气泡；需要用户拍板的（列出曲谱待选）必须把面板留在眼前；
+`delete_score` / `remove_score` / `wipe` 之类必须被明确回绝，且**不触发**「重新核对」重试。
+
+`python scripts/check-ai-locate.py`：「X 最早出现的地方」（不打桩、不调模型，直打后端 planner）——
+「通鼓」要能查到第 72 小节并给出 `seek_measure`+`play`（★ 不能错成「鼓组」的第 1 小节）、
+「只听鼓组」要带 `solo`、数据里没有的乐器（小号）要诚实说没找到、
+当前曲谱没有演奏数据时要退回同名有数据的那份或说明原因。
+
+`python scripts/check-ai-no-delete.py`：AI 不许删除云曲库（不连模型，把模型返回桩掉）——
+模型真回了删除类动作，后端必须明确回绝且 `actions` 为空（不许静默过滤）、
+混在正常动作里的删除要整条拒绝、**前后端两份 `FORBIDDEN_TYPES` 清单必须一致**。
 
 `node scripts/check-frontend-syntax.cjs`：前端脚本语法（67 个文件），改动前端后先跑这个。
 

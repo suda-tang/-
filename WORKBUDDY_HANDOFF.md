@@ -508,3 +508,132 @@ query 是 `shut up` / `tempo=120` / `静音所有` / `静音all` 这类 ——
 - 这也正是报告 #8 那 8 条僵尸任务的成因 —— 批量请求大量超时/中断，`finally` 没跑到。
   现在有 10 分钟 TTL 兜底了。
 - 要跑真实端到端（`e2e-real-ai.cjs`），最好等没有别的会话在压测的时候。
+
+## 第五轮：字数牺牲全去掉 / 打击乐定位 / 身份与面板收回 / 禁删（2026-10-07 凌晨）
+
+唐老师一句话给了 5 件事：
+
+> 「这种为了字数做的牺牲，现在全部去掉，因为字数已经完全放开了；另外一个问题我现在让这个 AI
+> 帮我播放《知足》里边通鼓最早出现的地方 AI 还是做不到；此外，模型应该称自己是 SUPERTANG AI，
+> 不是音乐工作区助手、不是本地模型等等；另外，AI 如果已经操作完毕，比方说正在自动演奏，
+> AI 可以先收回；不能让 AI 删除云曲库的曲子。」
+
+### 1. 去掉所有「为省字数」的裁剪
+
+包装层（`~/.workbuddy/suda-deepseek/suda_api.py`）上限早已放开：
+`WEB_PROMPT_LIMIT=150000` / `WEB_SYSTEM_LIMIT=50000` / `WEB_CONTEXT_MESSAGE_LIMIT=60000`。
+所以按老上限配的那些数全是白牺牲，本轮**前后端一起清掉**：
+
+| 位置 | 旧值 | 新值 |
+|---|---|---|
+| `ai_workspace.MAX_BODY` | 512 KB | **2 MB** |
+| `MAX_MESSAGE_CHARS` | 4000 | **60000**（对齐包装层单条预算）|
+| `MAX_ACTIONS` | 6 | **20** |
+| `MODEL_TOKENS` | 900 | **3000** |
+| `CONTEXT_CHARS` | 24000 | **120000** |
+| `HISTORY_MESSAGE_CHARS` | 4000 | **60000** |
+| `parse_model_json` 截断 | 100000 | **200000** |
+| `action_value` 截断 | 200 | **2000** |
+| 曲式分析证据 | 22000 | **40000** |
+| repair 失败证据 | 3000 | **20000** |
+| `reply` 截断 | 2000 | **8000** |
+| 前端 `trimConversation` 的 messages 上限 | 40 条 | **不截断** |
+| 前端 `historyForModel` | `slice(-24)` + 只保第一条 user | **原样全发** |
+
+★ 前端唯一保留的是 **DOM 节点上限 60 → 600**，那是纯渲染层保护（页面长开内存会涨），
+它只影响「看得见的历史」，不影响发给模型的任何内容 —— 注释里写清楚了，免得下一个人又当成裁剪。
+
+### 2. 「播放《知足》里通鼓最早出现的地方」——以前**必然做不到**
+
+真因：模型只看得见**声部名**（「鼓组」），而「通鼓」是鼓组里的**单个 GM 音高**（47），
+它既编不出小节号、也没有任何动作能表达「跳到某个打击乐器第一次出现的拍位」。
+
+**改法**（`ai_catalog.py` + `ai_workspace.py`）：
+
+1. `ai_catalog` 新增 `DRUM_NOTES`（GM 音高 → 中文名）与 `DRUM_GROUPS`
+   （组名 → 音高集合：通鼓 {41,43,45,47,48,50}、军鼓 {38,40}、踩镲 {42,44,46}、
+   吊镲 {49,57}、叮叮镲 {51,59}、底鼓 {35,36}…）；
+   新增 `playback(item)` 读 `.sites-runtime/score-cache/<id>.json` 的 `metadata.midiPlayback`；
+   新增 `locate(item,target)`：先按 `DRUM_GROUPS` 匹配打击乐音高（`kind:'drum'`），
+   再按 `PART_PATTERNS` 匹配声部名（`kind:'part'`）。
+2. `ai_workspace` 新增 `locate_request()` + `plan_locate()`，挂在 `fast_plan` 最前面
+   —— **不走模型**，所以快、也不受模型服务拥堵影响。
+3. 落成前端已有动作：`open`（换曲时）+ `seek_measure` + `play`，`只听…` 再加 `solo`。
+
+★ 踩坑 1：**顺序不能反**。「通鼓」里含「鼓」字，若先按声部名匹配就会命中「鼓组」整组，
+答案从**第 72 小节**错成**第 1 小节**。必须**先判 `DRUM_GROUPS` 再判 `PART_PATTERNS`**。
+
+★ 踩坑 2：`midiPlayback.events[i].offset` 是**小节内的拍位置（0 基）**，不是全曲拍号。
+显示成「第 N 拍」时用 `floor(offset)+1`。
+
+★ 踩坑 3：**说「已经跳过去」但没给 `seek_measure`**。第一版在「当前位置 == 目标小节」时
+不给 seek 动作，却照样说「已经跳到那一小节」。现在按 `moved` 分四种措辞。
+
+★ 踩坑 4：`只听鼓组` 不出 `solo`。第一版限定 `kind=='part'` 才生成 solo，
+但打击乐也是某个声部里的音 —— 改成只要 `hit['partId']` 存在就生成。
+
+**实测**（`scripts/check-ai-locate.py`，全部 PASS）：
+
+```
+播放《知足》里通鼓最早出现的地方 → 《知足》里中低音通鼓最早出现在第 72 小节第 1 拍，已经跳过去开始播放了。它属于「鼓组」声部。
+                                   actions = [seek_measure 72, play]
+《知足》里通鼓最早出现在第几小节 → 第 72 小节第 1 拍 + seek_measure
+鼓组是什么时候进来的             → 第 1 小节第 1 拍，无动作（「现在就在这一小节」）
+只听鼓组，播放通鼓最早出现的地方 → [solo P10, seek_measure 72, play]
+《知足》里小号最早出现的地方     → 整首里没有找到小号的演奏记录（数据里确实没有）
+当前是「没有演奏数据」的那一份   → 自动退回同名有数据的那份（补 open 动作）
+```
+
+### 3. 身份统一成 SUPERTANG AI
+
+- `ai_workspace` system 提示词首句：「你是 SUPERTANG AI（飞鸟练琴里的音乐助手）。
+  有人问你是谁、你是什么模型，就说自己是 SUPERTANG AI；不要说自己是「音乐工作区助手」，
+  也不要说「本地模型」或任何模型厂商的名字。」
+- 用户可见文案全部换掉：`friendly_error` 的「模型返回的操作方案格式不对」→
+  「SUPERTANG AI 返回的…」；「模型连续返回不完整的操作方案」→「SUPERTANG AI 连续…」；
+  「模型选择了不存在的曲谱/声部」→「曲库里没有这首曲谱 / 当前曲谱没有这个声部」；
+  504 与前端超时文案、`readableNetworkError` 的 401/403/429/5xx 全部改成 SUPERTANG AI；
+  前端 15 秒慢提示「本地模型仍在处理」→「SUPERTANG AI 仍在处理」；
+  AI 按钮 `aria-label` 「打开音乐助手」→「打开 SUPERTANG AI」。
+
+### 4. 操作完毕就把面板收回
+
+以前 `runActions` 一开头 `close()`（腾出屏幕执行操作），**结尾又 `showResults()` 把它弹回来**
+—— 于是「已经在自动演奏了」面板还杵在谱面前面。
+
+现在按「**这轮完了还要不要用户拍板**」分流：
+
+- 新增 `awaitingUser` 标记。`choose_scores` / `search` / `web_search` / `skill_search`
+  （会把待选项写进对话）以及**被回绝**的情况置 true。
+- `runActions` 结尾：`awaitingUser ? showResults() : settle(...)`。
+  纯执行类（播放 / 定位小节 / 调速度 / 切面板…）**保持收回**。
+- 面板收回了，执行过程中 `line()` 写的「已暂停播放」「速度已设为 120 BPM」用户就看不见了，
+  所以补一条 **`.ai-settle-pill` 结果气泡**（4.6 秒自动淡出，不拦点击）说明刚才那步的结果。
+
+### 5. 不许 AI 删除云曲库的曲子
+
+本来就没有删除能力（`server.py` 的 `do_DELETE` 只接 `/api/ai-tasks`；`ai_workspace` 的
+`allowed` 白名单里没有删除类动作；`dist/library.js` 也没有删除入口）。本轮**再加两道显式闸**：
+
+- 后端 `FORBIDDEN_TYPES`（27 个：delete/remove/clear/purge/trash/wipe/overwrite/reset/destroy…）
+  → 命中就回「我不会删除或改动云曲库里的曲谱，这条我不做。可以帮你打开、播放、调速度、
+  换音色或改配器。」且 `actions` 为空。★ **不做静默过滤** —— 静默丢等于用户以为删掉了。
+- 前端同样一份 `FORBIDDEN_TYPES`，放在 `KNOWN_TYPES` 判定**之前**：
+  否则会先落进「暂时不支持这个操作」→ 触发一轮注定失败的「重新核对」（白调一次模型）。
+  前端命中时明确回绝并 `return 'skipped'`，**不重试**。
+
+### 6. 本轮的回归
+
+- `python scripts/check-ai-locate.py` —— **PASS**（新增；通鼓/鼓组/独奏/换曲/查无此乐器）
+- `python scripts/check-ai-no-delete.py` —— **PASS**（新增；后端回绝 + 不静默过滤 + 前后端清单一致）
+- `node scripts/check-ai-retract.cjs` —— **PASS**（新增；执行后收回 / 待选时保留 / 删除类回绝且不重试）
+- `node scripts/check-ai-action-guard.cjs` —— PASS
+- `node scripts/check-ai-control-actions.cjs` —— PASS
+- `node scripts/check-ai-library-visibility.cjs` —— PASS（上下文 10987 字符 / 76 条完整 id）
+- `node scripts/check-frontend-syntax.cjs` —— PASS（67 个文件）
+- ★ 三个既有浏览器用例的 `send/act/ask` 辅助函数都补了「面板如果已经自己收回，先点开再输入」
+  —— 否则第 2 条用例会在 `fill` 上超时（这是本轮行为变更的必然连带，不是 bug）。
+
+★ **写 `dist/` 下的文件时注意**：本轮多次出现「Edit 报成功、但内容没落盘」，
+原因是**有并行进程在写同一个文件**（`dist/workspace-ai.js` 被覆盖过三次）。
+改完**必须立刻 `grep` 回读校验**；发现被覆盖就用脚本重新落盘。

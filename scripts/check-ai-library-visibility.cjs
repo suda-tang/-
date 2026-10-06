@@ -50,6 +50,11 @@ const BUDGET=20000;   // 包装层 system 提示上限（WEB_SYSTEM_LIMIT），�
 
     const ask=async q=>{
       payloads.length=0;
+      // 执行完 AI 面板会自动收回（见 check-ai-retract.cjs），再问一句要先点开。
+      if(!await page.evaluate(()=>!!document.querySelector('.ai-conversation')?.open)){
+        await page.locator('#workspace-ai').click();
+        await page.waitForTimeout(900);
+      }
       await page.locator('.ai-conversation input').fill(q);
       await page.locator('.ai-conversation input').press('Enter');
       await page.waitForFunction(()=>!document.querySelector('.ai-conversation')?.classList.contains('is-thinking'),null,{timeout:60000});

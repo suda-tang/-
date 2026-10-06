@@ -1,0 +1,121 @@
+
+.ai-navigation-dock{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;position:sticky;top:12px;z-index:8;margin:18px auto}
+.studio .ai-navigation-dock .workspace-nav{position:relative!important;top:auto!important;margin:0!important;flex:0 1 auto;max-width:calc(100% - 80px)!important}
+#workspace-ai{flex:0 0 44px;width:44px;height:44px;border-radius:50%;border:1px solid #ffffff90;background:#ffffff80;backdrop-filter:blur(18px);color:#944f43;font:600 14px system-ui;box-shadow:0 4px 16px #253d3512}
+.ai-conversation{position:fixed;inset:auto;margin:0;width:min(560px,calc(100vw - 32px));padding:3px;border:0;border-radius:26px;background:conic-gradient(from var(--ai-angle),#79c7ff,#a68bfa,#ef8daf,#ffbc81,#79c7ff);animation:ai-color 5s linear infinite;box-shadow:0 0 20px #bd9fe660,0 0 42px #86c0ec40;overflow:visible;color:#302d2a}
+@property --ai-angle{syntax:'<angle>';initial-value:0deg;inherits:false}
+@keyframes ai-color{to{--ai-angle:360deg}}
+.ai-conversation::backdrop{background:#ffffff08;backdrop-filter:blur(0);transition:backdrop-filter .8s ease,background .8s ease}
+body.ai-listening .ai-conversation::backdrop{backdrop-filter:blur(10px) saturate(1.15);background:#ffffff18}
+.ai-conversation form{position:relative;display:flex;gap:8px;align-items:center;border-radius:24px;padding:10px 12px;background:#f9f7f2f2;backdrop-filter:blur(28px)}
+.ai-conversation input{min-width:0;flex:1;border:0;background:transparent;font:16px system-ui;outline:none;color:inherit}
+.ai-conversation button{flex:0 0 32px;border:0;border-radius:50%;height:32px;background:#ffffffb0;color:#944f43;font-size:20px}
+.ai-messages:empty{display:none}.ai-messages{position:absolute;top:calc(100% + 12px);left:0;right:0;border-radius:22px;padding:10px 18px;max-height:min(50vh,380px);overflow:auto;line-height:1.8;background:#f9f7f2ed;backdrop-filter:blur(24px);box-shadow:0 12px 40px #172b2820;overscroll-behavior:contain}.ai-messages p{margin:10px 0}.ai-messages .user{margin-left:15%;background:#ffffff90;padding:8px 14px;border-radius:16px}.ai-operating{outline:3px solid #b787db!important;box-shadow:0 0 25px #89bde5!important;transition:box-shadow .4s}
+#startup strong{letter-spacing:0!important;word-spacing:0!important}
+@media(max-width:480px){.ai-navigation-dock{gap:8px}.studio .ai-navigation-dock .workspace-nav button{min-width:0!important;padding:10px 12px!important}.ai-navigation-dock #workspace-ai{flex-basis:40px;width:40px;height:40px}}
+@media(prefers-reduced-motion:reduce){.ai-conversation{animation:none}.ai-conversation::backdrop{transition:none}}
+
+/* Screen illumination is independent of the input surface. */
+.ai-conversation{padding:1.5px;border-radius:28px;background:conic-gradient(from var(--ai-angle),#72cfff 0%,#597fff 18%,#b388f6 35%,#ed7faa 52%,#ffb772 70%,#f8d4aa 80%,#72cfff 100%);box-shadow:0 1px 0 #ffffffcc inset,0 0 6px #a8caff80,0 0 18px #eaaaca50,0 12px 36px #2936381a;animation-duration:8s;isolation:isolate}
+.ai-conversation form{height:54px;padding:10px 13px;border-radius:27px;background:linear-gradient(160deg,#fffffff5,#f7f4f0e8);box-shadow:inset 0 1px 2px #fff,inset 0 -1px 1px #d0c5cd40;white-space:nowrap;overflow:hidden}
+.ai-conversation input{font-size:16px;letter-spacing:-.02em;transition:opacity .3s ease,filter .3s ease}
+.ai-conversation input::placeholder{color:#817e88}.ai-conversation form button{background:#fff8;color:#66616e;font-size:19px;transition:opacity .3s ease}
+.ai-conversation .ai-close{background:transparent;color:#938b96}
+.ai-conversation.is-morphing input,.ai-conversation.is-morphing form button{opacity:0;filter:blur(4px)}
+.ai-conversation.is-morphing .ai-messages{opacity:0;pointer-events:none}
+.ai-screen-aura{position:fixed;inset:0;pointer-events:none;border-radius:22px;z-index:-1;opacity:0;transition:opacity .8s ease;overflow:hidden;contain:strict}
+body.ai-listening .ai-screen-aura{opacity:1}
+.ai-screen-aura i{position:absolute;inset:-12px;border:4px solid transparent;border-radius:34px;filter:blur(5px);background:linear-gradient(125deg,#53b5ff,#856dff,#f082c3,#ffb183,#53b5ff) border-box;mask:linear-gradient(#fff 0 0) padding-box,linear-gradient(#fff 0 0);mask-composite:exclude;animation:ai-aura-drift 8s ease-in-out infinite alternate}
+.ai-screen-aura i:nth-child(2){inset:-4px;border-width:5px;filter:blur(12px);opacity:.85;animation-delay:-3s}
+.ai-screen-aura i:nth-child(3){inset:2px;border-width:2px;filter:blur(1px);opacity:.9;animation-delay:-5s}
+.ai-screen-aura i:nth-child(4){inset:-18px;border-width:14px;filter:blur(25px);opacity:.45;animation-delay:-1s}
+@keyframes ai-aura-drift{0%{filter:blur(5px) hue-rotate(-18deg);opacity:.55;transform:scale(1)}50%{opacity:1;transform:scale(1.003)}100%{filter:blur(7px) hue-rotate(30deg);opacity:.8;transform:scale(1)}}
+.ai-conversation::backdrop{background:#f4f2f000;backdrop-filter:blur(0px) saturate(1);transition:backdrop-filter .85s cubic-bezier(.22,1,.36,1),background .85s ease}
+body.ai-listening .ai-conversation::backdrop{background:#f4f2f025;backdrop-filter:blur(9px) saturate(1.18)}
+.ai-conversation.is-thinking{animation-duration:2.5s}.ai-conversation.is-thinking .ai-screen-aura i{animation-duration:2.8s}
+.ai-messages{transition:opacity .3s ease;background:linear-gradient(135deg,#ffffffeb,#f5f3f1df);border:1px solid #ffffffc0;box-shadow:0 12px 32px #34333e15}
+.ai-messages>button{display:block;width:auto;max-width:100%;height:auto;min-height:36px;padding:7px 12px;margin:6px 0;border-radius:12px;font-size:14px;white-space:normal}
+@media(prefers-reduced-motion:reduce){.ai-screen-aura i{animation:none}.ai-screen-aura{transition:none}}
+
+body.studio dialog.ai-conversation{padding:1.5px!important;border:0!important;max-width:calc(100vw - 32px)!important;border-radius:28px!important;background:conic-gradient(from var(--ai-angle),#72cfff,#597fff,#b388f6,#ed7faa,#ffb772,#72cfff)!important}body.studio .ai-conversation form{margin:0!important;height:54px!important}body.studio .ai-conversation input{padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;outline:none!important;background:transparent!important}body.studio .ai-conversation input:focus-visible{outline:none!important;box-shadow:none!important}
+
+body.studio #workspace-ai{display:grid!important;place-items:center!important;box-sizing:border-box!important;min-width:44px!important;max-width:44px!important;width:44px!important;height:44px!important;min-height:44px!important;padding:0!important;aspect-ratio:1!important;border-radius:50%!important;line-height:1!important;background:linear-gradient(140deg,#ffffffa8,#ffffff35)!important;border:1px solid #ffffffb0!important;box-shadow:inset 0 1px 2px #fff,inset 0 -1px 4px #ffffff70,0 4px 15px #263a3318!important;backdrop-filter:blur(20px) saturate(1.5)}
+body.studio .ai-conversation form button{display:grid!important;place-items:center!important;box-sizing:border-box!important;min-width:32px!important;max-width:32px!important;width:32px!important;height:32px!important;min-height:32px!important;padding:0!important;border-radius:50%!important;line-height:1!important;aspect-ratio:1}
+body.studio .ai-messages{top:auto!important;bottom:calc(100% + 18px)!important;max-height:min(60vh,460px);background:linear-gradient(145deg,#ffffff42,#f7f2ed18)!important;backdrop-filter:blur(32px) saturate(1.6);-webkit-backdrop-filter:blur(32px) saturate(1.6);border:1px solid #ffffff65;box-shadow:inset 0 1px 1px #ffffffa0,0 8px 30px #28373412}
+body.studio .ai-messages:empty{display:none!important}
+body.ai-listening .ai-conversation::backdrop{backdrop-filter:blur(14px) saturate(1.4);-webkit-backdrop-filter:blur(14px) saturate(1.4);background:radial-gradient(ellipse at 20% 70%,#dceaff25,transparent 65%),radial-gradient(ellipse at 80% 30%,#f6ddea20,transparent 65%);animation:ai-glass-breathe 9s ease-in-out infinite alternate}
+@keyframes ai-glass-breathe{from{backdrop-filter:blur(12px) saturate(1.2)}to{backdrop-filter:blur(18px) saturate(1.45)}}
+html body #startup strong{letter-spacing:0!important;word-spacing:0!important;white-space:nowrap!important;font-kerning:normal}
+@media(prefers-reduced-motion:reduce){body.ai-listening .ai-conversation::backdrop{animation:none}}
+
+.ai-messages>a{display:block;padding:8px 0;color:#7654a2;text-decoration:none}
+
+body.studio .ai-messages{max-height:var(--ai-history-height,55vh)!important;overflow-y:auto!important}body.studio .ai-conversation{height:57px!important;min-height:0!important;box-sizing:border-box!important}body.studio .ai-conversation form{min-width:0!important;box-sizing:border-box!important;width:100%!important}body.studio .ai-conversation input{min-width:0!important;width:0!important;flex:1 1 0!important;font-size:16px!important}.ai-conversation .ai-messages{touch-action:pan-y}.ai-conversation form{touch-action:manipulation}
+
+/* Match the browser viewport; glass is local to the conversation. */
+body.studio .ai-conversation::backdrop,body.studio.ai-listening .ai-conversation::backdrop{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;background:transparent!important;animation:none!important}
+.ai-screen-aura{border-radius:0!important}.ai-screen-aura i{border-radius:0!important}
+body.studio .ai-messages{background:linear-gradient(145deg,#ffffff38,#f7f2ed14)!important;backdrop-filter:blur(22px) saturate(1.35)!important;-webkit-backdrop-filter:blur(22px) saturate(1.35)!important;transition:opacity .35s ease,backdrop-filter .5s ease;background-clip:padding-box}
+.ai-conversation.is-thinking .ai-messages{animation:ai-local-glass 5s ease-in-out infinite alternate}
+@keyframes ai-local-glass{from{backdrop-filter:blur(18px) saturate(1.25)}to{backdrop-filter:blur(24px) saturate(1.4)}}
+@media(prefers-reduced-motion:reduce){.ai-conversation.is-thinking .ai-messages{animation:none}}
+
+.ai-operation-layer{position:fixed;inset:0;z-index:10000;pointer-events:none;opacity:0;transition:opacity .45s ease}.ai-executing .ai-operation-layer{opacity:1}.ai-operation-layer .ai-screen-aura{z-index:0;opacity:1}.ai-operation-layer>span{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);padding:10px 18px;border:1px solid #ffffff90;border-radius:22px;background:#ffffff45;backdrop-filter:blur(18px);color:#5c4c65;font:14px system-ui;box-shadow:inset 0 1px 1px #fff8,0 6px 20px #34243f15;white-space:nowrap}
+body.studio .ai-operating{outline:2px solid #bf9be7!important;outline-offset:4px;box-shadow:0 0 14px #83c8ff80,0 0 28px #f19fc560!important;animation:ai-action-pulse .65s ease-in-out}
+@keyframes ai-action-pulse{0%{filter:brightness(1)}50%{filter:brightness(1.12)}100%{filter:brightness(1)}}
+@media(prefers-reduced-motion:reduce){.ai-operation-layer{transition:none}body.studio .ai-operating{animation:none}}
+
+.ai-streaming-text::after{content:"";display:inline-block;width:2px;height:1em;margin-left:3px;vertical-align:-.12em;background:#9b6aab;animation:ai-caret .8s ease-in-out infinite}@keyframes ai-caret{50%{opacity:.15}}
+
+/* Release full-screen compositing surfaces while the assistant is idle. */
+.ai-operation-layer{display:none}.ai-executing .ai-operation-layer{display:block}.ai-screen-aura i{animation-play-state:paused}.ai-listening .ai-conversation .ai-screen-aura i,.ai-executing .ai-operation-layer .ai-screen-aura i{animation-play-state:running}
+.ios-low-memory .ai-screen-aura i{display:none!important}.ios-low-memory .ai-screen-aura{background:none!important;border:2px solid #bfa7e8;box-shadow:inset 0 0 8px #9bc8ff70;border-radius:0!important}
+.ios-low-memory .ai-conversation{animation:none!important}.ios-low-memory body.studio .ai-messages{backdrop-filter:blur(12px)!important;-webkit-backdrop-filter:blur(12px)!important;animation:none!important}.ios-low-memory .ai-operation-layer>span{backdrop-filter:none!important;background:#f7f4f0eb}
+
+.ai-messages p{white-space:pre-wrap}
+
+body.studio #workspace-ai{position:relative!important;overflow:visible!important}.ai-task-ring{position:absolute;inset:-3px;width:calc(100% + 6px);height:calc(100% + 6px);display:none;pointer-events:none;transform:rotate(-90deg)}.has-task .ai-task-ring{display:block}.ai-task-ring circle{fill:none;stroke:url(#ai-task-gradient);stroke-width:2.5;stroke-linecap:round;stroke-dasharray:138.23;stroke-dashoffset:calc(138.23 * (1 - var(--ai-task-progress,0)));transition:stroke-dashoffset .2s linear}.task-failed .ai-task-ring circle{stroke:#b86757}body.studio #workspace-ai:disabled{opacity:1!important}
+
+/* Keep the animated rim outside the scrolling conversation. */
+.ai-history-frame{position:absolute;left:0;right:0;bottom:calc(100% + 18px);border-radius:22px;isolation:isolate;box-shadow:0 8px 30px #28373412}
+.ai-history-frame:has(.ai-messages:empty){display:none}
+body.studio .ai-conversation .ai-history-frame .ai-messages{position:relative;top:auto!important;bottom:auto!important;left:auto;right:auto;border:1px solid transparent;box-shadow:none}
+.ai-history-frame::after{content:"";position:absolute;inset:0;border-radius:inherit;padding:1.5px;pointer-events:none;background:linear-gradient(115deg,#70caff,#9f8bff,#e991df,#ffb88e,#70caff);background-size:250% 250%;-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask-composite:exclude;animation:ai-history-breathe 5s ease-in-out infinite}
+@keyframes ai-history-breathe{0%,100%{opacity:.45;background-position:0% 50%}50%{opacity:1;background-position:100% 50%}}
+.ai-conversation.is-morphing .ai-history-frame{opacity:0;pointer-events:none}
+@media(prefers-reduced-motion:reduce){.ai-history-frame::after{animation:none;opacity:.75}}
+
+/* User messages remain distinct on both light and blurred backdrops. */
+body.studio .ai-conversation .ai-messages .user{position:relative;background:transparent;border:1px solid transparent;color:#352345;box-shadow:none}
+
+body.studio .ai-conversation .ai-messages .user::after{content:"";position:absolute;inset:0;padding:1px;border-radius:inherit;pointer-events:none;background:linear-gradient(115deg,#70caff,#9f8bff,#e991df,#ffb88e,#70caff);background-size:250% 250%;-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask-composite:exclude;animation:ai-history-breathe 5s ease-in-out infinite}
+.ai-operation-detail{font-size:13px;opacity:.8}
+@media(prefers-reduced-motion:reduce){body.studio .ai-conversation .ai-messages .user::after{animation:none}}
+
+.ai-navigation-dock .workspace-nav{transform-origin:center center;will-change:transform}
+
+/* A soft halo around the conversation, separate from its crisp glass rim. */
+.ai-history-frame::before{content:"";position:absolute;inset:-4px;border-radius:inherit;pointer-events:none;z-index:-1;padding:3px;background:linear-gradient(115deg,#70caff,#9f8bff,#e991df,#ffb88e,#70caff);background-size:250% 250%;-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask-composite:exclude;filter:blur(8px);animation:ai-history-halo 5s ease-in-out infinite}
+@keyframes ai-history-halo{0%,100%{opacity:.3;background-position:0% 50%;transform:scale(1)}50%{opacity:.72;background-position:100% 50%;transform:scale(1.008)}}
+@media(prefers-reduced-motion:reduce){.ai-history-frame::before{animation:none;opacity:.45}}
+
+.ai-history-frame::before{padding:0;background:none;-webkit-mask:none;mask:none;filter:none;box-shadow:-7px -3px 18px #70caff55,7px -4px 18px #9f8bff55,8px 5px 20px #e991df50,-5px 6px 18px #ffb88e48}
+
+/* Screen edge light has depth, without a hard outline or full-screen blur. */
+.ai-conversation .ai-screen-aura,.ai-operation-layer .ai-screen-aura,.ios-low-memory .ai-screen-aura{border:0!important;background:none!important;box-shadow:none!important;z-index:0}
+.ai-screen-aura i,.ios-low-memory .ai-screen-aura i{display:none!important}
+.ai-screen-aura::after{content:"";position:absolute;inset:0;pointer-events:none;box-shadow:inset 18px 0 32px -12px #78bdff,inset -18px 0 32px -12px #e58cdb,inset 0 18px 32px -12px #a48cff,inset 0 -18px 32px -12px #ffa78d;opacity:.7;animation:ai-screen-halo-breathe 5s ease-in-out infinite}
+.ai-conversation form,.ai-history-frame{z-index:1}
+@keyframes ai-screen-halo-breathe{0%,100%{opacity:.5}50%{opacity:1}}
+@media(prefers-reduced-motion:reduce){.ai-screen-aura::after{animation:none;opacity:.75}}
+
+.ai-morph-surface{position:fixed;inset:auto;margin:0;padding:0;border:1.5px solid #bc9cdfb0;border-radius:28px;background:linear-gradient(135deg,#fcf9f4f2,#efe9f5eb);box-shadow:0 0 16px #bd9fe645,0 4px 18px #28373418;transform-origin:0 0;will-change:transform;pointer-events:none;z-index:30000;box-sizing:border-box}
+.ai-morph-surface::backdrop{background:transparent}
+
+/* 操作完成、AI 面板收回后的一句话结果条。
+   面板收回是为了不挡谱面，但「已暂停播放」这类结果不能就这么消失，
+   所以用一条不拦点击的浮动气泡补上；4.6 秒后自己淡出。 */
+.ai-settle-pill{position:fixed;left:50%;bottom:26px;transform:translate(-50%,14px);z-index:20000;box-sizing:border-box;max-width:min(560px,calc(100vw - 32px));padding:11px 18px;border:1px solid #ffffff90;border-radius:20px;background:#ffffff59;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);color:#3f4f57;font:13px/1.6 system-ui,"Microsoft YaHei","PingFang SC",sans-serif;text-align:center;white-space:pre-wrap;overflow-wrap:anywhere;box-shadow:inset 0 1px 1px #fff8,0 8px 24px #22332b1f;opacity:0;transition:opacity .35s ease,transform .35s cubic-bezier(.22,.8,.25,1);pointer-events:none}
+.ai-settle-pill.is-visible{opacity:1;transform:translate(-50%,0)}
+.ios-low-memory .ai-settle-pill{backdrop-filter:none;-webkit-backdrop-filter:none;background:#f7f4f0f0}
+@media(prefers-reduced-motion:reduce){.ai-settle-pill{transition:none}}
