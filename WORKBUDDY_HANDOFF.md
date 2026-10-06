@@ -586,9 +586,9 @@ query 是 `shut up` / `tempo=120` / `静音所有` / `静音all` 这类 ——
 
 ### 3. 身份统一成 SUPERTANG AI
 
-- `ai_workspace` system 提示词首句：「你是 SUPERTANG AI（飞鸟练琴里的音乐助手）。
-  有人问你是谁、你是什么模型，就说自己是 SUPERTANG AI；不要说自己是「音乐工作区助手」，
-  也不要说「本地模型」或任何模型厂商的名字。」
+- `ai_workspace` system 提示词首句：「你是 SUPERTANG AI，属于「唐秋鸣钢琴教学辅助系统」。
+  有人问你是谁、你是什么模型，就说自己是 SUPERTANG AI、在唐秋鸣钢琴教学辅助系统里工作；
+  不要说自己是「音乐工作区助手」，也不要说「本地模型」或任何模型厂商的名字。」
 - 用户可见文案全部换掉：`friendly_error` 的「模型返回的操作方案格式不对」→
   「SUPERTANG AI 返回的…」；「模型连续返回不完整的操作方案」→「SUPERTANG AI 连续…」；
   「模型选择了不存在的曲谱/声部」→「曲库里没有这首曲谱 / 当前曲谱没有这个声部」；
@@ -637,3 +637,28 @@ query 是 `shut up` / `tempo=120` / `静音所有` / `静音all` 这类 ——
 ★ **写 `dist/` 下的文件时注意**：本轮多次出现「Edit 报成功、但内容没落盘」，
 原因是**有并行进程在写同一个文件**（`dist/workspace-ai.js` 被覆盖过三次）。
 改完**必须立刻 `grep` 回读校验**；发现被覆盖就用脚本重新落盘。
+
+## 品牌改名：飞鸟练琴 → 唐秋鸣钢琴教学辅助系统（2026-10-07 凌晨）
+
+唐老师要求「去除所有的飞鸟练琴，换成唐秋鸣钢琴教学辅助系统」。全量扫描 3137 个源码文件后
+只有 5 个文件命中，已全部替换：
+
+| 文件 | 处数 | 说明 |
+|---|---|---|
+| `ai_workspace.py` | 1 | ★ system 提示词首句 —— AI 自我介绍时唯一会说出来的一句 |
+| `WORKBUDDY_HANDOFF.md` | 1 | 本文档里对上面那句的引用 |
+| `~/.workbuddy-ai/skills/piano-ai-workspace-maintenance/SKILL.md` | 3 | 描述 / 触发词 / 标题 |
+| `~/.workbuddy/skills/piano-lab-service-recovery/SKILL.md` | 3 | 描述 / 触发词 / 标题 |
+| `D://code//2026-10-02-01-58-59//.workbuddy-ai//memory//2026-10-07.md` | 1 | 当日工作日志 |
+
+★ **不动的地方**（下次别误改）：
+- 项目目录名 `C://Users//mail//Documents//ChatGPT//自动钢琴陪练系统` —— 那是真实路径，
+  改了会打断 `server.py`、技能、启动脚本里所有路径引用。文档里剩下的「自动钢琴陪练」
+  全都是路径的一部分（已逐处确认）。
+- `application/research/sources/*.html` —— 抓下来的第三方网页原文，改了等于篡改资料。
+- `~/.workbuddy/suda-deepseek/tools-seen.json` —— 运行时缓存（3.6 MB，含历史技能描述），
+  会自动重建，不用手改。
+
+★ 顺带把自我介绍改得更完整：原来写的是「你是 SUPERTANG AI（X 里的音乐助手）」，
+现在明确成「你是 SUPERTANG AI，属于「X」……就说自己是 SUPERTANG AI、在 X 里工作」——
+这样唐老师问「你是谁」时，新品牌名会自然出现在回答里，而不是只出现 SUPERTANG AI。
