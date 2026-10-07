@@ -18,14 +18,20 @@ const {chromium}=require('C:/Users/mail/.cache/codex-runtimes/codex-primary-runt
 const fs=require('node:fs');
 const path=require('node:path');
 
-const CASES=require('./ai-longflow-cases.cjs');
-const OUT=path.join(__dirname,'_longflow-result.jsonl');
+let CASES;   // 由 --cases 决定（默认原 60 条），见下方 argv 解析
+let OUT=path.join(__dirname,'_longflow-result.jsonl');
 
 const argv=process.argv.slice(2);
 const numArg=(name,def)=>{const i=argv.indexOf('--'+name);return i>=0?Number(argv[i+1]):def;};
+const strArg=(name,def)=>{const i=argv.indexOf('--'+name);return i>=0?argv[i+1]:def;};
+// ★ --cases <path>：换一套用例（相对 scripts/ 或绝对路径）。默认仍是原 60 条。
+CASES=require(strArg('cases','./ai-longflow-cases.cjs'));
+const OUT_OVERRIDE=strArg('out','');
+if(OUT_OVERRIDE)OUT=path.resolve(__dirname,OUT_OVERRIDE);
 const FROM=numArg('from',1);
 const TO=numArg('to',99);
 const ONLY=numArg('only',0);          // --only 3 只跑第 3 条（调试用）
+const RETRY=numArg('retry',0);        // --retry 2：失败用例自动重跑，隔离上游/模型偶发噪声
 
 const CASE_TIMEOUT_MS=150000;
 const BOOT_TIMEOUT_MS=60000;
@@ -247,10 +253,12 @@ function checkReply(rule,reply){
     const idOf=t=>{const hit=scores.find(s=>s.title===t)||scores.find(s=>s.title.includes(t));return hit?.id||null;};
     console.log(`ready 曲谱 ${scores.length} 首 | 用例范围 ${FROM}~${TO}`);
 
-    const todo=CASES.filter(c=>ONLY?c.id===ONLY:(c.id>=FROM&&c.id<=TO));
+    const IDS=strArg('ids','').split(',').map(x=>Number(x.trim())).filter(Boolean);
+    const todo=CASES.filter(c=>ONLY?c.id===ONLY:(IDS.length?IDS.includes(c.id):(c.id>=FROM&&c.id<=TO)));
     console.log(`本次要跑 ${todo.length} 条\n`);
 
-    for(const c of todo){
+    const runBatch=async(list)=>{
+    for(const c of list){
       const t0=Date.now();
       const rec={id:c.id,name:c.name,tier:c.tier,say:c.say,status:'',fails:[],before:null,after:null,reply:''};
       let page=null;
@@ -332,9 +340,22 @@ function checkReply(rule,reply){
         if(rec.reply)console.log('        回复：'+rec.reply.replace(/\n/g,' ').slice(0,150));
       }
     }
+    };
+    await runBatch(todo);
+    // ★ 失败重试：上游隧道/模型偶发（超时、坏 id）会伪装成「AI 不会做」，
+    //   重跑能把「真缺陷」和「噪声」分开。结果按 id 取最后一次。
+    for(let r=0;r<RETRY;r++){
+      const failed=[...new Set(results.filter(x=>x.status!=='PASS').map(x=>x.id))];
+      if(!failed.length)break;
+      const list=CASES.filter(c=>failed.includes(c.id));
+      console.log(`\n── 重试轮 ${r+1}：${list.length} 条 ──`);
+      await runBatch(list);
+    }
   } finally {
     await browser.close();
   }
-  const pass=results.filter(r=>r.status==='PASS').length;
-  console.log(`\n本片结果：${pass}/${results.length} PASS`);
+  const finalById=new Map();for(const r of results)finalById.set(r.id,r);
+  const finals=[...finalById.values()];
+  const pass=finals.filter(r=>r.status==='PASS').length;
+  console.log(`\n本片结果：${pass}/${finals.length} PASS`);
 })().catch(e=>{console.error('RUNNER FAIL',e);process.exit(1);});
