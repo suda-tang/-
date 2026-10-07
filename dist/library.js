@@ -1,3 +1,4 @@
+import {createCardDecks} from './library-decks.js?v=1';
 export function cleanText(value) {
   return String(value || '').replace(/[\uFFFD\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\u200b\uFEFF]/g, '').replace(/[\uE000-\uF8FF]/g, '').trim();
 }
@@ -14,15 +15,8 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
   const pendingGroup=document.createElement('section');pendingGroup.className='library-pending-group';
   pendingGroup.innerHTML='<button type="button" class="library-pending-toggle" aria-expanded="false"><span>未就绪曲谱</span><small></small><span class="pending-chevron" aria-hidden="true">⌄</span></button><div class="library-pending-fold"><div class="library-pending-items"></div></div>';
   const pendingItems=pendingGroup.querySelector('.library-pending-items'),pendingToggle=pendingGroup.querySelector('button');
-  pendingToggle.onclick=()=>{const expanded=pendingToggle.getAttribute('aria-expanded')!=='true';pendingToggle.setAttribute('aria-expanded',String(expanded));pendingGroup.classList.toggle('is-expanded',expanded);};
-  function regroupPending(){
-    for(const card of [...list.querySelectorAll('.library-score')]){
-      if(card.dataset.ready==='true'){if(card.parentElement!==list)list.insertBefore(card,pendingGroup.parentElement===list?pendingGroup:null);}
-      else if(card.parentElement!==pendingItems)pendingItems.append(card);
-    }
-    const count=pendingItems.children.length;pendingToggle.querySelector('small').textContent=count+' 份';
-    if(count)list.append(pendingGroup);else pendingGroup.remove();
-  }
+  const decks=createCardDecks({list,pendingGroup,pendingItems,pendingToggle,openBrowser:()=>expand.onclick(),isFullscreen:()=>browser.open});
+  function regroupPending(){decks.regroup();}
   let pollTimer=null,titleQueue=Promise.resolve(),opening=false;const titlesInFlight=new Set();
   const loader=document.createElement('div');loader.className='score-loading-overlay';loader.hidden=true;loader.innerHTML='<div class=score-loading-dialog role=status aria-live=polite><div class=score-loading-seal role=img aria-label="苏州大学"></div><strong>正在打开琴谱</strong><span>准备连接 SUPERTANG CLOUD</span><div class=score-loading-progress><i></i></div><small>0%</small></div>';loader.setAttribute('popover','manual');document.body.append(loader);
   let shownProgress=0,targetProgress=0,progressFrame=0,progressTime=0,progressStarted=0,barMotion=null;
@@ -60,7 +54,7 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
   }
   async function revealLoader(){
     loader.hidden=false;loader.showPopover?.();
-    if(browser.open){browser.close();document.dispatchEvent(new Event('library-tour-closed'));panel.insertBefore(list,panel.querySelector('.library-settings'));document.body.classList.remove('library-expanded');for(const card of list.children)card.hidden=false;list.scrollLeft=deckScroll;}
+    if(browser.open){decks.reset();categoryControl.textContent=categoryRunning?'正在分类…':'重新分类';browser.close();document.dispatchEvent(new Event('library-tour-closed'));panel.insertBefore(list,panel.querySelector('.library-settings'));document.body.classList.remove('library-expanded');for(const card of list.children)card.hidden=false;list.scrollLeft=deckScroll;}
     loader.hidden=false;
     if(!motionAllowed())return;
     const surface=loader.querySelector('.score-loading-dialog');
@@ -125,6 +119,22 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
 
   refresh.classList.add('library-refresh');refresh.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M20 12a8 8 0 1 0-2 5M20 7l-3-3"/></svg><span>刷新曲谱</span>';expand.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5"/></svg><span>更多曲谱</span>';
 
+  const classify=document.createElement('button');classify.type='button';classify.className='small-button library-classify';classify.setAttribute('aria-label','分类曲谱');classify.title='分类曲谱';classify.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>';navigation.insertBefore(classify,refresh);
+  const categoryStatus=document.createElement('span');categoryStatus.className='library-category-status';categoryStatus.setAttribute('role','status');browser.querySelector('header').append(categoryStatus);
+  const categoryControl=document.createElement('button');categoryControl.type='button';categoryControl.className='small-button library-category-control';categoryControl.textContent='重新分类';browser.querySelector('header').insertBefore(categoryControl,browser.querySelector('input'));
+  let categoryTimer=0,categoryRunning=false,categoryKnown=false,categorySignature='';
+  function applyCategoryState(data){const signature=JSON.stringify(data.categories||{});if(signature!==categorySignature){categorySignature=signature;decks.setCategories(data.categories||{});}categoryKnown=Object.keys(data.categories||{}).length>0;categoryRunning=data.state==='running';categoryControl.disabled=categoryRunning;categoryControl.textContent=categoryRunning?'正在分类 '+(data.percent||0)+'%':'重新分类';classify.title=categoryRunning?'查看分类进度 '+(data.percent||0)+'%':'打开分类';classify.setAttribute('aria-label','打开分类');categoryStatus.textContent=categoryRunning?'正在分类 '+(data.detail||'')+'　'+(data.percent||0)+'%':data.warning||'';}
+  async function pollCategories(){clearTimeout(categoryTimer);try{const response=await fetch('/api/scores/classify',{signal:AbortSignal.timeout(10000)});if(!response.ok)throw Error();applyCategoryState(await response.json());if(categoryRunning)categoryTimer=setTimeout(pollCategories,1500);}catch{categoryStatus.textContent='分类进度连接中断，正在重连…';categoryTimer=setTimeout(pollCategories,4000);}}
+  async function classifyLibrary(force=false){
+    if(!browser.open)await expand.onclick();if(!browser.open)return;decks.setCategorized(true);
+    if(categoryRunning){void pollCategories();return;}if(categoryKnown&&!force)return;
+    categoryControl.disabled=true;categoryStatus.textContent='正在提交分类…';
+    try{const scores=[...list.querySelectorAll('.library-score')].map(card=>({id:card.dataset.scoreId,title:card._item?.title||'',ready:card.dataset.ready==='true'}));
+      const response=await fetch('/api/scores/classify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scores,force}),signal:AbortSignal.timeout(15000)});const data=await response.json();if(!response.ok)throw Error(data.error||'分类未完成');applyCategoryState(data);if(categoryRunning)categoryTimer=setTimeout(pollCategories,800);
+    }catch(error){categoryControl.disabled=false;categoryStatus.textContent='分类服务未连接，请点击重新分类重试。';}
+  }
+  classify.onclick=()=>classifyLibrary();categoryControl.onclick=()=>classifyLibrary(true);
+  void pollCategories();
   let closing=false,motion=null,expanding=false,dockRect=null;
   let deckScroll=0,transfer=Promise.resolve(),cardMotion=false;
   const intersects=(box,clip)=>box.right>clip.left&&box.left<clip.right&&box.bottom>clip.top&&box.top<clip.bottom;
@@ -215,7 +225,7 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
     const target=panel.getBoundingClientRect();
     const collapse=motionAllowed()?surface.animate([{opacity:1,transform:'translate(0,0) scale(1)',borderRadius:'0px'},{opacity:0,transform:`translate(${target.left+target.width/2-box.width/2}px,${target.top+target.height/2-box.height/2}px) scale(${target.width/box.width},${target.height/box.height})`,borderRadius:'28px'}],{duration:620,easing:'cubic-bezier(.22,.8,.25,1)',fill:'both'}):null;
     // Keep the collapsing surface until the final card has landed.
-    browser.close();document.dispatchEvent(new Event('library-tour-closed'));motion?.cancel();panel.insertBefore(list,panel.querySelector('.library-settings'));
+    decks.reset();categoryControl.textContent=categoryRunning?'正在分类…':'重新分类';browser.close();document.dispatchEvent(new Event('library-tour-closed'));motion?.cancel();panel.insertBefore(list,panel.querySelector('.library-settings'));
     document.body.classList.remove('library-expanded');for(const card of list.children)card.hidden=false;list.scrollLeft=deckScroll;
     transfer=Promise.all([flyCards(origins),collapse?.finished.catch(()=>{})]);await transfer;surface.remove();
     closing=false;expand.disabled=false;expand.focus({preventScroll:true});
@@ -225,11 +235,11 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
     for(const card of list.children){card._deal?.cancel();card._deal=null;card.style.opacity='';}
     const origins=cardRects();
     browser.append(list);browser.querySelector('input').value='';document.body.classList.add('library-expanded');
-    browser.showModal();document.dispatchEvent(new CustomEvent('library-tour-opened',{detail:{browser}}));browser.querySelector('button').focus({preventScroll:true});
+    browser.showModal();document.dispatchEvent(new CustomEvent('library-tour-opened',{detail:{browser}}));browser.querySelector('.library-close').focus({preventScroll:true});
     transfer=(async()=>{try{await Promise.all([flyCards(origins),animateBrowser(true)]);}finally{motion?.cancel();expanding=false;}})();await transfer;
   };
   panel.tourOpen=async()=>{for(let n=0;n<220&&(reloading||closing);n++)await new Promise(r=>setTimeout(r,100));if(reloading||closing)throw Error('曲库仍在加载，请稍后重试');await expand.onclick();await transfer;return browser;};panel.tourClose=closeBrowser;
-  browser.querySelector('button').onclick=closeBrowser;browser.addEventListener('cancel',event=>{event.preventDefault();closeBrowser();});browser.querySelector('input').oninput=event=>{const text=event.target.value.trim().toLowerCase();for(const card of list.children)card.hidden=!card.querySelector('.library-title')?.textContent.toLowerCase().includes(text);};
+  browser.querySelector('.library-close').onclick=closeBrowser;browser.addEventListener('cancel',event=>{event.preventDefault();closeBrowser();});browser.querySelector('input').oninput=event=>{const text=event.target.value.trim().toLowerCase();decks.search(text);};
 
   function progressMarkup(button,item){
     let progress=button.querySelector('.library-progress');
@@ -300,7 +310,7 @@ staff.hidden=item.status!=='running';}
     if(!matchMedia('(prefers-reduced-motion: reduce)').matches)await Promise.all(leaving.map((card,index)=>{card._deal?.cancel();card.style.opacity='';return card.animate([{opacity:1,translate:'0px 0px',rotate:'0deg',scale:'1'},{opacity:0,translate:`${-innerWidth-card.getBoundingClientRect().right}px -35px`,rotate:'18deg',scale:'.25'}],{duration:360,delay:Math.min(index*28,350),easing:'cubic-bezier(.55,.05,.9,.4)',fill:'forwards'}).finished.catch(()=>{});}));
     const controller=new AbortController(),requestTimeout=setTimeout(()=>controller.abort(),20000);
     try{
-      const response=await fetch('/api/scores',{signal:controller.signal});if(!response.ok)throw Error();const data=await response.json();window.cloudLibrarySnapshot={scores:data.scores,saved:Date.now()};coverObserver.disconnect();pendingItems.replaceChildren();pendingToggle.setAttribute('aria-expanded','false');pendingGroup.classList.remove('is-expanded');list.replaceChildren();
+      const response=await fetch('/api/scores',{signal:controller.signal});if(!response.ok)throw Error();const data=await response.json();window.cloudLibrarySnapshot={scores:data.scores,saved:Date.now()};coverObserver.disconnect();decks.clear();pendingItems.replaceChildren();pendingToggle.setAttribute('aria-expanded','false');pendingGroup.classList.remove('is-expanded');list.replaceChildren();
       const byTitle=new Map();for(const item of data.scores){const key=String(item.title||'').normalize('NFKC').toLowerCase().replace(/[\s《》「」_-]/g,'');if(!item.ready||!key||/未命名|正在识别/.test(key)){byTitle.set(item.id,item);continue;}const current=byTitle.get(key);if(!current||Number(item.ready)>Number(current.ready)||(item.ready===current.ready&&(item.saved||0)>(current.saved||0)))byTitle.set(key,item);}
       for(const [scoreIndex,item] of [...byTitle.values()].entries()){
         const button=document.createElement('button');button.className='library-score';button.dataset.scoreId=item.id;button.dataset.status=item.status||'idle';button.dataset.ready=String(!!item.ready);

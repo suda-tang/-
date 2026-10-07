@@ -60,7 +60,7 @@ function syncDrumLane(index){
 }
 import {initArrangements,applyArrangement,ARRANGEMENT_NAMES} from './arrangements.js';
 import {titleFromBlocks} from './title-candidates.js';
-import {enqueueUploads,reportTask,showTasks} from './task-center.js?v=visible-state4';
+import {enqueueUploads,reportTask,showTasks} from './task-center.js?v=folded-groups1';
 import {INSTRUMENTS} from './instruments.js';
 import {preloadPianoSamples} from './piano-samples.js';
 import {analyzeHarmony,detectChord} from './harmony.js';
@@ -72,7 +72,7 @@ import './vendor/typedarray-compat.mjs';
 import { PitchListener, Follower, summarize } from './engine.js';
 import { ScorePlayer } from './player.js';
 import { setupScoreEditing } from './score-editing.js';
-import { initLibrary, cleanText } from './library.js?v=pending-fold8';
+import { initLibrary, cleanText } from './library.js?v=card-decks2';
 import { initMediaImport } from './media-import.js';
 
 // PDF.js 5.x uses newer Web APIs that are absent in some embedded Chromium
@@ -109,6 +109,10 @@ if (typeof URL.parse !== 'function') {
 }
 
 const $ = id => document.getElementById(id);
+document.addEventListener('pointerdown',event=>{const control=event.target.closest?.('button,summary,[role="button"]');if(control)control.dataset.pointerFocus='';},true);
+document.addEventListener('blur',event=>event.target.removeAttribute?.('data-pointer-focus'),true);
+document.addEventListener('keydown',event=>{if(event.key==='Tab')for(const control of document.querySelectorAll('[data-pointer-focus]'))control.removeAttribute('data-pointer-focus');},true);
+
 for (const href of ['/toast.css', '/liquid.css', '/responsive-fix.css', '/ios.css']) {
  const link=document.createElement('link');link.rel='stylesheet';link.href=href;document.head.append(link);
 }
@@ -226,7 +230,7 @@ function paintPlayback({beat,index,totalBeats}){
   }
  }
 
- if(lastTransportState!==player.playing){lastTransportState=player.playing;if(player.playing)syncVocalMix();else vocalTrack.pause();document.dispatchEvent(new CustomEvent('transport-state',{detail:{playing:player.playing}}));}
+ if(lastTransportState!==player.playing){lastTransportState=player.playing;controls();if(player.playing)syncVocalMix();else vocalTrack.pause();document.dispatchEvent(new CustomEvent('transport-state',{detail:{playing:player.playing}}));}
 }
 async function getCachedPdfImage(id,pageNumber){
  const holder=document.querySelector(`#pdf-pages [data-page="${pageNumber}"]`);let progress=holder?.querySelector("progress");if(holder&&!progress){progress=document.createElement("progress");progress.max=100;progress.setAttribute("aria-label",`第 ${pageNumber} 页读取进度`);holder.append(progress);}
@@ -534,7 +538,7 @@ function decoratePdfCoordinates(score){
 // Warm the browser HTTP cache as soon as the page is idle. AudioContext decode still waits for a user gesture, but later playback avoids the network round-trip.
 const warmPiano=()=>void preloadPianoSamples();
 if('requestIdleCallback' in window)requestIdleCallback(warmPiano,{timeout:1800});else setTimeout(warmPiano,1200);
-function controls(){ $('start-button').disabled=!score||running||starting||importing; $('start-button').hidden=running; $('stop-button').hidden=!running; $('reset-button').disabled=!score; $('tempo').disabled=running; $('tempo-up').disabled=running; $('tempo-down').disabled=running; $('demo-button').disabled=(running&&!demo)||starting||importing;$('demo-button').textContent=running&&demo?'暂停':'试听';$('demo-button').setAttribute('aria-pressed',String(running&&demo)); $('export-button').disabled=!records.length;$('play-button').disabled=!score||starting||importing;$('play-button').textContent=player.playing?'暂停播放':player.beat>0&&player.beat<player.totalBeats?'继续播放':'自动演奏';$('play-reset').disabled=!score||importing; }
+function controls(){ $('start-button').disabled=!score||running||starting||importing; $('start-button').hidden=running; $('stop-button').hidden=!running; $('reset-button').disabled=!score; $('tempo').disabled=running; $('tempo-up').disabled=running; $('tempo-down').disabled=running; $('demo-button').disabled=(running&&!demo)||starting||importing;$('demo-button').textContent=(player.playing||running&&demo)?'暂停':'试听';$('demo-button').setAttribute('aria-pressed',String(player.playing||running&&demo)); $('export-button').disabled=!records.length;$('play-button').disabled=!score||starting||importing;$('play-button').textContent=player.playing?'暂停播放':player.beat>0&&player.beat<player.totalBeats?'继续播放':'自动演奏';$('play-reset').disabled=!score||importing; }
 function view(type){currentView=type;$('daw-view').hidden=type!=='daw';$('daw-button').disabled=!score; $('notation').hidden=!['notation','simple'].includes(type)||!score; $('pdf-pages').hidden=type!=='pdf'; $('empty-score').hidden=!!score||type==='pdf'; $('simple-button').disabled=!score||importing; for(const [id,on] of [['notation-button',type==='notation'],['simple-button',type==='simple'],['original-button',type==='pdf'],['daw-button',type==='daw']]){$(id).classList.toggle('active',on);$(id).setAttribute('aria-pressed',String(on));}}
 function recognizedTempo(next){const parsed=Number(next?.tempo);if(Number.isFinite(parsed)&&parsed>=30&&parsed<=240)return Math.round(parsed);const raw=String(next?.meta?.tempo||'');const match=raw.match(/(?:[Jj♩]|每分钟)?\s*[=:：]?\s*(\d{2,3})\s*(?:BPM|拍)?/i);const value=Number(match?.[1]);return value>=30&&value<=240?Math.round(value):null;}
 function updateScoreSubtitle(current=score){
@@ -581,7 +585,7 @@ function reset(){setScoreFollow(true);stop();player.rewind();playbackView=false;
 function sample(){uploadVersion++;cancelPdfLoading();hideImportProgress();importing=false;sourceFile=null;pdfDocument?.destroy();pdfDocument=null;pdfPageEls=[];if(nativePdfUrl){URL.revokeObjectURL(nativePdfUrl);nativePdfUrl=null;}$('pdf-pages').replaceChildren();$('original-button').disabled=true;void setScore(sampleScore(),true).catch(error=>message(`示例谱排版失败：${error.message}`,'error'));$('file-info').textContent='当前：C 大调短句　内置教学示例';message('示例谱已载入');}
 $('sample-button').onclick=sample;$('reset-button').onclick=reset;$('stop-button').onclick=()=>{const wasDemo=demo;stop();follower?.pause();message(wasDemo?'试听已暂停。':'练习已暂停。再次开始后，从标记位置继续。',wasDemo?'demo':'');};
 $('start-button').onclick=async()=>{if(!score||starting||running)return;if(demo||follower.index>=score.events.length)reset();starting=true;controls();const request=uploadVersion;try{const local=new PitchListener();listener=local;await local.start((notes,t)=>accept(notes,t),({level,pitches})=>{$('mic-level').textContent=`${level}%`;$('level-bar').style.width=`${level}%`;$('heard').textContent=pitches.length?`检测到：${pitches.map(noteName).join('　')}`:'正在聆听…';},()=>Number($('sensitivity').value));if(request!==uploadVersion||listener!==local){local.stop();return;}running=true;starting=false;demo=false;follower.pause();$('mic-label').textContent='麦克风已开启';message('正在聆听。请从金色标记处开始；评分为实验性估计。');controls();}catch(error){stop();message(error.name==='NotAllowedError'?'麦克风未获授权。请在浏览器地址栏允许麦克风，再重试。':error.name==='NotFoundError'?'没有找到麦克风，请连接设备后重试。':`麦克风无法开启：${error.message}`,'error');}};
-$('demo-button').onclick=()=>{if(running&&demo){stop();follower?.pause();message('试听已暂停。','demo');return;}if(!score){message('请先选择一首琴谱，再开始试听。','warning');return;}reset();demo=true;running=true;controls();$('mic-label').textContent='试听　未使用麦克风';message(`正在试听《${score.title}》。`,'demo');const sourceScore=score;let index=0;const bpm=tempo();const start=performance.now()/1000;demoTimer=setInterval(()=>{if(sourceScore!==score){clearInterval(demoTimer);demoTimer=null;return;}const elapsed=performance.now()/1000-start;while(index<sourceScore.events.length&&sourceScore.events[index].beat*60/bpm<=elapsed+.03){const event=sourceScore.events[index];const notes=event.pitches.map((pitch,n)=>index%29===11&&n===0?pitch+1:pitch);accept(notes,start+event.beat*60/bpm);index++;}if(index>=sourceScore.events.length&&!demoTimer)return;},30);};
+$('demo-button').onclick=()=>{if(player.playing){vocalTrack.pause();player.pause();controls();return;}if(running&&demo){stop();follower?.pause();message('试听已暂停。','demo');return;}if(!score){message('请先选择一首琴谱，再开始试听。','warning');return;}reset();demo=true;running=true;controls();$('mic-label').textContent='试听　未使用麦克风';message(`正在试听《${score.title}》。`,'demo');const sourceScore=score;let index=0;const bpm=tempo();const start=performance.now()/1000;demoTimer=setInterval(()=>{if(sourceScore!==score){clearInterval(demoTimer);demoTimer=null;return;}const elapsed=performance.now()/1000-start;while(index<sourceScore.events.length&&sourceScore.events[index].beat*60/bpm<=elapsed+.03){const event=sourceScore.events[index];const notes=event.pitches.map((pitch,n)=>index%29===11&&n===0?pitch+1:pitch);accept(notes,start+event.beat*60/bpm);index++;}if(index>=sourceScore.events.length&&!demoTimer)return;},30);};
 function setTempo(value){if(running)return;$('tempo').value=String(Math.max(30,Math.min(240,Math.round(Number(value)||80))));updateRangeFill($('tempo'));player.setTempo(tempo());updateScoreSubtitle();if(vocalTrack.enabled&&player.playing)vocalTrack.start(player.beat,tempo());if(score&&records.length===0)follower=new Follower(score.events,tempo());else if(follower)follower.bpm=tempo();refresh();if(playbackView)paintPlayback({beat:player.beat,index:player.displayIndex(player.beat),totalBeats:player.totalBeats});}$('tempo').onchange=e=>setTempo(e.target.value);$('tempo-down').onclick=()=>setTempo(tempo()-5);$('tempo-up').onclick=()=>setTempo(tempo()+5);$('sensitivity').oninput=()=>$('sensitivity-value').textContent=['很低','较低','标准','较高','很高'][Number($('sensitivity').value)-1];
 $('play-button').onclick=()=>{if(player.playing){vocalTrack.pause();player.pause();controls();$('play-status').textContent=`播放已暂停　${tempo()} BPM`;}else{setImportProgress(0,'正在准备钢琴音源');requestAnimationFrame(()=>{const progress=$('import-progress');if(progress&&!progress.hidden)progress.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'center'});});void playScore();}};
 $('play-reset').onclick=()=>{vocalTrack.pause();player.rewind();vocalTrack.seek(0,tempo());metronomeLastBeat=-1;playbackView=false;refresh();controls();$('play-status').textContent='已回到开头，点击“自动演奏”开始。';};

@@ -11,9 +11,10 @@ function naturalDetail(item){
  if(item.status==='running')return `当前步骤：${detail}。后台正在处理，页面操作不会中断此任务。`;
  return detail;
 }
+const groupOpen={ai:false,queue:false};
 const tasks=new Map();let panel,list,summary,lastDraw='',foreground={},polling=true,lastPollError='';const visualProgress=new Map();
 function smoothProgress(bar,id,target){const start=visualProgress.get(id)??0,from=Math.min(start,target),direction=target>=start?1:-1,started=performance.now(),duration=Math.max(180,Math.abs(target-start)*10);function frame(now){const value=from+Math.min(1,(now-started)/duration)*Math.abs(target-start);const next=direction>0?value:Math.max(0,start-(value-from));bar.value=next;visualProgress.set(id,next);if(Math.abs(next-target)>.05)requestAnimationFrame(frame);else{bar.value=target;visualProgress.set(id,target);}}requestAnimationFrame(frame);}
-function init(){if(panel){if(!panel.isConnected){const target=document.querySelector('#workspace-tasks')||document.querySelector('.score-library')?.parentElement;if(target)target.append(panel);}return;}panel=document.createElement('details');panel.className='task-center';summary=document.createElement('summary');summary.textContent='任务中心';list=document.createElement('div');list.className='task-list';list.setAttribute('aria-live','polite');panel.append(summary,list);const target=document.querySelector('#workspace-tasks');if(target)target.append(panel);else document.querySelector('.score-library')?.after(panel);}
+function init(){if(panel){if(!panel.isConnected){const target=document.querySelector('#workspace-tasks')||document.querySelector('.score-library')?.parentElement;if(target)target.append(panel);}return;}panel=document.createElement('details');panel.className='task-center';panel.open=true;summary=document.createElement('summary');summary.textContent='任务中心';list=document.createElement('div');list.className='task-list';list.setAttribute('aria-live','polite');panel.append(summary,list);const target=document.querySelector('#workspace-tasks');if(target)target.append(panel);else document.querySelector('.score-library')?.after(panel);}
 function draw(){
  init();const rank={running:0,queued:1,failed:2,needs_review:2,complete:3,cancelled:4};
  const ordered=[...tasks.values()].sort((a,b)=>(rank[a.status]??4)-(rank[b.status]??4)||(a.priority??20)-(b.priority??20)||b.created-a.created);const items=[...ordered.filter(x=>x.kind==='ai').slice(0,20),...ordered.filter(x=>x.kind!=='ai').slice(0,60)];
@@ -21,7 +22,10 @@ function draw(){
  summary.textContent='任务中心';list.replaceChildren();if(!items.length){list.textContent=polling?'正在同步任务记录…':lastPollError?'任务暂时无法载入，正在重试：'+lastPollError:'暂无任务';return;}
  const active=items.find(item=>item.status==='running')||items.find(item=>item.status==='queued');
  if(active||foreground?.owner){const resource=document.createElement('p');resource.className='task-resource';const owner=foreground?.owner?'前台操作不会暂停后台队列':'后台队列空闲，准备开始';resource.textContent=active?`当前任务：${active.scoreTitle||active.label||'未命名曲谱'} · ${({arrangement:'配器与鼓伴奏',expression:'演奏表情',metadata:'标题与封面',pdf:'PDF 预览',transcription:'音视频转录',photos:'照片整理与识谱',ai:'AI 指令'})[active.kind]||'音符识别'}。${active.status==='running'?'正在处理。':'已排队，后台将继续运行。'}`:owner;list.append(resource);}
- let sectionKind=null;for(const item of items){if((item.kind==='ai')!==sectionKind){sectionKind=item.kind==='ai';const heading=document.createElement('h4');heading.textContent=sectionKind?'AI 指令':'处理队列';list.append(heading);}
+ const containers={};for(const [key,label]of [['ai','AI 任务'],['queue','处理队列']]){
+  const subset=items.filter(item=>(item.kind==='ai')===(key==='ai'));const group=document.createElement('section');group.className='task-group';group.classList.toggle('is-expanded',groupOpen[key]);const toggle=document.createElement('button');toggle.type='button';toggle.className='task-group-toggle';toggle.setAttribute('aria-expanded',String(groupOpen[key]));const name=document.createElement('span');name.textContent=label;const count=document.createElement('small');count.textContent=String(subset.length);toggle.append(name,count);const fold=document.createElement('div');fold.className='task-group-fold';const body=document.createElement('div');body.className='task-group-items';body.inert=!groupOpen[key];fold.append(body);group.append(toggle,fold);list.append(group);containers[key]=body;toggle.onclick=()=>{groupOpen[key]=!groupOpen[key];toggle.setAttribute('aria-expanded',String(groupOpen[key]));group.classList.toggle('is-expanded',groupOpen[key]);body.inert=!groupOpen[key];if(groupOpen[key]){group.classList.add('is-unfurling');setTimeout(()=>group.classList.remove('is-unfurling'),1100);}};
+ }
+ for(const item of items){
   const row=document.createElement('div');row.className='task-row';row.dataset.status=item.status;
   const title=document.createElement('strong');title.textContent=item.scoreTitle||item.label||('曲谱 '+(item.digest||'').slice(0,8));
   const state=document.createElement('span');state.className='task-detail';state.textContent=naturalDetail(item);state.title=state.textContent;
@@ -48,7 +52,7 @@ function draw(){
    };row.append(first);
   }
   if(item.kind==='ai'&&item.result){const resultBox=document.createElement('details');resultBox.className='ai-task-result';const heading=document.createElement('summary');heading.textContent='查看结果';const content=document.createElement('div');content.textContent=item.result;content.style.whiteSpace='pre-wrap';resultBox.append(heading,content);row.append(resultBox);}
-  list.append(row);
+  const container=containers[item.kind==='ai'?'ai':'queue'];row.style.setProperty('--row-order',container.children.length);container.append(row);
  }
 }
 export function reportTask(id,changes){const previous=tasks.get(id)||{id,created:Date.now(),status:'running'};tasks.set(id,{...previous,...changes});draw();return id;}

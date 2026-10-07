@@ -1,4 +1,4 @@
-import {reportTask,showTasks} from './task-center.js?v=scan3';
+import {reportTask,showTasks} from './task-center.js?v=folded-groups1';
 export function initMediaImport(onUploaded){
  const prompted=new Set();let activeChoice=null;const pendingChoices=[];
  const choiceDialog=document.createElement('dialog');choiceDialog.className='photo-book-dialog';choiceDialog.innerHTML='<header><h3>音轨检查</h3><button class="small-button" data-later>稍后处理</button></header><p data-title></p><p>疑似含人声或其他乐器。是否先分离钢琴再转录？</p><footer><button class="small-button" data-choice="original">直接转录</button><button class="small-button" data-choice="separate">分离钢琴后转录</button></footer><p role="status"></p>';document.body.append(choiceDialog);

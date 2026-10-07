@@ -1,4 +1,4 @@
-import {reportTask} from './task-center.js?v=scan3';
+import {reportTask} from './task-center.js?v=folded-groups1';
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 function readableNetworkError(error){
  const text=String(error?.message||error||'');

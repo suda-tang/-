@@ -19,10 +19,10 @@ html.booting body>.top,html.booting body>.workspace,html.booting body>.workspace
 html.boot-ready #startup,#startup[inert]{opacity:0;pointer-events:none}
 @media(prefers-reduced-motion:reduce){#startup .boot-mark,#startup .boot-bar{transition:none}#startup .boot-mark:after{animation:none}}
 </style>
-<link rel="stylesheet" href="/tour-presentation.css"><link rel="stylesheet" href="/language.css?v=2"><link rel="stylesheet" href="/narration-avatar.css">
-<link rel="stylesheet" href="/bundle.css" media="print" onload="this.media='all'">
 
-<script src="/startup.js?v=observer-safe3" onerror="document.documentElement.classList.remove('booting');document.addEventListener('DOMContentLoaded',function(){var s=document.getElementById('startup');if(s)s.remove();})"></script><link rel="stylesheet" href="/daw.css?v=fine-timing1"><link rel="stylesheet" href="/ios26-controls.css"><link rel="stylesheet" href="/mentor-lecture.css?v=2"><link rel="stylesheet" href="/motion-continuity.css?v=1"><link rel="stylesheet" href="/adaptive-controls.css?v=1"><link rel="stylesheet" href="/liquid-language.css?v=1"><link rel="stylesheet" href="/header-layout.css?v=7"><link rel="stylesheet" href="/library-mobile-controls.css?v=2"><link rel="stylesheet" href="/workspace-ai.css?v=smooth-morph8"><link rel="stylesheet" href="/library-pending.css?v=1"></head>
+<link rel="preload" href="/bundle.css" as="style" onload="this.rel='stylesheet'">
+
+<script src="/startup.js?v=observer-safe3" onerror="document.documentElement.classList.remove('booting');document.addEventListener('DOMContentLoaded',function(){var s=document.getElementById('startup');if(s)s.remove();})"></script></head>
 <body>
 <div id="startup" role="status" aria-live="polite"><div class="boot-mark" id="boot-mark"><img src="/suda-seal.svg" alt="苏州大学校徽"></div><strong>唐秋鸣课题设计实例</strong><span id="boot-label">正在准备工作区</span><div class="boot-progress"><span class="boot-bar" id="boot-bar"></span></div><div class="boot-percent" id="boot-percent" aria-hidden="true">0%</div><button id="boot-retry" hidden>重新载入</button></div><noscript>请启用 JavaScript 以使用工作区。</noscript>
 <header class="top"><a class="brand" href="/" aria-label="课题工作台首页"><strong>唐秋鸣<span>课题设计实例</span></strong></a><div class="top-title">苏州大学钢琴演奏教学辅助系统<small>Soochow University Piano Teaching Assistant</small></div><span class="edition"><img src="/assets/suda-official.jpg" alt="苏州大学"></span></header>

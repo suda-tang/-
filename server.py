@@ -701,6 +701,9 @@ class Handler(SimpleHTTPRequestHandler):
         if path == '/api/ai-tasks':
             import ai_task_store
             return ai_task_store.handle(self)
+        if path == '/api/scores/classify':
+            import library_classification
+            return library_classification.handle(self,sys.modules[__name__])
         if path == '/api/scores':
             CACHE_DIR.mkdir(parents=True, exist_ok=True)
             ids = {p.stem for p in CACHE_DIR.glob('*.json')} | {p.stem for p in CACHE_DIR.glob('*.pdf')} | {p.stem for p in CACHE_DIR.glob('*.source')} | {p.name.removesuffix('.photo-book.json') for p in CACHE_DIR.glob('*.photo-book.json')}
