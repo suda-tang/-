@@ -1,0 +1,32 @@
+/* Score view controls share the cloud-library glass button surface. */
+.studio .view-buttons{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));width:min(100%,420px);max-width:100%;min-width:0;box-sizing:border-box;padding:0!important;gap:8px!important;background:transparent!important;border:0!important;border-radius:14px!important;box-shadow:none!important;backdrop-filter:none!important}
+.studio .view-buttons button,.studio .library-navigation button{box-sizing:border-box;border:1px solid #ffffffd9!important;border-radius:14px!important;background:linear-gradient(145deg,#ffffffdf,#f1eaf2b3)!important;box-shadow:inset 0 1px #fff,0 3px 12px #54324c12!important;color:#67546a;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);transition:background .24s,color .24s,box-shadow .24s,transform .2s}
+.studio .view-buttons button{width:100%;min-width:0!important;min-height:38px!important;height:clamp(38px,4vw,44px);padding:5px clamp(3px,1vw,10px)!important;margin:0!important;white-space:nowrap;font-size:clamp(11px,1.1vw,13px);line-height:1.2}
+.studio .view-buttons button.active{background:linear-gradient(145deg,#806482,#6e5374)!important;color:#fff!important;border-color:#806482!important;box-shadow:inset 0 1px #ffffff55,0 4px 12px #74547025!important}
+.studio .view-buttons button:disabled{opacity:.45}
+.studio .score-toolbar{min-width:0}
+#daw-view{container-type:inline-size;padding:clamp(4px,1.5vw,12px)}
+#daw-view .daw-controls{flex-basis:clamp(108px,23cqw,176px);min-width:104px;max-width:44%;box-sizing:border-box}
+#daw-view .daw-tools{gap:8px 12px;padding:8px 10px;border-radius:14px;min-width:0}
+#daw-view .daw-tools strong{font-size:clamp(12px,1.3vw,14px);min-width:0}
+#daw-view .daw-tools label{font-size:12px;margin:0;max-width:100%}
+#daw-view .daw-tools input[type=range]{width:clamp(64px,24cqw,128px)!important;max-width:100%;flex:0 1 128px;height:6px!important;min-height:0!important;margin:6px 0!important;padding:0!important}
+#daw-view .daw-control input[type=range]{height:6px!important;align-self:center}
+#daw-view input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;border:1px solid #fff;background:linear-gradient(140deg,#fff,#ede5ee);box-shadow:0 1px 4px #54324830}
+#daw-view .daw-control input[type=range]::-webkit-slider-thumb{width:12px;height:12px}
+#daw-view input[type=range]:active::-webkit-slider-thumb{transform:scale(1.08);box-shadow:0 1px 5px #54324830}
+#daw-view input[type=range]::-moz-range-thumb{width:12px;height:12px;border:1px solid #fff;background:#faf6fa;box-shadow:0 1px 4px #54324830}
+#daw-view .daw-timeline-scroll{scrollbar-width:thin;scrollbar-color:#a68da9 #eee8ef}
+#daw-view .daw-timeline-scroll::-webkit-scrollbar{width:6px;height:6px}
+#daw-view .daw-timeline-scroll::-webkit-scrollbar-thumb{background:#a68da9;border-radius:8px}
+#daw-view .daw-control{touch-action:pan-y}
+@media(max-width:600px){.studio .view-buttons{width:100%;gap:6px!important}.studio .score-toolbar{padding:10px!important}#daw-view .daw-tools{gap:8px;font-size:12px}}
+@media(prefers-reduced-motion:reduce){.studio .view-buttons button,.studio .library-navigation button{transition:none}}
+.studio .view-buttons button{transform:none!important}.studio .view-buttons button:active{scale:.97}.studio .view-buttons button{transition:background .24s,color .24s,box-shadow .24s,scale .18s}
+#daw-view .daw-tools input[type=range]{flex:0 1 auto}
+
+#daw-view .daw-timeline-scroll{touch-action:pan-x pan-y;overscroll-behavior:contain}
+#daw-view .is-pinching .daw-timeline-scroll{scroll-behavior:auto}
+#daw-view .is-pinching .daw-note{pointer-events:none}
+
+#daw-view .daw-track-heading{display:flex!important;align-items:center;overflow:hidden;min-width:0;gap:5px}#daw-view .daw-track-name{display:block!important;flex:1 1 auto;width:auto!important;min-width:0;max-width:100%;height:20px;line-height:20px;opacity:1!important;visibility:visible!important;color:#403a43!important;font-size:11px!important;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}#daw-view .daw-instrument-icon{flex:0 0 16px!important;width:16px!important;height:16px!important}

@@ -1,7 +1,11 @@
 {
   "state": "rendering",
-  "message": "正在用 CPU 生成嘴形与头部动作；这一步需要逐帧渲染",
-  "updated": 1790976414.5533621,
+  "message": "正在生成导师画面：20/398 帧",
+  "updated": 1791001353.9051027,
+  "pid": 4016,
   "chapter": "mentor-preface",
-  "seconds": 5.0
+  "completedFrames": 20,
+  "totalFrames": 398,
+  "percent": 5.0,
+  "seconds": 31.84
 }

@@ -1,42 +1,67 @@
-import {attachNarrationAvatar} from './narration-avatar.js';
-// Only completed presentation audio is published; reference uploads stay private.
-export async function openingNarration(scene) {
- const caption=scene.querySelector('.premiere-caption'),start=scene.querySelector('button'),host=scene.querySelector('.home-intro-content');
- const controls=document.createElement('section');controls.className='opening-controls narration-playlist';
- const heading=document.createElement('div');heading.className='narration-heading';
- const title=document.createElement('p');title.textContent='项目导览声音';
- const status=document.createElement('p');status.className='narration-status';status.setAttribute('aria-live','polite');heading.append(title,status);
- const list=document.createElement('div');list.className='narration-list';
- const audio=document.createElement('audio');audio.className='narration-audio';audio.controls=true;audio.preload='metadata';audio.setAttribute('playsinline','');
- const disposeAvatar=attachNarrationAvatar(controls,audio);
- const actions=document.createElement('div');actions.className='narration-actions';
- const playAll=document.createElement('button'),skip=document.createElement('button');playAll.type='button';skip.type='button';playAll.textContent='连续播放全部';skip.textContent='直接看演示';actions.append(playAll,skip);controls.append(heading,list,audio,actions);host.append(controls);
- const tracks=[
-  {src:'/narration/mentor-preface.m4a',speaker:'导师前言',label:'项目从哪里开始',text:'老师您好，谢谢您抽出时间来看唐秋鸣的项目。秋鸣是苏州大学音乐学院音乐教育专业钢琴方向的硕士研究生。进入操作页面以前，我先介绍一下这项工作的来由，以及接下来值得留意的几个地方。他最早关注的是异地合奏：人不在同一间琴房，怎样还能一起排练？对演奏者来说，声音能够传过来只是起点，更难的是彼此能不能合上，能不能听着对方往下走。'},
-  {src:'/narration/mentor-context.m4a',speaker:'导师介绍',label:'从异地合奏到钢琴学习',text:'围绕这个问题，秋鸣做过基于时间码的异地数字乐器合奏工作，尝试处理不同地点的时钟同步和网络延迟。今天展示的钢琴学习网页，是与这项工作相关的另一套原型。两者不是同一个系统，不过，它们关心的都是技术进入音乐活动以后，怎样照顾实际的演奏体验。请您把今天的展示看作一次对研究过程的介绍。哪些已经做出来，哪些仍需要验证，演示中会分开说明。'},
-  {src:'/narration/tang-introduction.m4a',speaker:'唐秋鸣',label:'演示从一首作品开始',text:'老师您好，我是唐秋鸣，现在在苏州大学学习音乐教育，主项是钢琴。我平时弹琴，也给人做伴奏，所以最早想做这个项目，是希望大家不在同一间琴房，也能一起排练。您不用急着把所有功能都看完，我们先选一首熟悉的作品，听一小段，再慢慢往下看。'}
- ];
- let chapters=[],generation=null;
- try{const r=await fetch('/narration/mentor-script.json');if(r.ok)chapters=await r.json();}catch{}
- try{const r=await fetch('/narration/generation.json');if(r.ok)generation=await r.json();}catch{}
- try{const r=await fetch('/narration/tour.json');if(r.ok){const generated=await r.json();const mentor=chapters.map(c=>generated.find(t=>t.id===c.id&&t.text===c.text)).filter(Boolean);if(mentor.length){const mentorTracks=mentor.map((t,i)=>({src:t.url,speaker:'导师前言与项目介绍',label:chapters.find(c=>c.id===t.id)?.title||`第 ${i+1} 节`,text:t.text}));const personal=tracks.find(track=>track.speaker==='唐秋鸣');tracks.splice(0,tracks.length,...mentorTracks,personal);}}}catch{}
- const mentorReady=tracks.filter(track=>track.speaker.includes('导师')).length;
- const mentorTotal=chapters.length||mentorReady;
- const pendingMentor=Math.max(0,mentorTotal-mentorReady);
- status.textContent=`导师讲解已准备 ${mentorReady}/${mentorTotal} 段；另有唐秋鸣介绍 1 段${pendingMentor?`；其余 ${pendingMentor} 段待生成`:''}`;
- if(chapters.length){const transcript=document.createElement('details');transcript.className='opening-transcript';const summary=document.createElement('summary');summary.textContent='阅读完整前言与项目介绍';transcript.append(summary);for(const c of chapters){const h=document.createElement('h3'),p=document.createElement('p');h.textContent=c.title;p.textContent=c.text;transcript.append(h,p);}controls.append(transcript);}
- let index=0,continuous=false,finished=false;const cards=[];
- function renderCards(){tracks.forEach((track,i)=>{const card=document.createElement('article'),number=document.createElement('span'),copy=document.createElement('div'),name=document.createElement('strong'),speaker=document.createElement('small'),button=document.createElement('button');card.className='narration-card';number.textContent=String(i+1).padStart(2,'0');name.textContent=track.label;speaker.textContent=track.speaker;button.type='button';button.textContent='试听';copy.append(name,speaker);card.append(number,copy,button);button.onclick=()=>{continuous=false;playAll.textContent='连续播放全部';select(i,true);};card.onclick=e=>{if(e.target===button)return;continuous=false;playAll.textContent='连续播放全部';select(i,true);};list.append(card);cards.push({card,button});});}
- function select(next,autoplay=false){index=next;const track=tracks[index];cards.forEach((item,i)=>{item.card.classList.toggle('is-playing',i===index);item.button.textContent='试听';});audio.src=track.src;caption.textContent=track.text;status.textContent=`正在准备：${track.speaker} · ${track.label}`;if(autoplay)void play();}
- async function play(){try{await audio.play();cards[index].button.textContent='播放中';status.textContent=`正在播放：${tracks[index].speaker} · ${tracks[index].label}`;}catch{status.textContent='请点播放器的播放键开始试听。';}}
- renderCards();select(0,false);start.textContent='播放前言并开始演示';
+import {attachLectureMusic} from './lecture-music.js?v=5';
+import {attachNarrationAvatar} from './narration-avatar.js?v=logo-match4';
+import {narrationMedia} from './narration-media.js';
+const boards={
+ 'mentor-preface':{title:'异地合奏',points:['时间码同步','网络延迟补偿','演奏者的体验']},
+ 'mentor-context':{title:'钢琴教学',points:['谱面与声音','练习中的反馈','课堂中的验证']},
+ 'mentor-material':{title:'一首作品的学习过程',points:['乐谱','聆听','练习']}
+};
+const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+export async function openingNarration(scene){
+ if(!document.querySelector('link[data-mentor-cinematic]')){const style=document.createElement('link');style.rel='stylesheet';style.href='/mentor-cinematic.css?v=22';style.dataset.mentorCinematic='';document.head.append(style);}
+ scene.classList.add('mentor-cinematic');scene.dataset.phase='loading';const content=scene.querySelector('.home-intro-content');content.replaceChildren();
+ const brand=document.querySelector('.top .brand strong');if(brand)scene.style.setProperty('--mentor-accent',getComputedStyle(brand).color);
+ const host=document.createElement('div');host.className='mentor-cinematic-host';content.append(host);
+ const sound=document.createElement('button');sound.type='button';sound.className='mentor-sound-unlock';sound.hidden=true;sound.textContent='轻触开始讲解';content.append(sound);
+ const audio=narrationMedia();const disposeMusic=attachLectureMusic(audio);content.append(audio);
+ const captionPanel=document.createElement('div');captionPanel.className='mentor-caption-panel';
+ const loading=document.createElement('div');loading.className='mentor-loading';loading.setAttribute('role','status');
+ const spinner=document.createElement('span');spinner.className='mentor-loading-spinner';spinner.setAttribute('aria-hidden','true');
+ const loadingText=document.createElement('span');loadingText.textContent='唐秋鸣导师数字人正在加载中';loading.append(spinner,loadingText);captionPanel.append(loading);content.append(captionPanel);
+ const voiceLoading=document.createElement('div');voiceLoading.className='mentor-voice-loading';voiceLoading.hidden=true;const voiceLabel=document.createElement('span'),voicePercent=document.createElement('span');voiceLabel.textContent='TangQiuMingVision数字人物引擎加载中';voicePercent.textContent='0%';voiceLoading.append(voiceLabel,voicePercent);captionPanel.append(voiceLoading);
+ const engineProgress=document.createElement('progress');engineProgress.max=100;engineProgress.value=0;engineProgress.hidden=true;engineProgress.className='mentor-engine-progress';engineProgress.setAttribute('aria-label','专属语音生成进度');captionPanel.append(engineProgress);let voiceProgress=0;function showEngineProgress(){voiceLoading.hidden=false;engineProgress.hidden=false;const percent=Math.round(voiceProgress*100);voicePercent.textContent=percent+'%';engineProgress.value=percent;}
+ let generated=[];try{const response=await fetch('/narration/tour.json');if(response.ok)generated=await response.json();}catch{}
+ const continueButton=document.createElement('button');continueButton.type='button';continueButton.className='mentor-greeting-continue';continueButton.textContent='先听项目介绍';continueButton.hidden=true;captionPanel.append(continueButton);let continueIntro,greetingDetached=false;const continueReady=new Promise(resolve=>{continueIntro=()=>resolve({useExisting:true});});continueButton.onclick=()=>{greetingDetached=true;voiceLoading.hidden=true;engineProgress.hidden=true;continueButton.hidden=true;continueIntro();};
+ const greetingName=scene.dataset.mentor;let greetingState=null;const greetingReady=greetingName?(async()=>{while(scene.isConnected&&!greetingDetached){try{const r=await fetch('/api/mentor-greeting?name='+encodeURIComponent(greetingName));greetingState=await r.json();if(greetingState.url){voiceProgress=1;voiceLoading.hidden=true;engineProgress.hidden=true;return greetingState;}if(greetingState.status==='failed'){voiceLoading.hidden=false;voiceLabel.textContent='专属前言生成失败：'+(greetingState.error||'请稍后重试');return null;}continueButton.hidden=false;voiceProgress=Number(greetingState.progress??({queued:0,loading:20,synthesizing:60,joining:90}[greetingState.status]||0))/100;showEngineProgress();}catch{voiceLoading.hidden=false;voiceLabel.textContent='专属前言连接中断，正在重试';}await wait(3000);}return null;})():Promise.resolve(null);
+ const tracks=generated.filter(track=>track.role==='mentor'&&track.url);
+ if(!tracks.length)tracks.push({id:'mentor-preface',url:'/narration/mentor-preface.m4a'});
+ audio.src=tracks[0].url;audio.load();let arriving=true;
+ const prime=()=>{if(!arriving)return;void audio.play().then(()=>{if(arriving){audio.pause();audio.currentTime=0;}}).catch(()=>{});};
+ for(const event of ['pointerdown','touchend','click'])document.addEventListener(event,prime,true);
+ function endArrival(){arriving=false;for(const event of ['pointerdown','touchend','click'])document.removeEventListener(event,prime,true);}
+ let translations={};try{translations=await (await fetch('/narration/mentor-subtitles.json')).json();}catch{}
+ const position=document.createElement('span'),subtitle=document.createElement('p'),actions=document.createElement('div'),skip=document.createElement('button'),exit=document.createElement('button');
+ position.className='mentor-segment';subtitle.className='mentor-subtitle';subtitle.setAttribute('aria-live','off');actions.className='mentor-caption-actions';skip.type=exit.type='button';position.hidden=subtitle.hidden=actions.hidden=true;actions.append(skip,exit);captionPanel.append(position,subtitle,actions);
+ const disposeAvatar=attachNarrationAvatar(host,audio,{embedded:true,cinematic:true});
+ const loaded=await new Promise(resolve=>{const timeout=setTimeout(()=>{observer.disconnect();resolve(false);},20000);const observer=new MutationObserver(()=>{const avatar=host.querySelector('.narration-avatar');if(avatar?.dataset.ready||avatar?.dataset.error){clearTimeout(timeout);observer.disconnect();resolve(!!avatar.dataset.ready);}});observer.observe(host,{subtree:true,attributes:true});});
+ if(!loaded){endArrival();audio.pause();disposeAvatar();return;}
+ loading.hidden=true;scene.dataset.phase='arrival';await wait(matchMedia('(prefers-reduced-motion:reduce)').matches?400:5600);endArrival();const greeting=await Promise.race([greetingReady,continueReady]);continueButton.hidden=true;if(greetingName&&!greeting){continueButton.hidden=false;endArrival();audio.pause();sound.hidden=false;sound.textContent='前言生成失败，轻触重新载入';sound.onclick=async()=>{await fetch('/api/mentor-greeting?retry=1&name='+encodeURIComponent(greetingName));location.reload();};await continueReady;sound.hidden=true;continueButton.hidden=true;}if(greeting&&!greeting.useExisting){tracks[0]={...tracks[0],url:greeting.url,text:greeting.text};}scene.dataset.phase='lecture';
  return new Promise(resolve=>{
-  function finish(){if(finished)return;finished=true;disposeAvatar();audio.pause();audio.removeAttribute('src');audio.load();audio.onended=null;start.onclick=null;skip.onclick=null;playAll.onclick=null;document.removeEventListener('visibilitychange',visibility);controls.remove();resolve();}
-  function visibility(){if(document.hidden)audio.pause();}
-  start.onclick=()=>{continuous=true;select(0,true);playAll.textContent='正在连续播放';};
-  playAll.onclick=()=>{if(continuous){continuous=false;audio.pause();playAll.textContent='继续连续播放';return;}continuous=true;playAll.textContent='正在连续播放';void play();};skip.onclick=finish;
-  audio.onplay=()=>{cards.forEach((item,i)=>item.button.textContent=i===index?'播放中':'试听');};audio.onpause=()=>{if(!audio.ended)cards[index].button.textContent='继续试听';};
-  audio.onended=()=>{cards[index].button.textContent='重听';if(!continuous)return;if(index<tracks.length-1){select(index+1,true);return;}finish();};
-  audio.onerror=()=>{cards[index].button.textContent='暂不可播放';status.textContent='这段语音暂时无法播放，可选择其他章节或直接查看演示。';continuous=false;playAll.textContent='连续播放全部';};document.addEventListener('visibilitychange',visibility);
+  let index=0,finished=false,blocked=false,frame=0,trackStart=performance.now(),lastDraw=0,revision=0;
+  function captions(elapsed=0,duration=1){
+   const locale=document.documentElement.lang.split('-')[0],labels={zh:['第','段','跳过本段','结束讲解'],en:['Part','','Skip this part','End introduction'],fr:['Partie','','Passer','Terminer'],de:['Teil','','Überspringen','Einführung beenden'],es:['Parte','','Saltar','Terminar'],ja:['第','部','この部分をスキップ','紹介を終了'],ko:['','','이 부분 건너뛰기','소개 종료']}[locale]||['Part','','Skip this part','End introduction'];
+   position.textContent=`${labels[0]} ${index+1} / ${tracks.length} ${labels[1]}`;skip.textContent=labels[2];exit.textContent=labels[3];
+   const text=locale==='zh'?tracks[index].text:(translations[locale]?.[tracks[index].id]||tracks[index].text);
+   const lines=(text||'').match(/[^。！？.!?]+[。！？.!?]?/g)||[];const weights=lines.map(line=>line.length),total=weights.reduce((a,b)=>a+b,0);let cursor=Math.min(.999,elapsed/Math.max(1,duration))*total,selected=lines.at(-1)||'';
+   for(let i=0;i<lines.length;i++){cursor-=weights[i];if(cursor<0){selected=lines[i];break;}}
+   if(subtitle.textContent!==selected){subtitle.textContent=selected;subtitle.animate([{opacity:.35,transform:'translateY(3px)'},{opacity:1,transform:'translateY(0)'}],{duration:200});}
+  }
+  function update(){
+   if(finished)return;frame=requestAnimationFrame(update);if(document.hidden)return;
+   const duration=Number.isFinite(audio.duration)&&audio.duration>0?audio.duration:Math.max(30,(tracks[index].text||'').length/3.5);
+   const elapsed=audio.currentTime;
+   captions(elapsed,duration);
+   if(performance.now()-lastDraw>120){lastDraw=performance.now();const board=boards[tracks[index].id]||boards['mentor-context'];document.dispatchEvent(new CustomEvent('mentor-lesson',{detail:{...board,topic:tracks[index].id,lessonPosition:Math.min(1,elapsed/duration),progress:Math.min(1,elapsed/duration/.65),mode:elapsed/duration<.7?'writing':'slides',elapsed,speaking:!audio.paused&&!audio.ended}}));}
+  }
+  async function play(){const version=revision;audio.muted=false;audio.volume=1;try{await audio.play();if(version!==revision||finished)return;blocked=false;audio.dataset.chapterTransition='0';sound.hidden=true;}catch(error){if(version!==revision||finished)return;blocked=true;sound.hidden=false;sound.textContent=error.name==='NotAllowedError'?'轻触开始讲解':'讲解未能播放，轻触重试';}}
+  function select(){audio.dataset.chapterTransition='1';revision++;trackStart=performance.now();audio.src=tracks[index].url;audio.load();void play();}
+  async function finish(){if(finished)return;finished=true;disposeMusic();scene.dataset.phase='departure';captionPanel.hidden=true;sound.hidden=true;cancelAnimationFrame(frame);audio.pause();document.dispatchEvent(new CustomEvent('mentor-departure'));for(const event of ['pointerdown','touchend','click'])document.removeEventListener(event,unlock,true);document.removeEventListener('keydown',key);document.removeEventListener('visibilitychange',visibility);const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;await wait(reduced?100:2400);scene.dataset.phase='smoke';await wait(reduced?100:1000);disposeAvatar();audio.removeAttribute('src');audio.load();scene.classList.add('lecture-is-leaving');resolve();}
+  async function advance(){if(finished)return;if(index+1<tracks.length){index++;select();}else await finish();}
+  function unlock(){if(finished||(!blocked&&!audio.paused))return;trackStart=performance.now()-audio.currentTime*1000;void play();}
+  function key(event){if(event.key==='Escape')void finish();else unlock();}
+  function visibility(){if(document.hidden)audio.pause();else{trackStart=performance.now()-audio.currentTime*1000;void play();}}
+  for(const event of ['pointerdown','touchend','click'])document.addEventListener(event,unlock,true);document.addEventListener('keydown',key);document.addEventListener('visibilitychange',visibility);
+  skip.onclick=()=>void advance();exit.onclick=()=>void finish();captions();loading.hidden=true;engineProgress.hidden=true;voiceLoading.hidden=true;position.hidden=subtitle.hidden=actions.hidden=false;
+  audio.onended=()=>void advance();audio.onerror=()=>{const version=revision;if(!finished)setTimeout(()=>{if(version===revision)void advance();},1000);};select();update();
  });
 }

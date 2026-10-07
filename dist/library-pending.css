@@ -1,0 +1,11 @@
+
+.library-pending-group{flex:0 0 280px;min-width:0;align-self:start;border:1px solid #b9a9c344;border-radius:24px;background:linear-gradient(145deg,#ffffffa8,#efe8f46b);backdrop-filter:blur(14px);box-shadow:inset 0 1px #fff9,0 8px 24px #382d4810;padding:14px;box-sizing:border-box}
+.library-pending-toggle{display:flex!important;width:100%;gap:10px;align-items:center;justify-content:space-between;border:0!important;background:transparent!important;padding:12px 4px!important;color:#57445f;font:600 15px system-ui;cursor:pointer}
+.library-pending-toggle small{font-size:12px;font-weight:400;opacity:.7;margin-left:auto}.pending-chevron{transition:transform .35s ease}.is-expanded .pending-chevron{transform:rotate(180deg)}
+.library-pending-fold{display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows .45s cubic-bezier(.22,.8,.25,1),opacity .3s ease}
+.is-expanded .library-pending-fold{grid-template-rows:1fr;opacity:1}.library-pending-items{min-height:0;overflow:hidden;display:grid;gap:12px}
+.library-pending-items .library-score{width:100%!important;min-width:0!important;transform:none!important;opacity:1!important;visibility:visible!important;margin:0!important}
+.library-browser .library-pending-group{grid-column:1/-1;width:100%}.library-browser .library-pending-items{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+.library-list>.library-pending-group.is-expanded .library-pending-items{max-height:440px;overflow-y:auto;overscroll-behavior:contain}
+@media(max-width:600px){.library-pending-group{flex-basis:240px}.library-browser .library-pending-items{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}}
+@media(prefers-reduced-motion:reduce){.library-pending-fold,.pending-chevron{transition:none}}

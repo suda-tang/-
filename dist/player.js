@@ -1,3 +1,4 @@
+import {writtenExpression} from './written-expression.js';
 import {loadInstrument,rootFor} from './instruments.js';
 import {arrangeScore} from './harmony.js';
 import {preparePerformance} from './performance.js';
@@ -36,15 +37,18 @@ export class ScorePlayer {
     if(this.context.state!=='running')throw Error('请点击“自动演奏”以允许浏览器播放声音');
   }
   load(score) {
-    this.stop();this.originalScore=score;this.performanceCache??=new WeakMap();let versions=this.performanceCache.get(score);if(!versions){versions=new Map();this.performanceCache.set(score,versions);}const key=this.arrangement+':'+this.instrument;if(!versions.has(key)){versions.set(key,preparePerformance(score.generated?score:arrangeScore(score,this.arrangement,this.instrument)));if(versions.size>4)versions.delete(versions.keys().next().value);}const prepared=versions.get(key);const filter=note=>this.soloPart!=='all'?note.part===this.soloPart:(!score.midiSource||!this.enabledParts.size||this.enabledParts.has(note.part));this.score={...prepared,events:prepared.events.map(event=>({...event,notes:event.notes.filter(filter)})).filter(event=>event.notes.length)};const partCount=score.midiSource&&this.soloPart==='all'?new Set(this.score.events.flatMap(event=>event.notes.map(note=>note.part))).size:1;this.mixGain=partCount>1?Math.max(.28,1/Math.sqrt(partCount)):1;this.samples=null;this.samplePromise=null;
+    this.stop();if(this.originalScore!==score){this.disabledParts=new Set();this.partVolumes=new Map();}this.originalScore=score;this.updatePartMix();this.performanceCache??=new WeakMap();let versions=this.performanceCache.get(score);if(!versions){versions=new Map();this.performanceCache.set(score,versions);}const key=this.arrangement+':'+this.instrument;if(!versions.has(key)){versions.set(key,preparePerformance(score.generated?score:arrangeScore(score,this.arrangement,this.instrument)));if(versions.size>4)versions.delete(versions.keys().next().value);}const prepared=versions.get(key);this.score=prepared;this.hasWrittenExpression=!!writtenExpression(score);const partCount=score.midiSource&&this.soloPart==='all'?new Set(this.score.events.flatMap(event=>event.notes.map(note=>note.part))).size:1;this.mixGain=partCount>1?Math.max(.16,1/Math.sqrt(partCount)):1;this.samples=null;this.samplePromise=null;
     this.totalBeats=Math.max(score.totalBeats||0,...score.events.flatMap(e=>e.notes.map(n=>e.beat+n.duration)));
   }
   displayIndex(beat){const events=this.originalScore.events;let low=0,high=events.length;while(low<high){const mid=(low+high)>>1;if(events[mid].beat<=beat+.005)low=mid+1;else high=mid;}return Math.max(0,low-1);}
   setModelPerformance(result){this.modelPerformance={source:this.originalScore,...result};}
   setInstrument(name){const wasPlaying=this.playing,position=this.beat;this.instrument=name;if(this.originalScore){this.load(this.originalScore);this.restorePosition(position,wasPlaying);}}
   setArrangement(mode){const wasPlaying=this.playing,position=this.beat;this.arrangement=mode;if(this.originalScore){this.load(this.originalScore);this.restorePosition(position,wasPlaying);}}
-  setSoloPart(part){const wasPlaying=this.playing,position=this.beat;this.soloPart=part;if(this.originalScore){this.load(this.originalScore);this.restorePosition(position,wasPlaying);}}
-  setPartEnabled(part,enabled){const wasPlaying=this.playing,position=this.beat;if(enabled)this.enabledParts.add(part);else this.enabledParts.delete(part);if(this.originalScore&&this.soloPart==='all'){this.load(this.originalScore);this.restorePosition(position,wasPlaying);}}
+  partBus(part){const id=part||'default';this.partBuses??=new Map();if(!this.partBuses.has(id)){const bus=this.context.createGain();bus.connect(this.output);this.partBuses.set(id,bus);this.updatePartMix();}return this.partBuses.get(id);}
+  updatePartMix(){if(!this.context)return;for(const [id,bus] of this.partBuses||[]){const enabled=this.soloPart!=='all'?id===this.soloPart:!this.disabledParts?.has(id);const value=enabled?(this.partVolumes?.get(id)??1):0;bus.gain.cancelScheduledValues(this.context.currentTime);bus.gain.setTargetAtTime(value,this.context.currentTime,.012);}}
+  setSoloPart(part){this.soloPart=part;this.updatePartMix();}
+  setPartEnabled(part,enabled){this.disabledParts??=new Set();if(enabled){this.enabledParts.add(part);this.disabledParts.delete(part);}else{this.enabledParts.delete(part);this.disabledParts.add(part);}this.updatePartMix();}
+  setPartVolume(part,value){this.partVolumes??=new Map();this.partVolumes.set(part,Math.max(0,Math.min(1,Number(value)||0)));this.updatePartMix();}
   restorePosition(position,wasPlaying=false){if(!this.originalScore?.events?.length)return;this.pause();this.beat=Math.max(0,Math.min(this.totalBeats,Number(position)||0));this.next=this.score.events.findIndex(e=>e.beat>=this.beat-.0001);if(this.next<0)this.next=this.score.events.length;this.onUpdate({beat:this.beat,index:this.displayIndex(this.beat),totalBeats:this.totalBeats,playing:false});if(wasPlaying)void this.play();}
   setTempo(bpm) {
     const value=Number(bpm);if(!Number.isFinite(value)||value<30||value>240)throw Error('速度应为 30–240 BPM');
@@ -64,14 +68,10 @@ export class ScorePlayer {
     this.timer=setInterval(()=>this.tick(),25);this.tick();
     const paint=()=>{if(!this.playing)return;this.advance();if(!this.lastPaintTime||this.context.currentTime-this.lastPaintTime>=.06){this.lastPaintTime=this.context.currentTime;this.onUpdate({beat:this.beat,index:this.displayIndex(this.beat),totalBeats:this.totalBeats,playing:true});}this.paintFrame=requestAnimationFrame(paint);};this.paintFrame=requestAnimationFrame(paint);
   }
-  advance(){
-    const now=this.context.currentTime;
-    // Keep the written beat grid authoritative. Expression changes attack and
-    // release only; scaling the transport clock made rests and bar lines drift,
-    // and a model performance must never move a written onset or duration.
-    this.beat=this.clockBeat+Math.max(0,now-this.clockTime)*this.bpm/60;
-    this.lastTime=now;
-  }
+  timeAtBeat(beat){const changes=this.originalScore?.tempoMap||[];let lastBeat=0,seconds=0,bpm=this.originalScore?.tempo||this.bpm;const scale=this.bpm/(this.originalScore?.tempo||this.bpm);for(const change of changes){if(change.beat>beat)break;seconds+=(change.beat-lastBeat)*60/(bpm*scale);lastBeat=change.beat;bpm=change.bpm;}return seconds+(beat-lastBeat)*60/(bpm*scale);}
+  beatAtTime(seconds){const changes=this.originalScore?.tempoMap||[];let lastBeat=0,lastSeconds=0,bpm=this.originalScore?.tempo||this.bpm;const scale=this.bpm/(this.originalScore?.tempo||this.bpm);for(const change of changes){const next=lastSeconds+(change.beat-lastBeat)*60/(bpm*scale);if(next>seconds)return lastBeat+(seconds-lastSeconds)*bpm*scale/60;lastBeat=change.beat;lastSeconds=next;bpm=change.bpm;}return lastBeat+(seconds-lastSeconds)*bpm*scale/60;}
+  scheduledTime(beat){return this.clockTime+this.timeAtBeat(beat)-this.timeAtBeat(this.clockBeat);}
+  advance(){const now=this.context.currentTime;this.beat=this.beatAtTime(this.timeAtBeat(this.clockBeat)+Math.max(0,now-this.clockTime));this.lastTime=now;}
   async loadSamples(){
     const needed=new Map();for(const e of this.score.events)for(const n of e.notes){const name=n.instrument||this.instrument;if(!needed.has(name))needed.set(name,[]);needed.get(name).push(n.midi);}
     let completed=0;for(const [name,notes] of needed){if(name!=='salamander'){this.instrumentBanks.set(name,await loadInstrument(this.context,name,notes,(done,total)=>this.onLoad(completed+done/total,needed.size)));}completed++;}
@@ -101,20 +101,27 @@ export class ScorePlayer {
     // narrow band — velocity .3 and .95 came out within 2 dB of each other, so
     // written and modelled dynamics were inaudible. A low floor with a slightly
     // steeper curve restores roughly 14 dB between ppp and fff.
-    const level=(.08+Math.pow(velocity,1.5)*1.15)*(note.gainScale||1)*sourceGain(instrument)*(this.mixGain||1);
+    const level=(.04+Math.pow(velocity,1.5)*.72)*(note.gainScale||1)*sourceGain(instrument)*(this.mixGain||1);
     const sustained=/violin|viola|cello|contrabass|string_ensemble|flute|clarinet|oboe|bassoon|horn|trumpet|trombone/.test(instrument);
+    if(sustained&&buffer.duration>.6){
+      oscillator.loop=true;
+      // Keep the recorded attack, then hold the stable middle of the sample.
+      const channel=buffer.getChannelData(0),rate=buffer.sampleRate;
+      const crossing=seconds=>{const center=Math.floor(seconds*rate),radius=Math.min(1200,Math.floor(rate*.025));let best=center,value=Infinity;for(let i=Math.max(1,center-radius);i<Math.min(channel.length-1,center+radius);i++){if(channel[i-1]<=0&&channel[i]>0&&Math.abs(channel[i])<value){best=i;value=Math.abs(channel[i]);}}return best/rate;};
+      oscillator.loopStart=crossing(buffer.duration*.28);oscillator.loopEnd=crossing(buffer.duration*.65);
+    }
     const attack=sustained?.035:.004;
     gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(level,now+attack);
     // A short, velocity-dependent settling of the hammer attack sounds less clipped.
     gain.gain.setTargetAtTime(level*.88,now+attack,.028);
-    oscillator.connect(filter);filter.connect(gain);gain.connect(this.output);oscillator.start(now);
+    oscillator.connect(filter);filter.connect(gain);gain.connect(this.partBus(note.part||(note.percussion||note.instrument==='drums'?'drums':'default')));oscillator.start(now);
     // Let long tones sing while short notes release a little early, as a
     // pianist does between phrases. The written duration remains unchanged.
     const articulation=note.duration<.45?.93:note.duration>2?1.015:1;
     const releaseBeat=this.expressive&&instrument==='salamander'?Math.min(endBeat+.3,Math.max(endBeat+note.duration*(articulation-1),note.expression?.pedalEndBeat||endBeat)):endBeat;
     const voice={oscillator,gain,layer,level,endBeat:instrument==='drums'?endBeat+4:releaseBeat};this.voices.add(voice);
     voice.startTime=now;
-    const releaseTime=instrument==='drums'?now+Math.min(3,buffer.duration/oscillator.playbackRate.value):Math.max(now+.025,this.clockTime+(releaseBeat-this.clockBeat)*60/this.bpm);
+    const releaseTime=instrument==='drums'?now+Math.min(3,buffer.duration/oscillator.playbackRate.value):Math.max(now+.025,this.scheduledTime(releaseBeat));
     gain.gain.setTargetAtTime(.0001,releaseTime,instrument==='drums'?.08:.06);
     oscillator.stop(releaseTime+.5);
     oscillator.onended=()=>{oscillator.disconnect();filter.disconnect();gain.disconnect();this.voices.delete(voice);};
@@ -134,15 +141,15 @@ export class ScorePlayer {
     // moving, so a short look-ahead previously left an audible hole at the
     // next bar. The eight-second queue covers costly page turns; seek/pause
     // cancels future voices. Visual updates run on their own animation frame.
-    const horizon=this.clockBeat+(this.context.currentTime+8-this.clockTime)*this.bpm/60;
+    const horizon=this.beatAtTime(this.timeAtBeat(this.clockBeat)+Math.max(0,this.context.currentTime+8-this.clockTime));
     while(this.nextPulse<=horizon&&this.nextPulse<this.totalBeats){
       const pulse=this.nextPulse++;
-      const when=this.clockTime+(pulse-this.clockBeat)*60/this.bpm;
+      const when=this.scheduledTime(pulse);
       if(when>=this.context.currentTime)this.onPulse(pulse,when);
     }
     while(this.next<this.score.events.length&&this.score.events[this.next].beat<=horizon) {
       const event=this.score.events[this.next++];
-      const scheduled=this.clockTime+(event.beat-this.clockBeat)*60/this.bpm;
+      const scheduled=this.scheduledTime(event.beat);
       // Never discard an onset after a momentary rendering stall. A late note
       // is still preferable to a silent beat, and subsequent notes remain on
       // the original transport grid.
@@ -160,12 +167,13 @@ export class ScorePlayer {
         const pulseAccent=isBass?(event.offset%2<.04?1.04:.91):1;
         const accompaniment=isBass?(.94+.055*Math.sin(event.beat*.73+note.midi*.11)) : 1;
         const melodicBoost=(note.instrument||this.instrument)==='drums'?1:note.midi===top?1.12:.82;
-        const modelNote=this.expressive&&this.arrangement==='original'&&this.modelPerformance?.source===this.originalScore?this.modelPerformance.events[this.next-1]?.notes.find(n=>n.midi===note.midi):null;
+        const midiVelocity=(this.originalScore.midiSource||note.velocity!==undefined)?Math.max(.05,Math.min(1,Number(note.velocity)>1?Number(note.velocity)/127:Number(note.velocity)||.65)):null;
+        const modelNote=!this.hasWrittenExpression&&this.expressive&&this.arrangement==='original'&&this.modelPerformance?.source===this.originalScore?this.modelPerformance.events[this.next-1]?.notes.find(n=>n.midi===note.midi):null;
         // The melody/accompaniment balance carries as much expression as the
         // overall level, so it is applied to written, arranged and modelled
         // touches alike; the model still supplies the phrasing within a voice.
         const modelVelocity=modelNote?Math.max(.2,Math.min(.92,modelNote.velocity))*.78+(note.expression?.velocity||.6)*.22:null;
-        const velocity=this.expressive?Math.max(.14,Math.min(.92,(note.generatedVelocity??modelVelocity??(note.expression?.velocity||.6)*(event.breath?.95:1)*human)*melodicBoost*pulseAccent*accompaniment)):.72;
+        const velocity=this.expressive?Math.max(.14,Math.min(.92,(midiVelocity??note.generatedVelocity??modelVelocity??(note.expression?.velocity||.6)*(event.breath?.95:1)*human)*(midiVelocity!==null?1:melodicBoost*pulseAccent*accompaniment))):.72;
         // A generated performance may colour the touch, but it must never move
         // the written onset or duration. This preserves accompaniment rhythm.
         this.sound(note,event.beat+note.duration,velocity,0,audibleAt);

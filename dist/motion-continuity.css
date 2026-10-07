@@ -1,0 +1,16 @@
+/* Stable surfaces; animate composited layers without changing their stacking order. */
+html{scrollbar-gutter:stable}
+.studio .workspace-stage{isolation:isolate}
+.studio .workspace-stage.is-moving{overflow:clip}
+.studio .workspace-stage.is-moving>.workspace-panel{backface-visibility:hidden;transition:none!important}
+.studio .workspace-nav{isolation:isolate}
+.studio .nav-lens{pointer-events:none;backface-visibility:hidden;will-change:transform;transition:none!important}
+.studio .score-loading-overlay[popover]{width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;border:0;box-sizing:border-box;overflow:hidden}
+.score-loading-overlay::backdrop,.record-flight::backdrop{background:transparent;pointer-events:none}
+.record-flight[popover]{inset:auto;max-width:none;max-height:none;margin:0;padding:0;border:0;background:transparent;overflow:visible}
+.studio .library-list.cards-transferring .library-score{transition:none!important;--card-x:0deg;--card-y:0deg;--card-z:0px}
+.studio .library-browser .library-score{backface-visibility:hidden}
+@media(prefers-reduced-motion:reduce){.studio .nav-lens{will-change:auto}}
+.studio .workspace-stage,.studio .workspace-stage>.workspace-panel{display:flow-root}
+
+.studio .workspace-stage.is-sizing{overflow:clip}

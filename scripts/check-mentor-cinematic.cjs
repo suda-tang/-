@@ -1,0 +1,42 @@
+const assert=require('node:assert/strict');
+const {chromium}=require('C:/Users/mail/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+(async()=>{const browser=await chromium.launch({channel:'msedge',headless:true});try{
+ for(const viewport of [{width:1440,height:900},{width:390,height:844}]){
+  const page=await browser.newPage({viewport});const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.goto('http://127.0.0.1:5173/?tour=1',{waitUntil:'domcontentloaded'});
+  await page.waitForSelector('.mentor-cinematic [data-ready=true]',{timeout:45000});
+  await page.waitForFunction(()=>document.querySelector('.mentor-cinematic')?.dataset.phase==='arrival');
+  const nameSize=await page.locator('.top .brand strong').evaluate(e=>getComputedStyle(e).fontSize);
+  assert.equal(await page.locator('.mentor-caption-actions button:visible').count(),0);assert.equal(await page.locator('.mentor-caption-panel').isVisible(),false);
+  assert.equal(await page.locator('.mentor-loading').innerText(),'唐秋鸣导师数字人正在加载中');
+  await page.waitForFunction(()=>document.querySelector('.mentor-cinematic')?.dataset.phase==='lecture');
+  assert.equal(await page.locator('.mentor-caption-actions button:visible').count(),2);
+  assert.equal(await page.locator('.mentor-loading:visible').count(),0);
+  const caption=await page.locator('.mentor-subtitle').evaluate(e=>({text:e.textContent,opacity:getComputedStyle(e).opacity,rect:e.getBoundingClientRect().toJSON()}));
+  assert.ok(caption.text.length>0);assert.equal(caption.opacity,'1');assert.ok(caption.rect.top>=0&&caption.rect.bottom<=viewport.height);
+  await page.waitForFunction(()=>{const a=document.querySelector('.mentor-cinematic audio');return a&&Number.isFinite(a.duration)&&a.duration>0;});
+  await page.locator('.mentor-cinematic audio').evaluate(a=>a.currentTime=a.duration*.55);
+  await page.waitForFunction(first=>document.querySelector('.mentor-subtitle')?.textContent!==first,caption.text);
+  await page.locator('.mentor-cinematic audio').evaluate(a=>a.currentTime=0);
+  assert.match(await page.locator('.mentor-segment').innerText(),/1\s*\/\s*3/);
+  await page.evaluate(()=>document.documentElement.lang='en');
+  assert.equal(await page.locator('.top .brand strong').evaluate(e=>getComputedStyle(e).fontSize),nameSize);
+  await page.waitForFunction(()=>document.querySelector('.mentor-subtitle')?.textContent.includes('Hello'));
+  assert.equal(await page.locator('.mentor-caption-actions button').first().innerText(),'Skip this part');
+  await page.evaluate(()=>document.documentElement.lang='ja');
+  assert.equal(await page.locator('.top .brand strong').evaluate(e=>getComputedStyle(e).fontSize),nameSize);
+  await page.waitForFunction(()=>document.querySelector('.mentor-subtitle')?.textContent.includes('先生'));
+  await page.evaluate(()=>document.documentElement.lang='zh-CN');
+  assert.equal(await page.locator('.mentor-cinematic').evaluate(e=>getComputedStyle(e).backgroundColor),'rgba(0, 0, 0, 0)');
+  await page.screenshot({path:'.sites-runtime/avatar-source/cinematic-'+viewport.width+'.png'});
+  await page.locator('.mentor-caption-actions button').first().click();
+  await page.waitForFunction(()=>document.querySelector('.mentor-segment')?.textContent.includes('2 / 3'));
+  await page.locator('.mentor-cinematic audio').evaluate(a=>a.dispatchEvent(new Event('ended')));
+  await page.waitForFunction(()=>document.querySelector('.mentor-segment')?.textContent.includes('3 / 3'));
+  await page.locator('.mentor-caption-actions button').last().click();
+  assert.equal(await page.locator('.mentor-cinematic').getAttribute('data-phase'),'departure');
+  await page.waitForFunction(()=>document.querySelector('.mentor-cinematic')?.dataset.phase==='smoke');
+  await page.waitForSelector('.mentor-cinematic',{state:'detached',timeout:10000});
+  await page.waitForTimeout(2200);assert.deepEqual(errors,[]);console.log('PASS',viewport.width,'automatic entrance and handoff');await page.close();
+ }
+}finally{await browser.close();}})().catch(e=>{console.error(e);process.exit(1)});

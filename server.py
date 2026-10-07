@@ -20,7 +20,13 @@ PORT = int(os.environ.get('PIANO_PORT', '5173'))
 # 额外放行的主机名白名单（本机 127.0.0.1/localhost 之外），用于通过内网穿透
 # 域名访问；逗号分隔。真实域名不写进仓库（仓库是公开的），部署时用环境变量
 # PIANO_ALLOWED_HOSTS 注入 —— 见部署侧的 frp/launch.py。
-ALLOWED_HOSTS = {h.strip().lower() for h in os.environ.get('PIANO_ALLOWED_HOSTS', '').split(',') if h.strip()}
+# 同时把生产域名硬编码为「兜底」，彻底杜绝公网 403「仅接受本机同源请求」复发：
+# server.py 一旦被改源码，会委托 scripts/restart-server.py 以裸 python 重拉一份，
+# 那份子进程拿不到 PIANO_ALLOWED_HOSTS，白名单变空集 → 公网域名被拦。把生产域名
+# 写死在这里，无论进程以何种方式启动（裸 python / 自动 reload / restart-server.py）
+# 都永远放行。新增域名仍走 PIANO_ALLOWED_HOSTS，两者取并集。
+_PRODUCTION_HOSTS = {"suzhou.super-tang.com"}
+ALLOWED_HOSTS = _PRODUCTION_HOSTS | {h.strip().lower() for h in os.environ.get('PIANO_ALLOWED_HOSTS', '').split(',') if h.strip()}
 
 def persist_queue():
     path=ROOT/'.sites-runtime/queue.json';path.parent.mkdir(parents=True,exist_ok=True)
@@ -474,12 +480,20 @@ class Handler(SimpleHTTPRequestHandler):
         immutable_page=self.path.startswith('/api/scores/') and '/page/' in self.path
         # vendor 下的第三方库版本稳定，可以长期缓存；dist 自身还在迭代，
         # 保持 no-store，免得改了前端却因为缓存不生效。
-        long_lived=self.path.startswith('/assets/piano/salamander/') or immutable_page or self.path.startswith('/vendor/')
+        long_lived=self.path.startswith('/assets/piano/salamander/') or self.path.startswith('/assets/instruments/') or immutable_page or self.path.startswith('/vendor/')
         self.send_header('Cache-Control', 'public, max-age=31536000, immutable' if long_lived else 'no-store')
         super().end_headers()
     def json_response(self, data, status=200):
         body = json.dumps(data, ensure_ascii=False).encode('utf-8')
-        self.send_response(status); self.send_header('Content-Type', 'application/json; charset=utf-8'); self.send_header('Content-Length', str(len(body))); self.end_headers(); self.wfile.write(body)
+        original_length = len(body)
+        compressed = original_length > 4096 and 'gzip' in (self.headers.get('Accept-Encoding') or '').lower()
+        if compressed: body = gzip.compress(body, compresslevel=3, mtime=0)
+        self.send_response(status)
+        self.send_header('Content-Type', 'application/json; charset=utf-8')
+        self.send_header('Vary', 'Accept-Encoding')
+        self.send_header('X-Uncompressed-Length', str(original_length))
+        if compressed: self.send_header('Content-Encoding', 'gzip')
+        self.send_header('Content-Length', str(len(body))); self.end_headers(); self.wfile.write(body)
     def allowed(self):
         host = self.headers.get('Host', '').rsplit(':', 1)[0].strip('[]')
         if host.lower() not in {'127.0.0.1', 'localhost'} and host.lower() not in ALLOWED_HOSTS:
@@ -532,9 +546,27 @@ class Handler(SimpleHTTPRequestHandler):
         self.wfile.write(body)
     def do_GET(self):
         if not self.allowed(): return self.json_response({'error':'仅接受本机同源请求'},403)
+        if urlparse(self.path).path.startswith('/api/upload/'):
+            import upload_auth
+            return upload_auth.handle(self)
+        if urlparse(self.path).path=='/api/lecture-music':
+            import lecture_music
+            return lecture_music.handle(self)
+        if urlparse(self.path).path.startswith('/api/portrait-reference'):
+            import portrait_reference
+            return portrait_reference.handle(self)
         if urlparse(self.path).path=='/api/voice-reference' or urlparse(self.path).path.startswith('/api/voice-reference/mentor/') or urlparse(self.path).path.startswith('/api/voice-reference/self/'):
             import voice_capture
             return voice_capture.handle(self)
+        if urlparse(self.path).path=='/api/tour-voice':
+            import tour_voice
+            return tour_voice.handle(self)
+        if urlparse(self.path).path=='/api/institution-logo':
+            import institution_logo
+            return institution_logo.handle(self)
+        if urlparse(self.path).path=='/api/mentor-greeting':
+            import mentor_greeting
+            return mentor_greeting.handle(self)
         if urlparse(self.path).path=='/bundle.css': return self.send_bundle()
         if self.path=='/api/import-capabilities':
             return self.json_response({'pdf':True,'photos':True,'media':(ROOT/'.sites-runtime/transcription-vendor/transkun/pretrained/2.0.pt').exists(),'engine':'Transkun V2','maxMediaMB':200,'maxMinutes':30,'maxPhotoPages':40})
@@ -580,6 +612,9 @@ class Handler(SimpleHTTPRequestHandler):
                 (CACHE_DIR/(digest+'.metadata.json')).write_text(json.dumps(meta,ensure_ascii=False),encoding='utf-8')
                 if cached.get('xml'):write_cached_score(digest,cached['xml'],meta)
             return self.json_response(result)
+        if path == '/api/ai-tasks':
+            import ai_task_store
+            return ai_task_store.handle(self)
         if path == '/api/scores':
             CACHE_DIR.mkdir(parents=True, exist_ok=True)
             ids = {p.stem for p in CACHE_DIR.glob('*.json')} | {p.stem for p in CACHE_DIR.glob('*.pdf')} | {p.stem for p in CACHE_DIR.glob('*.source')} | {p.name.removesuffix('.photo-book.json') for p in CACHE_DIR.glob('*.photo-book.json')}
@@ -605,8 +640,8 @@ class Handler(SimpleHTTPRequestHandler):
                 if background_active and (active is None or active.get('status')=='complete'):
                     active=background_active
                 cloud_title=ocr_title(meta);user_title=str(meta.get('userTitle') or '').strip() if meta.get('titleSource')=='user' else ''
-                from title_validation import filename_title
-                title=user_title or cloud_title or meta.get('title') or filename_title(name)
+                from title_validation import filename_title,resolved_import_title
+                title=resolved_import_title(user_title or cloud_title or meta.get('title'),name,meta)
                 state=active.get('status') if active else ('complete' if item.get('xml') else 'queued');progress=100 if state=='complete' else (active.get('progress',0) if active else 0)
                 items.append({'id':digest,'title':title,'cover':meta.get('cover',''),'titleVersion':str(meta.get('titleVersion','')),'titleVerification':meta.get('titleVerification',''),'titleSource':'ocr' if cloud_title else ('user' if user_title else 'pending'),'jobId':active.get('id') if active else None,'ready':bool(item.get('xml')), 'hasPdf':(CACHE_DIR/(digest+'.pdf')).exists(), 'status':state, 'progress':progress, 'stage':active.get('stage',active.get('detail','')) if active else '', 'error':active.get('error','') if active else ('任务已停止，请在任务中心重新处理' if state=='failed' else ''), 'saved':item.get('saved',label.stat().st_mtime if label.exists() else 0)})
             return self.json_response({'scores':sorted(items,key=lambda x:x['saved'],reverse=True)})
@@ -639,8 +674,9 @@ class Handler(SimpleHTTPRequestHandler):
                 vocal=CACHE_DIR/(digest+'.vocal')
                 item=read_cached_score(digest) or {}
                 if not vocal.exists(): return self.json_response({'error':'这份曲谱尚未绑定演唱音频'},404)
-                body=vocal.read_bytes();mime=str(item.get('metadata',{}).get('vocal',{}).get('mime') or 'audio/mpeg')
-                self.send_response(200);self.send_header('Content-Type',mime);self.send_header('Content-Length',str(len(body)));self.send_header('Accept-Ranges','bytes');self.end_headers();self.wfile.write(body);return
+                mime=str(item.get('metadata',{}).get('vocal',{}).get('mime') or 'audio/mpeg')
+                from media_range import serve_media
+                serve_media(self,vocal,mime);return
             if len(parts)==5 and parts[4]=='variants':
                 return self.json_response(variants_summary(digest) or {'active':None,'available':[]})
             if len(parts)==5 and parts[4]=='info':
@@ -705,8 +741,33 @@ class Handler(SimpleHTTPRequestHandler):
                     if job.get('status')=='failed':job['error']=job.get('detail','')
             return self.json_response(job or {'error':'任务不存在或已过期'},200 if job else 404)
         return super().do_GET()
+    def do_DELETE(self):
+        # 误产生的 AI 任务记录以前只能改状态、不能清除（测试报告 #16）。
+        if not self.allowed(): return self.json_response({'error':'仅接受本机同源请求'},403)
+        if urlparse(self.path).path=='/api/ai-tasks':
+            import ai_task_store
+            return ai_task_store.handle(self)
+        return self.json_response({'error':'接口不存在'},404)
     def do_POST(self):
         if not self.allowed(): return self.json_response({'error':'仅接受本机同源请求'},403)
+        if urlparse(self.path).path=='/api/ai-tasks':
+            import ai_task_store
+            return ai_task_store.handle(self)
+        if urlparse(self.path).path=='/api/workspace-ai/web':
+            import ai_web_import
+            return ai_web_import.handle(self,sys.modules[__name__])
+        if urlparse(self.path).path=='/api/workspace-ai':
+            import ai_workspace
+            return ai_workspace.handle(self)
+        if urlparse(self.path).path.startswith('/api/upload/'):
+            import upload_auth
+            return upload_auth.handle(self)
+        if urlparse(self.path).path=='/api/lecture-music':
+            import lecture_music
+            return lecture_music.handle(self)
+        if urlparse(self.path).path.startswith('/api/portrait-reference'):
+            import portrait_reference
+            return portrait_reference.handle(self)
         if urlparse(self.path).path=='/api/voice-reference' or urlparse(self.path).path.startswith('/api/voice-reference/mentor/') or urlparse(self.path).path.startswith('/api/voice-reference/self/'):
             import voice_capture
             return voice_capture.handle(self)
@@ -716,7 +777,6 @@ class Handler(SimpleHTTPRequestHandler):
                 maximum=20*1024*1024 if self.path=='/api/photos' else 200*1024*1024
                 if not 0<length<=maximum:return self.json_response({'error':'文件大小超出限制'},413)
                 from media_import import receive
-                from urllib.parse import unquote
                 return self.json_response(receive(self.rfile,length,unquote(self.headers.get('X-Score-Name','未命名曲谱')),self.path=='/api/photos',self.headers.get('X-Media-Type','')),202)
             if not 0 < length <= 100*1024*1024: return self.json_response({'error':'文件为空或超过 100 MB'},413)
             chunks=[];remaining=length
@@ -739,7 +799,6 @@ class Handler(SimpleHTTPRequestHandler):
                 for part in parts:merged.extend(part.read_bytes())
                 if not merged.startswith(b'%PDF-'):return self.json_response({'error':'不是有效 PDF'},400)
                 digest=hashlib.sha256(merged).hexdigest();cache_path(digest);(CACHE_DIR/(digest+'.pdf')).write_bytes(merged)
-                from urllib.parse import unquote
                 (CACHE_DIR/(digest+'.name')).write_text(unquote(self.headers.get('X-Score-Name','未命名琴谱')),encoding='utf-8')
                 shutil.rmtree(chunk_dir,ignore_errors=True)
                 return self.json_response({'id':digest})
@@ -771,15 +830,34 @@ class Handler(SimpleHTTPRequestHandler):
                 for task in waiting:background_jobs.update(task['id'],status='cancelled',detail='已选择转录方式')
                 key=background_jobs.enqueue(digest,'transcription','transkun-2.0.1-choice',{'audioChoice':choice},priority=0)
                 return self.json_response({'id':key,'status':'queued'},202)
+            if self.path.startswith('/api/scores/') and self.path.endswith('/vocal-timing'):
+                digest=self.path.split('/')[-2];cached=read_cached_score(digest)
+                if not cached or not cached.get('metadata',{}).get('vocal'):return self.json_response({'error':'当前曲谱没有人声音轨'},404)
+                payload=json.loads(body);offset=float(payload.get('offsetSeconds',0));scale=float(payload.get('timeScale',1))
+                if not -120<=offset<=120 or not .5<=scale<=2:raise ValueError('人声时间参数超出范围')
+                metadata=cached['metadata'];metadata['vocal'].update(offsetSeconds=offset,timeScale=scale,alignment={'status':'manual'})
+                write_cached_score(digest,cached['xml'],metadata)
+                write_json(CACHE_DIR/(digest+'.metadata.json'),metadata)
+                return self.json_response({'ok':True,'vocal':metadata['vocal']})
             if self.path.startswith('/api/scores/') and self.path.endswith('/vocal'):
                 digest=self.path.split('/')[-2];cached=read_cached_score(digest)
                 if not cached:return self.json_response({'error':'请先打开并保存一份电子谱'},404)
                 mime=self.headers.get('Content-Type','').split(';',1)[0].strip().lower()
-                if not mime.startswith('audio/'):
-                    return self.json_response({'error':'请导入音频文件'},415)
                 name=unquote(self.headers.get('X-Vocal-Name','演唱音频'))[:250]
-                (CACHE_DIR/(digest+'.vocal')).write_bytes(body)
-                metadata={**cached.get('metadata',{}),'vocal':{'name':name,'mime':mime,'bytes':len(body),'saved':time.time(),'offsetSeconds':0}}
+                from vocal_import import normalize
+                source_bytes=len(body);source_mime=mime
+                body,mime=normalize(body,name,mime)
+                destination=CACHE_DIR/(digest+'.vocal')
+                temporary=CACHE_DIR/(digest+'.'+uuid.uuid4().hex+'.vocal.tmp')
+                temporary.write_bytes(body);temporary.replace(destination)
+                metadata={**cached.get('metadata',{}),'vocal':{'name':name,'mime':mime,'bytes':len(body),'originalMime':source_mime,'originalBytes':source_bytes,'saved':time.time(),'offsetSeconds':0}}
+                try:
+                    from vocal_alignment import analyze
+                    alignment=analyze(destination,cached['xml'])
+                except Exception as error:alignment={'status':'needs_review','reason':'时间匹配未完成：'+str(error)}
+                metadata['vocal']['alignment']=alignment
+                if alignment.get('status')=='matched':
+                    metadata['vocal'].update(offsetSeconds=alignment['offsetSeconds'],timeScale=alignment['timeScale'])
                 write_cached_score(digest,cached['xml'],metadata)
                 (CACHE_DIR/(digest+'.metadata.json')).write_text(json.dumps(metadata,ensure_ascii=False),encoding='utf-8')
                 return self.json_response({'ok':True,'vocal':metadata['vocal']})
@@ -858,7 +936,6 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.json_response({'metadata':metadata})
             if self.path == '/api/scores':
                 if not body.startswith(b'%PDF-'): raise ValueError('不是有效 PDF')
-                from urllib.parse import unquote
                 digest=hashlib.sha256(body).hexdigest()
                 cache_path(digest)
                 (CACHE_DIR/(digest+'.pdf')).write_bytes(body)
@@ -877,7 +954,11 @@ class Handler(SimpleHTTPRequestHandler):
                     raise ValueError('MIDI 乐谱缺少有效 MusicXML')
                 digest=hashlib.sha256((xml+'\n'+json.dumps(metadata,ensure_ascii=False,sort_keys=True)).encode('utf-8')).hexdigest()
                 cache_path(digest)
-                metadata={**metadata,'sourceType':'midi','title':str(metadata.get('title') or name)}
+                from title_validation import resolved_import_title
+                metadata={**metadata,'sourceType':'midi'}
+                metadata['title']=resolved_import_title(metadata.get('title'),name,metadata)
+                from xml.sax.saxutils import escape
+                xml=re.sub(r'<work-title>.*?</work-title>',lambda m:'<work-title>'+escape(metadata['title'])+'</work-title>',xml,count=1,flags=re.S)
                 write_cached_score(digest,xml,metadata,parts=omr_normalize.REVISION)
                 (CACHE_DIR/(digest+'.name')).write_text(name,encoding='utf-8')
                 return self.json_response({'id':digest,'saved':True})
@@ -886,7 +967,6 @@ class Handler(SimpleHTTPRequestHandler):
                 # before entering the existing OMR pipeline. PIL is optional;
                 # when unavailable the client receives a precise setup error.
                 from PIL import Image, ImageOps, ImageFilter
-                from urllib.parse import unquote
                 image=Image.open(io.BytesIO(body)).convert('RGB')
                 image=ImageOps.exif_transpose(image)
                 image.thumbnail((2600,3600),Image.Resampling.LANCZOS)

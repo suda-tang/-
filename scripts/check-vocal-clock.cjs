@@ -1,0 +1,10 @@
+const fs=require('fs'),assert=require('node:assert/strict');
+(async()=>{const {VocalTransport}=await import('data:text/javascript;base64,'+fs.readFileSync('dist/vocal-transport.js').toString('base64'));
+const audio={src:'',paused:true,muted:false,duration:100,currentTime:0,playbackRate:1,plays:[],play(){this.plays.push({muted:this.muted,time:player.context.currentTime});this.paused=false;return Promise.resolve();},pause(){this.paused=true;},load(){},removeAttribute(){this.src='';}};
+const player={playing:false,soloPart:'all',disabledParts:new Set(),bpm:120,clockTime:1.1,clockBeat:0,beat:0,context:{currentTime:1},timeAtBeat(beat){return beat<=4?beat*.5:2+(beat-4);},beatAtTime(seconds){return seconds<=2?seconds*2:4+seconds-2;}};
+const vocal=new VocalTransport(audio,()=>player);vocal.configure({serverId:'test',tempo:120,vocal:{mime:'audio/mpeg'}});vocal.prime();await vocal.priming;assert.equal(audio.paused,true);assert.equal(audio.plays[0].muted,true);
+player.playing=true;vocal.start();await new Promise(r=>setTimeout(r,20));assert.equal(audio.paused,true);player.context.currentTime=1.11;await new Promise(r=>setTimeout(r,110));assert.equal(audio.paused,false);assert.ok(audio.plays[1].time>=player.clockTime);assert.ok(audio.currentTime<.03);
+assert.equal(vocal.timeFor(8),6);player.bpm=240;player.timeAtBeat=beat=>(beat<=4?beat*.5:2+(beat-4))*.5;assert.equal(vocal.timeFor(8),6);
+player.context.currentTime=2.1;player.beatAtTime=s=>s<=1?s*4:4+(s-1)*2;audio.currentTime=4;vocal.sync(true);assert.ok(Math.abs(audio.currentTime-2)<.001);assert.equal(audio.playbackRate,2);
+vocal.pause();assert.equal(audio.paused,true);vocal.start();vocal.pause();await new Promise(r=>setTimeout(r,20));assert.equal(audio.paused,true);
+console.log({silentUnlock:true,scheduledStart:true,tempoMap:true,driftCorrection:true,cancelPending:true});})().catch(e=>{console.error(e);process.exitCode=1});

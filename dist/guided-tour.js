@@ -1,5 +1,7 @@
-import {presentWelcome,researchFor,glideTo,pinTourHeader} from './tour-presentation.js';
+import {createTourCopy} from './tour-copy.js?v=1';
+import {presentWelcome,researchFor,glideTo,pinTourHeader} from './tour-presentation.js?v=board-camera2';
 import {registerTourEnglish} from './tour-english.js';
+import {narrationMedia} from './narration-media.js';
 // 项目导览：缓缓移到目标 → 按目标圆角画高亮框 → 文字与人声同步 → 箭头指向目标。
 // 语音走浏览器自带的 speechSynthesis，不需要联网；被浏览器拦下时退回定时讲解。
 export async function initTour(){
@@ -8,31 +10,12 @@ export async function initTour(){
  let mentor=(params.get('mentor')||'').trim().slice(0,50),direction=params.get('direction')||'ensemble',visit=null;
  if(params.has('visit')){try{const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),5000);try{const response=await fetch('/mentor-visits.json',{signal:controller.signal});if(response.ok)visit=(await response.json())[params.get('visit')]||null;}finally{clearTimeout(timeout);}if(visit){mentor=visit.name;direction=visit.direction;}}catch{}}
  const research=await researchFor(mentor,visit);if(research)direction=research.direction;
- const opening={
-  ensemble:'我平时弹钢琴，也给人伴奏。最早想做异地 MIDI 合奏，就是希望人在不同地方也能一起排练，不用每次都凑到一间琴房。您现在看到的这个网页，是我后来做的钢琴学习原型，跟远程合奏不是同一个程序。我想借它给您看几个我还没想明白的问题，您随时可以停下来自己点一点。',
-  education:'我学的是音乐教育。做这个网页的时候我一直在想一件事：给学生把错音标出来之后，他下一遍到底会怎么练？我想先带您看看这个原型，再说说哪些反馈值得拿进课堂做研究。',
-  generation:'让程序生成一份能播放的总谱不难，难的是各声部真的合在一起。这个原型把生成、试听、核对的过程都留下来了。我想让您看看我做到哪儿了，又卡在哪儿。'
- };
- const ending={
-  ensemble:'接下来我想回到双人异地 MIDI 合奏，把网络延迟控制住，比较几种补偿办法。除了看两个音差了多少毫秒，我还想知道演奏者有没有一直在追对方，还能不能主动带起一句音乐。这一点我特别想听您的意见。',
-  education:'我想先比较两种反馈：一边弹一边提示，和弹完一个乐句再提示。练习时间一样的情况下，学生把提示关掉之后还能不能改过来，我觉得比眼前分数涨了多少更值得看。这个实验还得再设计细一点。',
-  generation:'我想把问题缩小到分层练习素材：保持原曲结构，再加上声部和难度的约束，生成的练习材料会不会更适合教学？我希望让老师盲评、学生试奏来参与判断，而不是只让生成模型给自己打分。'
- };
- const steps=[
-  ['library','.score-library','我为什么从合奏做起',opening[direction]||opening.ensemble],
-  ['library','.score-import','先把手里的谱子放进来','平时拿到的谱子很少是同一种格式。有的是 PDF，有的是手机拍的几页纸，也有人只有一段录音。我把这些入口放在一起，是想让使用者从自己手里的材料开始。照片可以先排好页序，再一起处理。\n\n不过，能上传和能用是两回事。我之前遇到过左右手混在一起、拍号读错的情况。所以这里保留了原稿，识别后的电子谱也要回头核对。要是拿它做教学研究，这一步就更不能省：否则我们以为在观察学生，其实是在观察程序的错误。'],
-  ['play','.playback-panel','先听这一段','您可以先选一小段熟悉的旋律，按播放听听，再放慢一点对着谱看。我做这个播放器时，有个问题反复改了很久：音符看着都在，到了小节末尾却会停一下。后来排查到拍号和时值的解析，才发现并不是换个钢琴音色就能解决。\n\n这件事让我对“自然演奏”谨慎了不少。演奏需要呼吸，但不能把拍子弄乱。我想先把该有的节奏核准，再讨论力度、句尾和左右手的关系。您听的时候，也可以留意伴奏有没有在托着旋律走。'],
-  ['play','.practice-settings','提示出现以后，学生怎么练','这一处是我最想继续研究的。程序能指出错音和时间偏差，可学生看到以后，是听明白了，还是只是照着提示又弹了一遍？光看下一次的分数，我觉得还分不清。\n\n我想先把条件收得小一点：练同一段，一组边弹边看提示，另一组等乐句弹完再看；练习时间保持一致，然后关掉提示再弹。除了错音，还想看他在哪儿停、会从哪里重新开始。这目前是我准备推进的实验问题，还不是已经得到的结论。您可以展开这里看操作，麦克风需要主动开启。'],
-  ['arrange','#arrangement-workspace','这几条声部，放在一起好听吗','这里可以换编制，再看各乐器生成的声部。我最不满意的一类结果，是每条声部单独听似乎都能说得通，合起来却一直在抢，钢琴、弦乐和鼓谁也不让谁。只检查音符有没有超出音域，显然不够。\n\n所以我想把“生成完了”后面的工作补上：先听声部怎样进入、怎样给旋律留位置，再看学生是否弹得下来。如果用于教学，我宁愿先做好几种有限的织体，也不想一下子给出很多种看着完整、实际不好用的编配。'],
-  ['tasks','.task-center','让等待留在后台','这页看起来偏工程，但它影响的是人能不能顺畅地用下去。识谱和编配有时要等，如果一直挡住页面，刚才想听的那一处很容易就被打断了。我把这些工作放进队列，让人可以先看原稿、先听已经能播放的部分。\n\n这里显示的是实际任务，您可以点开看是哪首作品、进行到哪一步。如果出错，我希望它说清楚卡在哪儿，而不是只剩一个一直转的圈。做课堂里的工具，等待和出错怎么处理，也是教学过程的一部分。'],
-  ['play','.playback-panel','还有一个问题，想请教您',ending[direction]||ending.ensemble]
- ];
- if(visit){steps[0][3]=`${mentor}老师，这次我想先围绕${visit.focus}跟您聊聊。${opening[direction]||opening.ensemble}`;steps[steps.length-1][3]=visit.question||steps[steps.length-1][3];}
- if(research){steps[0][3]=research.opening;steps[0][2]=research.heading||'我想向您请教的问题';if(research.play)steps[2][3]=research.play;if(research.arrange)steps[4][3]=research.arrange;steps[6][3]=research.question;}
- steps.splice(1,0,['library','.library-list','请在全屏曲库里选一首','这里请您挑一首熟悉的作品。熟悉的旋律更容易听出哪里不对，我们就沿着这首曲子往下看，不必每换一个功能就换一份材料。\n\n可以在上面搜索歌名，点卡片后等它打开；我会等作品载入，再接着介绍。若想先了解整体，也可以跳过选曲。']);
+ const steps=createTourCopy(direction);
+ if(visit){steps[0][3]=`${mentor}老师，${steps[0][3]}`;steps[7][3]=visit.question||steps[7][3];}
+ if(research){steps[0][3]=research.opening;steps[0][2]=research.heading||'我想请教您的问题';if(research.play)steps[3][3]=research.play;if(research.arrange)steps[5][3]=research.arrange;steps[7][3]=research.question;}
  if(!visit&&!research)registerTourEnglish(steps,direction);
  let index=Math.max(0,steps.findIndex(s=>s[0]===params.get('panel'))),automatic=params.get('auto')!=='0',timer=0,version=0,closed=false,highlighted=null,revealFrame=0,boundaryChars=0,stepDuration=0,ringRadius=20;
- let voiceOn=false,voiceStarted=false,voiceBlocked=false,voiceAuto=false,voiceWaiting=false,utter=null;
+ let voiceOn=true,voiceStarted=false,voiceBlocked=false,voiceAuto=false,voiceWaiting=false,utter=null;
  let recorded=null,recordedTracks=[];
  try{const r=await fetch('/narration/tour.json');if(r.ok)recordedTracks=await r.json();}catch{}
  const recordingIds=['tang-opening','tang-select','tang-import','tang-play','tang-practice','tang-arrange','tang-tasks','tang-closing'];
@@ -113,16 +96,44 @@ export async function initTour(){
  const zh=list.filter(v=>/^zh[-_]?(CN|Hans|SG)/i.test(v.lang)||/^zh/i.test(v.lang)||/chinese|中文|普通话|国语/i.test(v.name));
  // 尽量挑更自然的那个：系统里带 Natural / Online / Neural 的一般是神经网络
  // 语音，比传统合成音自然得多；再按常见的高质量中文音色兜底。
- zhVoice=zh.find(v=>/natural|online|neural/i.test(v.name))
+ zhVoice=zh.find(v=>/yunxi|云希|yunjian|云健|yunyang|云扬/i.test(v.name)&&/natural|online|neural/i.test(v.name))
+  ||zh.find(v=>/yunxi|云希|yunjian|云健|yunyang|云扬|kangkang|康康/i.test(v.name))
+  ||zh.find(v=>/natural|online|neural/i.test(v.name))
   ||zh.find(v=>/xiaoxiao|yaoyao|huihui|kangkang|晓晓|晓伊|云希|云扬|康康/i.test(v.name))
   ||zh.find(v=>/^zh[-_]?(CN|Hans|SG)/i.test(v.lang))||zh[0]||null;}
  function stopSpeak(){if(recorded){recorded.pause();recorded.src='';recorded=null;}if(!canSpeak)return;utter=null;try{speechSynthesis.cancel();}catch{}}
  function armTimer(ms){clearTimeout(timer);timer=setTimeout(()=>{if(closed)return;index++;void render();},ms);}
- function speak(text){
+ async function speak(text){
+  const requestVersion=version;
+  const narrationLocale=window.sudaLanguage?.getLocale()||'zh';
+  const narrationText=narrationLocale==='zh'?text:(window.sudaLanguage?.translate(text)||text);
+  if(voiceOn&&text&&index!==1){
+   stopSpeak();voiceStarted=false;voiceWaiting=true;clearTimeout(timer);
+   state.textContent='正在准备讲解';
+   try{
+    const locale=narrationLocale;const spokenText=narrationText;const endpoint='/api/tour-voice?locale='+encodeURIComponent(locale)+'&text='+encodeURIComponent(spokenText);
+    for(let attempt=0;attempt<40;attempt++){
+     const response=await fetch(endpoint,{signal:AbortSignal.timeout(6000)});if(!response.ok)throw Error('语音服务暂不可用');const data=await response.json();
+     if(closed||version!==requestVersion)return;
+     if(data.status==='failed')throw Error(data.message);
+     if(data.status==='complete'){
+      voiceWaiting=false;const a=narrationMedia();a.src=data.url;a.muted=false;recorded=a;
+      a.onplaying=()=>{if(recorded!==a)return;clearTimeout(timer);voiceStarted=true;state.textContent='正在讲解';};
+      a.ontimeupdate=()=>{if(recorded===a&&Number.isFinite(a.duration))meterRun(a.currentTime/a.duration,0);};
+      a.onended=()=>{if(recorded!==a)return;voiceStarted=false;if(automatic&&index<steps.length-1)armTimer(1800);};
+      a.onerror=()=>{if(recorded===a){voiceStarted=false;state.textContent='讲解音频未能播放，请重试';}};
+      await a.play().catch(()=>{state.textContent='轻触页面继续讲解';voiceWaiting=true;});return;
+     }
+     await new Promise(resolve=>setTimeout(resolve,1500));
+    }
+   }catch(error){if(closed||version!==requestVersion)return;console.warn('Natural tour narration',error);}
+   voiceWaiting=false;
+  }
+
   const track=recordedTracks.find(t=>t.id===recordingIds[index]);
   // Custom research text must never be narrated with a different cached script.
-  if(track&&index!==1&&!research&&!visit){
-   stopSpeak();const a=new Audio(track.url);recorded=a;copy.textContent=track.text;
+  if(track&&track.text?.trim()===text.trim()&&index!==1&&!research&&!visit){
+   stopSpeak();const a=narrationMedia();a.src=track.url;a.muted=false;recorded=a;copy.textContent=track.text;
    a.onplaying=()=>{if(recorded!==a)return;clearTimeout(timer);voiceStarted=true;state.textContent='唐秋鸣讲解 · 合成语音';};
    a.ontimeupdate=()=>{if(recorded===a&&Number.isFinite(a.duration))meterRun(a.currentTime/a.duration,0);};
    a.onended=()=>{if(recorded!==a)return;voiceStarted=false;if(automatic&&index<steps.length-1)armTimer(1800);};
@@ -133,11 +144,11 @@ export async function initTour(){
   if(!activated()){voiceWaiting=true;return;}
   voiceWaiting=false;loadVoices();
   stopSpeak();voiceStarted=false;voiceBlocked=false;
-  const current=new SpeechSynthesisUtterance(text);
+  const current=new SpeechSynthesisUtterance(narrationText);
   utter=current;
-  if(zhVoice)current.voice=zhVoice;
+  let systemVoice=zhVoice;if(narrationLocale!=='zh'){const prefix={'zh-Hant':'zh-TW',yue:'zh-HK'}[narrationLocale]||narrationLocale;const candidates=speechSynthesis.getVoices().filter(v=>v.lang.toLowerCase().startsWith(prefix.toLowerCase()));systemVoice=candidates.find(v=>/guy|henri|conrad|alvaro|keita|injoon|wanlung|yunjhe|antonio|male/i.test(v.name))||candidates[0]||null;}if(systemVoice)current.voice=systemVoice;
   // 默认 rate=1 念中文偏快偏平，听起来很机械：语速放慢一点、音高略抬一点。
-  current.lang=(zhVoice&&zhVoice.lang)||'zh-CN';current.rate=0.94;current.pitch=1.02;
+  current.lang=systemVoice?.lang||({'zh-Hant':'zh-TW',yue:'zh-HK',zh:'zh-CN'}[narrationLocale]||narrationLocale);current.rate=0.94;current.pitch=1;
   // 每个回调都先确认自己还是当前这条，免得被取消的旧朗读把新的一步顶掉。
   current.onstart=()=>{if(utter!==current)return;voiceStarted=true;voiceBlocked=false;clearTimeout(timer);timer=0;state.textContent=automatic?'语音讲解中 · 点页面即可暂停':'语音讲解中 · 点“继续讲解”接着走';};
   current.onboundary=event=>{if(utter!==current)return;if(typeof event.charIndex==='number'&&event.charIndex>boundaryChars)boundaryChars=event.charIndex;};
@@ -184,6 +195,7 @@ export async function initTour(){
   if(!automatic){pause.textContent='继续讲解';state.textContent='已暂停，可以自己操作';return;}
   pause.textContent='暂停讲解';
   if(index===steps.length-1){state.textContent='导览结束。您可以继续查看，或直接试用。';pause.hidden=true;return;}
+  if(voiceOn&&(voiceWaiting||voiceStarted||recorded)){clearTimeout(timer);return;}
   stepDuration=Math.max(18000,steps[index][3].length*230);
   if(voiceOn&&canSpeak&&voiceStarted){}   // 语音在走，进度条由朗读驱动，不另起定时
   else{
@@ -247,7 +259,7 @@ export async function initTour(){
 const setVoiceButton=()=>{voice.textContent=recordedTracks.length&&!research&&!visit?'播放讲解':voiceOn?'关闭系统朗读':'系统朗读';};
 setVoiceButton();
 voice.hidden=!canSpeak&&!recordedTracks.length;
-voice.onclick=()=>{if(recordedTracks.length&&!research&&!visit){speak(steps[index][3]);return;}if(!canSpeak)return;voiceOn=!voiceOn;voiceAuto=false;setVoiceButton();if(!voiceOn){stopSpeak();schedule();return;}voiceBlocked=false;voiceStarted=false;state.textContent='正在准备系统朗读…';speak(steps[index][3]);};
+voice.onclick=()=>{if(recordedTracks.length&&!research&&!visit){voiceOn=true;speak(steps[index][3]);return;}if(!canSpeak)return;voiceOn=!voiceOn;voiceAuto=false;setVoiceButton();if(!voiceOn){stopSpeak();schedule();return;}voiceBlocked=false;voiceStarted=false;state.textContent='正在准备系统朗读…';speak(steps[index][3]);};
  let inIntro=true,selecting=false;
  const onLibraryClose=()=>{document.body.append(box);if(index===1&&!selecting)state.textContent='已收起曲库，可以重新展开选曲或跳过';};
  const onLibraryOpen=e=>{if(index===1&&!closed){box.hidden=true;e.detail.browser.append(box);}};
@@ -257,10 +269,11 @@ voice.onclick=()=>{if(recordedTracks.length&&!research&&!visit){speak(steps[inde
  const onLoading=()=>{if(index===1){selecting=true;box.hidden=true;cancel();stopSpeak();}};
  const onSelected=e=>{if(closed||index!==1)return;selecting=false;box.hidden=false;if(e.detail.error){state.textContent='作品未能打开：'+e.detail.error;return;}if(!e.detail.ready){state.textContent='这首作品还在识别，请选择已就绪的作品或跳过';return;}index=3;automatic=true;void render();};
  document.addEventListener('library-tour-opened',onLibraryOpen);document.addEventListener('library-tour-closed',onLibraryClose);document.addEventListener('library-tour-loading',onLoading);document.addEventListener('library-tour-selected',onSelected);
- const manual=event=>{if(!event.isTrusted||inIntro||index===1)return;if(retryVoice())speak(steps[index][3]);if(!box.contains(event.target))stopAuto();},onVisibility=()=>{if(document.hidden)stopAuto('已暂停，返回后可继续讲解');};
+ const manual=event=>{if(!event.isTrusted||inIntro||index===1)return;if(recorded&&voiceWaiting&&recorded.paused){voiceWaiting=false;voiceOn=true;void recorded.play().catch(()=>{voiceWaiting=true;state.textContent='轻触页面继续讲解';});return;}if(voiceWaiting&&!recorded)return;if(retryVoice()){void speak(steps[index][3]);return;}if(!box.contains(event.target))stopAuto();},onVisibility=()=>{if(document.hidden)stopAuto('已暂停，返回后可继续讲解');};
  for(const type of ['wheel','pointerdown','keydown'])document.addEventListener(type,manual,{passive:true});document.addEventListener('visibilitychange',onVisibility);
  addEventListener('pagehide',stopSpeak,{once:true});
- exit.onclick=()=>{unpinHeader();document.removeEventListener('library-flight-layer',onFlight);document.removeEventListener('library-flight-finished',onFlightEnd);document.removeEventListener('library-tour-opened',onLibraryOpen);document.removeEventListener('library-tour-closed',onLibraryClose);document.removeEventListener('library-tour-loading',onLoading);document.removeEventListener('library-tour-selected',onSelected);closed=true;version++;cancel();stopReveal();stopSpeak();if(highlighted)highlighted.classList.remove('tour-focus');highlighted=null;ring.remove();arrow.remove();box.remove();document.body.classList.remove('has-guided-tour');removeEventListener('scroll',scheduleOverlay);removeEventListener('resize',scheduleOverlay);for(const type of ['wheel','pointerdown','keydown'])document.removeEventListener(type,manual);document.removeEventListener('visibilitychange',onVisibility);};
+ exit.onclick=()=>{unpinHeader();document.removeEventListener('library-flight-layer',onFlight);document.removeEventListener('library-flight-finished',onFlightEnd);document.removeEventListener('library-tour-opened',onLibraryOpen);document.removeEventListener('library-tour-closed',onLibraryClose);document.removeEventListener('library-tour-loading',onLoading);document.removeEventListener('library-tour-selected',onSelected);closed=true;document.removeEventListener('languagechange',onNarrationLanguageChange);version++;cancel();stopReveal();stopSpeak();if(highlighted)highlighted.classList.remove('tour-focus');highlighted=null;ring.remove();arrow.remove();box.remove();document.body.classList.remove('has-guided-tour');removeEventListener('scroll',scheduleOverlay);removeEventListener('resize',scheduleOverlay);for(const type of ['wheel','pointerdown','keydown'])document.removeEventListener(type,manual);document.removeEventListener('visibilitychange',onVisibility);};
+ const onNarrationLanguageChange=()=>{if(closed||box.hidden)return;version++;stopSpeak();if(voiceOn)void speak(steps[index][3]);};document.addEventListener('languagechange',onNarrationLanguageChange);
  await presentWelcome({mentor,visit,focus:visit?.focus||({ensemble:'异地 MIDI 合奏与音乐参与',education:'音乐学习与反馈',generation:'音乐生成与教学素材'}[direction])});
  inIntro=false;if(!closed)void render();
 }

@@ -90,10 +90,15 @@ def main():
         flags = (getattr(subprocess, 'DETACHED_PROCESS', 0)
                  | getattr(subprocess, 'CREATE_NEW_PROCESS_GROUP', 0)
                  | getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+    # 双保险：重拉时一并注入公网白名单域名，避免裸启动丢 PIANO_ALLOWED_HOSTS
+    # 导致公网 403「仅接受本机同源请求」。server.py 里已对生产域名做了硬编码兜底，
+    # 这里再显式传一遍，确保即便日后移除兜底也不会复现。
+    env = dict(os.environ)
+    env.setdefault('PIANO_ALLOWED_HOSTS', 'suzhou.super-tang.com')
     with LOG.open('ab') as log:
         subprocess.Popen([str(python), str(ROOT / 'server.py')], cwd=str(ROOT),
                          stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
-                         creationflags=flags, close_fds=True)
+                         creationflags=flags, close_fds=True, env=env)
 
     if wait_for_listen(PORT):
         print(f'服务已重启：http://127.0.0.1:{PORT}')

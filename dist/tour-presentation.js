@@ -1,4 +1,4 @@
-import {openingNarration} from './narration-opening.js?v=playlist4';
+import {openingNarration} from './narration-opening.js?v=board-camera2';
 export function pinTourHeader(){
  const header=document.querySelector('.top');if(!header)return()=>{};
  const spacer=document.createElement('div');spacer.className='tour-header-space';header.before(spacer);
@@ -22,7 +22,7 @@ export async function glideTo(element,{cancelled=()=>false,duration=1500}={}){
 export async function presentWelcome({mentor,visit,focus}) {
  const root=document.documentElement;root.classList.add('tour-arrival');
  const wait=ms=>new Promise(r=>setTimeout(r,ms));
- const scene=document.createElement('section');scene.className='tour-home-intro';scene.setAttribute('aria-label','唐秋鸣课题介绍');
+ const scene=document.createElement('section');scene.className='tour-home-intro';scene.dataset.mentor=mentor||'';scene.dataset.focus=focus||'';scene.dataset.institution=visit?.institution||new URLSearchParams(location.search).get('institution')||'';scene.dataset.institutionLogo=visit?.logo||new URLSearchParams(location.search).get('institutionLogo')||'';scene.setAttribute('aria-label','唐秋鸣课题介绍');
  scene.innerHTML='<div class="home-intro-content"><p class="premiere-name"></p><h1>唐秋鸣<span>课题设计实例</span></h1><p class="premiere-topic"></p><p class="premiere-caption">我在苏州大学读音乐教育，主项是钢琴。<br>想借这个工作区，向您介绍我正在做的事。</p><button type="button">往下看看 <span aria-hidden="true">↓</span></button></div>';
  scene.querySelector('.premiere-name').textContent=mentor?`${mentor}老师，您好。`:'老师，您好。';
  scene.querySelector('.premiere-topic').textContent=focus;
@@ -32,7 +32,7 @@ export async function presentWelcome({mentor,visit,focus}) {
  while(root.classList.contains('booting'))await wait(80);
  scrollTo({top:0,behavior:'instant'});scene.classList.add('is-visible');
  await openingNarration(scene);
- scene.querySelector('button').onclick=()=>void glideTo(document.querySelector('.score-library'));
+ scene.remove();
  root.classList.remove('tour-arrival');root.classList.add('tour-travelling');
  await glideTo(document.querySelector('.score-library'),{duration:1900});
  root.classList.remove('tour-travelling');history.scrollRestoration=previousRestoration;

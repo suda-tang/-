@@ -1,28 +1,31 @@
 const labels={queued:'排队中',running:'进行中',complete:'已完成',failed:'失败',cancelled:'已取消',needs_review:'待校验'};
-const kinds={arrangement:'配器与鼓伴奏',expression:'演奏表情',metadata:'标题与封面',pdf:'PDF 预览',transcription:'音视频转录',photos:'照片整理与识谱'};
+const kinds={arrangement:'配器与鼓伴奏',expression:'演奏表情',metadata:'标题与封面',pdf:'PDF 预览',transcription:'音视频转录',photos:'照片整理与识谱',ai:'AI 指令'};
 function naturalDetail(item){
  const detail=String(item.detail||item.error||labels[item.status]||item.status||'');
+ if(item.status==='failed'&&item.kind==='ai')return '未完成：'+detail;
  if(item.status==='failed')return `处理失败：${detail}。任务已停止，其他后台任务不会受影响；可以点击“重试”重新处理。`;
  if(item.status==='needs_review')return `需要你的选择：${detail}。选择后任务会从当前阶段继续。`;
  if(item.status==='queued')return detail==='等待空闲处理'?`正在等待后台资源：${kinds[item.kind]||item.kind||'任务'}尚未开始，队列会自动继续。`:detail;
+ if(item.status==='running'&&item.kind==='ai')return detail;
+ if(item.status==='failed'&&item.kind==='ai')return '未完成：'+detail;
  if(item.status==='running')return `当前步骤：${detail}。后台正在处理，页面操作不会中断此任务。`;
  return detail;
 }
-const tasks=new Map();let panel,list,summary,lastDraw='',foreground={};const visualProgress=new Map();
+const tasks=new Map();let panel,list,summary,lastDraw='',foreground={},polling=true,lastPollError='';const visualProgress=new Map();
 function smoothProgress(bar,id,target){const start=visualProgress.get(id)??0,from=Math.min(start,target),direction=target>=start?1:-1,started=performance.now(),duration=Math.max(180,Math.abs(target-start)*10);function frame(now){const value=from+Math.min(1,(now-started)/duration)*Math.abs(target-start);const next=direction>0?value:Math.max(0,start-(value-from));bar.value=next;visualProgress.set(id,next);if(Math.abs(next-target)>.05)requestAnimationFrame(frame);else{bar.value=target;visualProgress.set(id,target);}}requestAnimationFrame(frame);}
-function init(){if(panel)return;panel=document.createElement('details');panel.className='task-center';summary=document.createElement('summary');summary.textContent='任务中心';list=document.createElement('div');list.className='task-list';list.setAttribute('aria-live','polite');panel.append(summary,list);document.querySelector('.score-library')?.after(panel);}
+function init(){if(panel){if(!panel.isConnected){const target=document.querySelector('#workspace-tasks')||document.querySelector('.score-library')?.parentElement;if(target)target.append(panel);}return;}panel=document.createElement('details');panel.className='task-center';summary=document.createElement('summary');summary.textContent='任务中心';list=document.createElement('div');list.className='task-list';list.setAttribute('aria-live','polite');panel.append(summary,list);const target=document.querySelector('#workspace-tasks');if(target)target.append(panel);else document.querySelector('.score-library')?.after(panel);}
 function draw(){
  init();const rank={running:0,queued:1,failed:2,needs_review:2,complete:3,cancelled:4};
- const items=[...tasks.values()].sort((a,b)=>(rank[a.status]??4)-(rank[b.status]??4)||(a.priority??20)-(b.priority??20)||b.created-a.created).slice(0,80);
+ const ordered=[...tasks.values()].sort((a,b)=>(rank[a.status]??4)-(rank[b.status]??4)||(a.priority??20)-(b.priority??20)||b.created-a.created);const items=[...ordered.filter(x=>x.kind==='ai').slice(0,20),...ordered.filter(x=>x.kind!=='ai').slice(0,60)];
  const signature=JSON.stringify([items,foreground]);if(signature===lastDraw)return;lastDraw=signature;
- summary.textContent='任务中心';list.replaceChildren();if(!items.length){list.textContent='暂无任务';return;}
+ summary.textContent='任务中心';list.replaceChildren();if(!items.length){list.textContent=polling?'正在同步任务记录…':lastPollError?'任务暂时无法载入，正在重试：'+lastPollError:'暂无任务';return;}
  const active=items.find(item=>item.status==='running')||items.find(item=>item.status==='queued');
- if(active||foreground?.owner){const resource=document.createElement('p');resource.className='task-resource';const owner=foreground?.owner?'前台操作不会暂停后台队列':'后台队列空闲，准备开始';resource.textContent=active?`当前任务：${active.scoreTitle||active.label||'未命名曲谱'} · ${({arrangement:'配器与鼓伴奏',expression:'演奏表情',metadata:'标题与封面',pdf:'PDF 预览',transcription:'音视频转录',photos:'照片整理与识谱'})[active.kind]||'音符识别'}。${active.status==='running'?'正在处理。':'已排队，后台将继续运行。'}`:owner;list.append(resource);}
- for(const item of items){
+ if(active||foreground?.owner){const resource=document.createElement('p');resource.className='task-resource';const owner=foreground?.owner?'前台操作不会暂停后台队列':'后台队列空闲，准备开始';resource.textContent=active?`当前任务：${active.scoreTitle||active.label||'未命名曲谱'} · ${({arrangement:'配器与鼓伴奏',expression:'演奏表情',metadata:'标题与封面',pdf:'PDF 预览',transcription:'音视频转录',photos:'照片整理与识谱',ai:'AI 指令'})[active.kind]||'音符识别'}。${active.status==='running'?'正在处理。':'已排队，后台将继续运行。'}`:owner;list.append(resource);}
+ let sectionKind=null;for(const item of items){if((item.kind==='ai')!==sectionKind){sectionKind=item.kind==='ai';const heading=document.createElement('h4');heading.textContent=sectionKind?'AI 指令':'处理队列';list.append(heading);}
   const row=document.createElement('div');row.className='task-row';row.dataset.status=item.status;
   const title=document.createElement('strong');title.textContent=item.scoreTitle||item.label||('曲谱 '+(item.digest||'').slice(0,8));
   const state=document.createElement('span');state.className='task-detail';state.textContent=naturalDetail(item);state.title=state.textContent;
-  const kind=document.createElement('small');kind.textContent=({arrangement:'配器与鼓伴奏',expression:'演奏表情',metadata:'标题与封面',pdf:'PDF 预览',transcription:'音视频转录',photos:'照片整理与识谱'})[item.kind]||item.label||'音符识别';
+  const kind=document.createElement('small');kind.textContent=({arrangement:'配器与鼓伴奏',expression:'演奏表情',metadata:'标题与封面',pdf:'PDF 预览',transcription:'音视频转录',photos:'照片整理与识谱',ai:'AI 指令'})[item.kind]||item.label||'音符识别';
   const waiting=item.status==='queued'&&(!Number.isFinite(item.progress)||Number(item.progress)<=0);const percent=document.createElement('b');percent.className='task-percent';percent.textContent=waiting?'等待':Number.isFinite(item.progress)?Math.round(Math.max(0,Math.min(100,item.progress)))+'%':'等待';
   row.append(title,kind,percent,state);if(!waiting){const bar=document.createElement('progress');bar.max=100;bar.value=visualProgress.get(item.id)??0;bar.setAttribute('aria-label',title.textContent+' '+kind.textContent);row.append(bar);smoothProgress(bar,item.id,Number(item.progress)||0);}
   if(item.kind==='transcription'&&item.status==='needs_review'){
@@ -44,6 +47,7 @@ function draw(){
     }catch(error){state.textContent=error.message;first.disabled=false;}
    };row.append(first);
   }
+  if(item.kind==='ai'&&item.result){const resultBox=document.createElement('details');resultBox.className='ai-task-result';const heading=document.createElement('summary');heading.textContent='查看结果';const content=document.createElement('div');content.textContent=item.result;content.style.whiteSpace='pre-wrap';resultBox.append(heading,content);row.append(resultBox);}
   list.append(row);
  }
 }
@@ -62,5 +66,5 @@ async function preparePhoto(file){
 function uploadImage(file,id){return new Promise((resolve,reject)=>{const xhr=new XMLHttpRequest();xhr.open('POST','/api/scores/image');xhr.setRequestHeader('Content-Type',file.type||'image/jpeg');xhr.setRequestHeader('X-Score-Name',encodeURIComponent(file.name));xhr.upload.onprogress=e=>{if(e.lengthComputable)reportTask(id,{progress:e.loaded/e.total*100,detail:`上传并扫描 ${Math.round(e.loaded/e.total*100)}%`});};xhr.onload=()=>{try{const data=JSON.parse(xhr.responseText);if(xhr.status<200||xhr.status>=300)throw Error(data.error||'图片扫描失败');resolve(data);}catch(error){reject(error);}};xhr.onerror=()=>reject(Error('图片上传连接失败'));xhr.send(file);});}
 let uploading=Promise.resolve();
 export function enqueueUploads(files,onUploaded){showTasks();for(const file of files){const id='upload-'+Date.now()+'-'+Math.random().toString(36).slice(2);let cancelled=false;reportTask(id,{label:file.name,status:'queued',progress:0,cancel:()=>{cancelled=true;reportTask(id,{status:'cancelled',detail:'已取消'});}});uploading=uploading.then(async()=>{if(cancelled)return;try{if(file.size>20*1024*1024)throw Error('文件超过 20 MB');const signature=new TextDecoder().decode(await file.slice(0,1024).arrayBuffer());let saved;if(!signature.includes('%PDF-')){if(!/^image\//i.test(file.type))throw Error('请选择 PDF 或谱面图片');reportTask(id,{detail:'正在裁切纸面、校正方向并生成扫描件'});saved=await uploadImage(file,id);}else saved=await uploadWithProgress(file,id);const response=await fetch(`/api/scores/${saved.id}/recognize`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});const job=await response.json();if(!response.ok)throw Error(job.error||'提交识谱失败');reportTask(id,{detail:job.cached?'已复用云端识谱结果':'上传完成，已加入识谱队列'});await onUploaded?.({...saved,jobId:job.id,status:job.status,hasPdf:true,title:'正在校对标题'});}catch(e){reportTask(id,{status:e.message.includes('取消')?'cancelled':'failed',detail:e.message});}});}}
-async function poll(){try{const response=await fetch('/api/tasks');if(response.ok){const {tasks:remote,foreground:owner={}}=await response.json();foreground=owner||{};for(const item of remote){const stage=String(item.stage||'');const detail=item.error||(stage.includes('等待前台操作结束')?'后台继续处理':item.stage||item.detail||labels[item.status]);tasks.set('omr-'+item.id,{...item,id:'omr-'+item.id,jobId:item.id,created:item.created*1000,label:item.label||'音符识别',detail,progress:item.status==='complete'?100:item.progress});}draw();document.dispatchEvent(new CustomEvent('cloud-jobs-update',{detail:remote}));}}catch{}setTimeout(poll,2200);}
-setTimeout(()=>{init();poll();},0);
+async function poll(){polling=true;try{const saved=await fetch('/api/ai-tasks',{signal:AbortSignal.timeout(20000)});if(saved.ok){for(const item of (await saved.json()).tasks||[]){const current=tasks.get(item.id);if(!current||!current.updated||item.updated>current.updated)tasks.set(item.id,item);}draw();}const response=await fetch('/api/tasks',{signal:AbortSignal.timeout(20000)});if(response.ok){const {tasks:remote,foreground:owner={}}=await response.json();foreground=owner||{};for(const item of remote){const stage=String(item.stage||'');const detail=item.error||(stage.includes('等待前台操作结束')?'后台继续处理':item.stage||item.detail||labels[item.status]);tasks.set('omr-'+item.id,{...item,id:'omr-'+item.id,jobId:item.id,created:item.created*1000,label:item.label||'音符识别',detail,progress:item.status==='complete'?100:item.progress});}draw();lastPollError='';polling=false;document.dispatchEvent(new CustomEvent('cloud-jobs-update',{detail:remote}));}}catch(error){polling=false;lastPollError=['AbortError','TimeoutError'].includes(error.name)?'服务响应超时':error.message||'连接失败';draw();}setTimeout(poll,2200);}
+setTimeout(()=>{init();draw();poll();},0);

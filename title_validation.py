@@ -5,13 +5,16 @@ FORBIDDEN=re.compile(r'作词|作曲|编曲|编配|制谱|排版|作者|演奏|�
 
 def filename_title(name):
     name=re.split(r'[/\\]',str(name))[-1]
-    name=re.sub(r'\.(pdf|png|jpe?g|webp|heic|mp3|m4a|wav|flac|mp4|mov|webm|ogg|aac)$','',name,flags=re.I)
+    name=re.sub(r'\.(mid|midi|musicxml|mxl|xml|pdf|png|jpe?g|webp|heic|mp3|m4a|wav|flac|mp4|mov|webm|ogg|aac)$','',name,flags=re.I)
     quoted=re.search(r'[《「](.+?)[》」]',name)
     if quoted and not FORBIDDEN.search(quoted[1]):return quoted[1].strip()
+    name=re.sub(r'\.(mp3|wav|m4a)\s*\d*$','',name,flags=re.I)
     name=re.sub(r'[_ -]\d{4,}$','',name)
     name=re.split(r'\s*(?:作词|作曲|编曲|编配|制谱|排版|改编|原调|独奏|钢琴|简谱|五线谱|完整版|\[|【|（|\()',name)[0]
     parts=re.split(r'\s+[-–—]\s+',name)
-    if len(parts)>1:name=parts[-1]
+    if len(parts)>1:name=parts[0]
+    name=re.split(r'[-–—]',name,maxsplit=1)[0]
+    name=re.sub(r'\.(mp3|wav|m4a)$','',name,flags=re.I)
     return name.strip(' _-')[:100] or '未命名曲谱'
 
 def fallback_title(name,cache):
@@ -39,3 +42,13 @@ def check(payload,cache):
         if matched:
             return {'title':catalog.get('matchedTitle',title),'ocrTitle':catalog.get('matchedTitle',title),'titleVersion':'7','source':'OCR + catalogue','titleVerification':'catalogue','cover':catalog.get('artwork',''),'titleSourceUrl':catalog.get('source','')}
     return fallback_title(payload['filename'],cache) if payload.get('filename') else {'title':'','ocrTitle':'','titleVersion':'7','titleVerification':'unresolved','retryTitleOcr':True}
+
+
+def resolved_import_title(title,name,metadata=None):
+    metadata=metadata or {}
+    if metadata.get('titleSource')=='user':return str(metadata.get('userTitle') or title).strip()
+    text=str(title or '').strip()
+    generic=re.fullmatch(r'acoustic grand piano|grand piano|piano|untitled(?: score)?|conductor|tempo(?: track)?|midi(?: score|乐谱)?|track\s*\d*|音轨\s*\d*|未命名.*|导入.*|钢琴|鼓组|violin|strings|flute|bass|drums?',text,re.I)
+    instruments={p.get('name') for p in metadata.get('midiParts',[]) if isinstance(p,dict)}
+    if not text or generic or '\ufffd' in text or (metadata.get('sourceType')=='midi' and text in instruments):return filename_title(name)
+    return text

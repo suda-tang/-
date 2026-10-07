@@ -2,7 +2,8 @@
 const root = document.documentElement;
 root.classList.add('booting');
 if(new URLSearchParams(location.search).get('tour')==='1')root.classList.add('tour-arrival');
-let finished = false;
+let finished = false, completing = false, bootFailure = false;
+document.addEventListener('click',event=>{if(event.target.closest?.('#boot-retry'))location.reload();});
 
 // ---- 校徽与外圈要同时出现 ----
 // 外圈是 CSS 生成的、页面一开始就有；校徽却是一张要下载的图片。
@@ -76,7 +77,7 @@ const creep = setInterval(() => {
 const timeout = setTimeout(() => {
   if (finished) return;
   const label = document.querySelector('#boot-label');
-  if (label) label.textContent = '工作区尚未准备好，请重新载入。';
+  if (label&&!bootFailure) label.textContent = '工作区资源仍在下载，请稍候；若网络已中断，可重新载入。';
   document.querySelector('#boot-retry')?.removeAttribute('hidden');
 }, 15000);
 
@@ -91,8 +92,8 @@ if (document.readyState === 'loading') {
   onDomReady();
 }
 window.addEventListener('load', () => advance(48));
-window.addEventListener('workspace-ready', async () => {
-  if (finished) return;
+async function completeWorkspace() {
+  if (finished||completing) return;completing=true;
   advance(72);
   await Promise.race([document.fonts.ready, new Promise(resolve => setTimeout(resolve, 1500))]);
   advance(90);
@@ -118,4 +119,17 @@ window.addEventListener('workspace-ready', async () => {
     const loader = document.querySelector('#startup');
     if (loader) { loader.inert = true; setTimeout(() => loader.remove(), 500); }
   }));
-}, {once:true});
+}
+window.addEventListener('workspace-ready',completeWorkspace,{once:true});
+const readyCheck=setInterval(()=>{if(finished){clearInterval(readyCheck);return;}if(root.dataset.workspaceReady==='true')void completeWorkspace();},500);
+
+window.addEventListener('workspace-error',event=>{const label=document.querySelector('#boot-label');if(label)label.textContent='工作区加载失败：'+event.detail;document.querySelector('#boot-retry')?.removeAttribute('hidden');});
+
+function showBootFailure(reason){if(finished)return;bootFailure=true;const label=document.querySelector('#boot-label');if(label)label.textContent='工作区未能启动：'+reason;document.querySelector('#boot-retry')?.removeAttribute('hidden');}
+window.addEventListener('error',event=>{
+ if(finished)return;
+ if(/^ResizeObserver loop (completed with undelivered notifications|limit exceeded)\.?$/.test(event.message||''))return;
+ if(event.message)showBootFailure(event.message);
+ else if(event.target?.tagName==='SCRIPT')showBootFailure('脚本下载失败：'+(event.target.src||'未知脚本').split('/').pop());
+},true);
+window.addEventListener('workspace-error',event=>showBootFailure(String(event.detail||'初始化异常')));

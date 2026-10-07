@@ -16,7 +16,8 @@ def key():
         return p.read_text(encoding='utf-8').strip()
 
 def authorized(handler):
-    return hmac.compare_digest(handler.headers.get('X-Voice-Key',''),key())
+    import upload_auth
+    return upload_auth.authorized(handler)
 
 def prompts():
     return json.loads((ROOT/'dist/voice-prompts.json').read_text(encoding='utf-8'))
@@ -40,12 +41,18 @@ def status():
         trial=STORE/'processed'/record.get('id','')/'mentor-preface-trial.wav'
         record['trialReady']=trial.is_file()
         record['hqTrialReady']=(STORE/'processed'/record.get('id','')/'mentor-preface-hq.wav').is_file()
+        record['trainedTrialReady']=(STORE/'processed'/record.get('id','')/'mentor-preface-trained.wav').is_file()
+        record['fullTrialReady']=(STORE/'processed'/record.get('id','')/'mentor-preface-full.wav').is_file()
         folder=STORE/'processed'/record.get('id','')
         record['cosyTrialReady']=any((folder/name).is_file() for name in ('mentor-preface-cosy.m4a','mentor-preface-cosy.wav'))
         record['activeTrial']=record.get('id')==active_id
         if record['trialReady']:
             record['status']='当前采用的试听版本' if record['activeTrial'] else '对比试听版本，尚未采用'
-    return {'recordings':personal, 'mentorRecordings':mentors, 'activeMentorReference':active_id, 'synthesisReady':bool(active_id)}
+    training_file=ROOT/'dist/narration/mentor-full-training.json'
+    if not training_file.exists():training_file=ROOT/'dist/narration/mentor-training.json'
+    try: training=json.loads(training_file.read_text(encoding='utf-8'))
+    except (OSError,ValueError): training=None
+    return {'recordings':personal, 'mentorRecordings':mentors, 'activeMentorReference':active_id, 'synthesisReady':bool(active_id),'mentorTraining':training}
 
 def serve_trial(handler):
     """Serve a synthesized trial only to the owner page using the access key."""
@@ -58,6 +65,10 @@ def serve_trial(handler):
     folder=STORE/'processed'/identifier
     if variant=='cosy':
         trial=next((folder/name for name in ('mentor-preface-cosy.m4a','mentor-preface-cosy.wav') if (folder/name).is_file()),folder/'mentor-preface-cosy.m4a')
+    elif variant=='full':
+        trial=folder/'mentor-preface-full.wav'
+    elif variant=='trained':
+        trial=folder/'mentor-preface-trained.wav'
     else:
         trial=folder/('mentor-preface-hq.wav' if variant=='hq' else 'mentor-preface-trial.wav')
     if not metadata.exists() or not trial.is_file():
@@ -160,7 +171,7 @@ def save(body,mime,prompt_id,duration):
 def handle(handler):
     if not authorized(handler):
         handler.close_connection=True
-        return handler.json_response({'error':'请使用专属录音链接打开此页。'},403)
+        return handler.json_response({'error':'请先输入上传密码'},401)
     if handler.command=='GET':
         route=urlparse(handler.path).path
         if '/mentor/' in route and route.rstrip('/').endswith('/trial'):

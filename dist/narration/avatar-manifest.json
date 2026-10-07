@@ -1,1 +1,13 @@
-{"version":1,"chapters":[],"preview":null}
+{
+  "version": 1,
+  "chapters": [],
+  "preview": {
+    "audio": "/narration/mentor-preface.m4a",
+    "video": "/narration/mentor-preface-avatar-03d45c707d5c5fb6-cpu.mp4",
+    "complete": false,
+    "duration": 5.0,
+    "source": "authorized-mentor-upload",
+    "model": "SadTalker 0.0.2",
+    "sha256": "7b1ded579026f19a85d692773e8c45b8a8a9fabf34aac8c6014a2c66f810b1a8"
+  }
+}

@@ -1,5 +1,6 @@
+import {updateRangeFill} from './range-fill.js';
 // Navigation owns grouping; the existing controls keep their ids and handlers.
-import {initTour} from './guided-tour.js';
+// The 3D classroom is not a startup dependency of the music workspace.
 const $=selector=>document.querySelector(selector);
 const glass=document.querySelector('link[href="/glass.css"]');
 document.body.classList.add('studio');
@@ -22,11 +23,11 @@ function positionLens(){
  lens.style.transform=`translateX(${left}px)`;
 }
 function prepare(target=position){
- if(moving&&target>=activeStart&&target<=activeEnd)return;const initialHeight=stage.getBoundingClientRect().height;moving=true;stage.style.height=initialHeight+'px';stage.classList.add('is-moving');stageWidth=stage.clientWidth;measureNav();heightFrom=initialHeight;heightPathStart=position;heightPathEnd=target;
+ if(moving&&target>=activeStart&&target<=activeEnd)return;const initialHeight=stage.getBoundingClientRect().height;sizeMotion?.cancel();moving=true;stage.style.height=initialHeight+'px';stage.classList.add('is-moving');stageWidth=stage.clientWidth;measureNav();heightFrom=initialHeight;heightPathStart=position;heightPathEnd=target;
  activeStart=Math.max(0,Math.floor(Math.min(position,target)));activeEnd=Math.min(ids.length-1,Math.ceil(Math.max(position,target)));
  ids.forEach((id,index)=>{const page=pages[id],active=index>=activeStart&&index<=activeEnd;page.hidden=!active;page.inert=true;if(active)page.style.transform=`translate3d(${(index-position)*stageWidth}px,0,0)`;});
- heights=ids.map((id,index)=>index>=activeStart&&index<=activeEnd?pages[id].scrollHeight:0);
- heightTo=pages[ids[Math.round(target)]]?.scrollHeight||initialHeight;
+ heights=ids.map((id,index)=>index>=activeStart&&index<=activeEnd?pages[id].getBoundingClientRect().height:0);
+ heightTo=pages[ids[Math.round(target)]]?.getBoundingClientRect().height||initialHeight;
 }
 function paint(value){
  position=Math.max(0,Math.min(ids.length-1,value));positionLens();
@@ -35,9 +36,13 @@ function paint(value){
  stage.style.height=(heightFrom+(heightTo-heightFrom)*progress)+'px';
  for(let index=activeStart;index<=activeEnd;index++)pages[ids[index]].style.transform=`translate3d(${(index-position)*stageWidth}px,0,0)`;
 }
+let sizeMotion=null;
 function settle(){
+ const previousHeight=stage.getBoundingClientRect().height;sizeMotion?.cancel();
  moving=false;stage.classList.remove('is-moving');stage.style.height='';
  ids.forEach(id=>{const page=pages[id];page.hidden=id!==currentPanel;page.inert=id!==currentPanel;page.style.transform='';});
+ const finalHeight=stage.getBoundingClientRect().height;
+ if(!reduceMotion.matches&&!document.documentElement.classList.contains('booting')&&Math.abs(finalHeight-previousHeight)>1){stage.classList.add('is-sizing');sizeMotion=stage.animate([{height:previousHeight+'px'},{height:finalHeight+'px'}],{duration:300,easing:'cubic-bezier(.22,.65,.3,1)'});const motion=sizeMotion;void motion.finished.catch(()=>{}).then(()=>{if(sizeMotion===motion)stage.classList.remove('is-sizing');});}
  positionLens();
 }
 function select(id){
@@ -51,7 +56,7 @@ function select(id){
  function step(now){elapsed+=Math.min(32,now-previous);previous=now;const t=Math.min(1,elapsed/duration),eased=t*t*(3-2*t);paint(from+(target-from)*eased);if(t<1)frame=requestAnimationFrame(step);else{frame=0;settle();}}
  frame=requestAnimationFrame(step);
 }
-new ResizeObserver(()=>{navGeometry=[];if(!moving)positionLens();}).observe(nav);
+let navResizeFrame=0;new ResizeObserver(()=>{cancelAnimationFrame(navResizeFrame);navResizeFrame=requestAnimationFrame(()=>{navGeometry=[];if(!moving)positionLens();});}).observe(nav);
 if(glass)glass.onload=()=>{positionLens();};
 reduceMotion.addEventListener('change',()=>select(currentPanel));
 nav.addEventListener('pointerdown',event=>{
@@ -81,8 +86,8 @@ window.addEventListener('blur',()=>{if(drag){drag=null;nav.classList.remove('is-
 nav.addEventListener('lostpointercapture',event=>{if(event.target===nav&&drag)finishDrag(event,true);});
 nav.addEventListener('click',event=>{if(suppressClick){event.preventDefault();event.stopImmediatePropagation();}},true);
 nav.addEventListener('keydown',event=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;event.preventDefault();const buttons=[...nav.querySelectorAll('button')],index=buttons.indexOf(document.activeElement);const next=event.key==='Home'?0:event.key==='End'?buttons.length-1:(index+(event.key==='ArrowRight'?1:-1)+buttons.length)%buttons.length;buttons[next].focus();select(buttons[next].dataset.panel);});
-document.addEventListener('pointerdown',event=>{const button=event.target.closest('button,summary');if(!button||button.disabled)return;const rect=button.getBoundingClientRect();button.style.setProperty('--touch-x',`${event.clientX-rect.left}px`);button.style.setProperty('--touch-y',`${event.clientY-rect.top}px`);if(!reduceMotion.matches)button.animate([{scale:1},{scale:.96},{scale:1}],{duration:320,easing:'cubic-bezier(.2,.8,.2,1)'});},{passive:true});
-function fillRange(input){const min=Number(input.min)||0,max=Number(input.max)||100;input.style.setProperty('--range-fill',`${(Number(input.value)-min)/(max-min)*100}%`);}
+document.addEventListener('pointerdown',event=>{const button=event.target.closest('button,summary');if(!button||button.disabled||button.closest('.workspace-nav,.library-navigation,.library-list'))return;const rect=button.getBoundingClientRect();button.style.setProperty('--touch-x',`${event.clientX-rect.left}px`);button.style.setProperty('--touch-y',`${event.clientY-rect.top}px`);if(!reduceMotion.matches)button.animate([{scale:1},{scale:.96},{scale:1}],{duration:320,easing:'cubic-bezier(.2,.8,.2,1)'});},{passive:true});
+const fillRange=updateRangeFill;
 document.querySelectorAll('input[type=range]').forEach(fillRange);
 document.addEventListener('input',event=>{if(event.target.matches('input[type=range]'))fillRange(event.target);});
 pages.library.append($('.score-library'),$('.score-import'),$('.service-controls'));
@@ -107,7 +112,7 @@ if(bottomSettings){const actions=document.createElement('div');actions.className
 const tempo=$('#tempo').closest('label');$('.playback-buttons').after(tempo);
 const sound=$('#instrument-select').closest('label');sound.classList.add('instrument-field');
 const more=document.createElement('details');more.className='play-options';more.innerHTML='<summary>声音与播放设置</summary>';
-more.append($('.sound-options'),$('.autoplay-label'),$('#render-expression'),$('#expression-state'));$('.playback-panel').append(more);
+more.append($('.sound-options'),$('.autoplay-label:not(.score-follow-label)'),$('.score-follow-label'),$('#render-expression'),$('#expression-state'));const vocalTiming=document.createElement('div');vocalTiming.id='vocal-timing-settings';more.append(vocalTiming);$('.playback-panel').append(more);
 $('.feedback').hidden=false;
 // Deck perspective follows the visible card, rather than pointer-only tilt.
 const list=$('.library-list');let deckFrame=0;
@@ -128,6 +133,6 @@ new MutationObserver(()=>{if(document.body.dataset.workspace==='library'&&!$('#p
 document.addEventListener('show-task-center',()=>select('tasks'));
 select('library');
 // 导览是附加功能，出错也不能影响工作区初始化，所以单独兜住异常。
-initTour().catch(()=>{});
-window.dispatchEvent(new Event('workspace-ready'));
+if(new URLSearchParams(location.search).get('tour')==='1')void import('./guided-tour.js?v=autonarration2').then(({initTour})=>initTour()).catch(error=>console.error('导览加载失败',error));
+document.documentElement.dataset.workspaceReady='true';window.dispatchEvent(new Event('workspace-ready'));
 new MutationObserver(()=>{document.body.dataset.training=String(!$('#stop-button').hidden);}).observe($('#stop-button'),{attributes:true,attributeFilter:['hidden']});

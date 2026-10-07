@@ -7,7 +7,7 @@ for(const full of [false,true]){
 await page.locator('[data-panel=library]').click();await page.waitForTimeout(1000);
 if(full){await page.locator('.library-expand').click();await page.waitForTimeout(1800);}
 await page.locator('.library-score').first().click();await page.waitForTimeout(100);assert.equal(await page.locator('.record-flight').count(),1);assert.ok(await page.locator('.record-flight').evaluate(e=>e.getAnimations().length>0));
-await page.waitForFunction(()=>!document.querySelector('.score-loading-overlay').hidden);assert.equal(await page.locator('.record-flight').count(),0);
+await page.waitForFunction(()=>!document.querySelector('.score-loading-overlay').hidden);assert.ok(await page.locator('.record-flight').evaluate(e=>e.matches(':popover-open')));await page.waitForFunction(()=>!document.querySelector('.record-flight'));
 await page.waitForFunction(()=>document.querySelector('.score-loading-overlay').hidden);assert.equal(await page.locator('.library-score[aria-busy]').count(),0);assert.equal(await page.locator('.library-browser').evaluate(e=>e.open),false);
 }console.log('PASS: deck and fullscreen card lift, loader entrance/exit, cleanup');
 }finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1});

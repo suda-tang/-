@@ -5,25 +5,50 @@ export function cleanText(value) {
 export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, openPending}) {
   const panel=document.createElement('section');panel.className='score-library setup-section';
   const heading=document.createElement('h3');heading.textContent='SUPERTANG CLOUD 云曲谱';
-  const refresh=document.createElement('button');refresh.className='small-button';refresh.textContent='刷新列表';
+  const refresh=document.createElement('button');refresh.className='small-button library-refresh';refresh.textContent='刷新列表';
   const list=document.createElement('div');list.className='library-list';list.setAttribute('aria-busy','true');
   const skeleton=document.createElement('div');skeleton.className='library-skeleton';skeleton.setAttribute('role','status');skeleton.innerHTML='<div class="skeleton-cover" aria-hidden="true"></div><span>正在读取云曲库</span>';list.append(skeleton);
   panel.append(heading,list);
   const importSection=document.querySelector('.score-import');
   document.querySelector('.practice').prepend(panel);
+  const pendingGroup=document.createElement('section');pendingGroup.className='library-pending-group';
+  pendingGroup.innerHTML='<button type="button" class="library-pending-toggle" aria-expanded="false"><span>未就绪曲谱</span><small></small><span class="pending-chevron" aria-hidden="true">⌄</span></button><div class="library-pending-fold"><div class="library-pending-items"></div></div>';
+  const pendingItems=pendingGroup.querySelector('.library-pending-items'),pendingToggle=pendingGroup.querySelector('button');
+  pendingToggle.onclick=()=>{const expanded=pendingToggle.getAttribute('aria-expanded')!=='true';pendingToggle.setAttribute('aria-expanded',String(expanded));pendingGroup.classList.toggle('is-expanded',expanded);};
+  function regroupPending(){
+    for(const card of [...list.querySelectorAll('.library-score')]){
+      if(card.dataset.ready==='true'){if(card.parentElement!==list)list.insertBefore(card,pendingGroup.parentElement===list?pendingGroup:null);}
+      else if(card.parentElement!==pendingItems)pendingItems.append(card);
+    }
+    const count=pendingItems.children.length;pendingToggle.querySelector('small').textContent=count+' 份';
+    if(count)list.append(pendingGroup);else pendingGroup.remove();
+  }
   let pollTimer=null,titleQueue=Promise.resolve(),opening=false;const titlesInFlight=new Set();
-  const loader=document.createElement('div');loader.className='score-loading-overlay';loader.hidden=true;loader.innerHTML='<div class=score-loading-dialog role=status aria-live=polite><div class=score-loading-seal role=img aria-label="苏州大学"></div><strong>正在打开琴谱</strong><span>准备连接 SUPERTANG CLOUD</span><div class=score-loading-progress><i></i></div><small>0%</small></div>';document.body.append(loader);
-  let shownProgress=0,targetProgress=0,progressFrame=0,progressTime=0;
-  const animateProgress=now=>{const delta=targetProgress-shownProgress,elapsed=Math.min(48,now-(progressTime||now));progressTime=now;shownProgress=Math.abs(delta)<.08?targetProgress:shownProgress+Math.sign(delta)*Math.min(Math.abs(delta),elapsed*.105);const progress=Math.round(shownProgress);loader.querySelector('.score-loading-progress i').style.width=`${progress}%`;loader.querySelector('small').textContent=`${progress}%`;if(shownProgress!==targetProgress)progressFrame=requestAnimationFrame(animateProgress);else progressFrame=0;};
-  const updateLoader=(value,label)=>{targetProgress=Math.max(0,Math.min(100,Number(value)||0));if(!progressFrame)progressFrame=requestAnimationFrame(animateProgress);if(label)loader.querySelector('span').textContent=label;};
+  const loader=document.createElement('div');loader.className='score-loading-overlay';loader.hidden=true;loader.innerHTML='<div class=score-loading-dialog role=status aria-live=polite><div class=score-loading-seal role=img aria-label="苏州大学"></div><strong>正在打开琴谱</strong><span>准备连接 SUPERTANG CLOUD</span><div class=score-loading-progress><i></i></div><small>0%</small></div>';loader.setAttribute('popover','manual');document.body.append(loader);
+  let shownProgress=0,targetProgress=0,progressFrame=0,progressTime=0,progressStarted=0,barMotion=null;
+  const animateProgress=now=>{
+    const elapsed=Math.min(64,now-(progressTime||now));progressTime=now;
+    // Advance the visual estimate while the network/renderer is busy. Actual
+    // stages stay in the text; only successful completion may reach 100%.
+    const age=(now-progressStarted)/1000;
+    const estimate=Math.min(95,age*3);
+    shownProgress=targetProgress>=100?Math.min(100,shownProgress+elapsed*.04):estimate;
+    const fill=loader.querySelector('.score-loading-progress i');
+    if(!barMotion&&targetProgress<100){fill.style.width='100%';fill.style.transformOrigin='left center';barMotion=fill.animate([{transform:'scaleX(0)'},{transform:'scaleX(.95)'}],{duration:31667,easing:'linear',fill:'forwards'});}
+    if(targetProgress>=100){barMotion?.cancel();barMotion=null;fill.style.transform=`scaleX(${shownProgress/100})`;}
+    loader.querySelector('small').textContent=targetProgress>=100&&shownProgress>=99.95?'100%':`${shownProgress.toFixed(1)}%`;
+    progressFrame=shownProgress<100?requestAnimationFrame(animateProgress):0;
+  };
+  const updateLoader=(value,label)=>{targetProgress=Math.max(targetProgress,Math.max(0,Math.min(100,Number(value)||0)));if(!progressStarted)progressStarted=performance.now();if(!progressFrame)progressFrame=requestAnimationFrame(animateProgress);if(label)loader.querySelector('span').textContent=label;};
   const scoreCache=new Map();
+  const lowMemory=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
   const motionAllowed=()=>!matchMedia('(prefers-reduced-motion: reduce)').matches;
   async function liftRecord(card){
     if(!motionAllowed())return;
     const rect=card.getBoundingClientRect(),shell=document.createElement('div');shell.className='record-flight';
     Object.assign(shell.style,{left:rect.left+'px',top:rect.top+'px',width:rect.width+'px',height:rect.height+'px'});
     const sleeve=card.cloneNode(true);sleeve.removeAttribute('id');sleeve.removeAttribute('data-score-id');sleeve.disabled=false;sleeve.tabIndex=-1;sleeve.className='record-sleeve';sleeve.style.cssText='';
-    const disc=document.createElement('div');disc.className='record-disc';shell.append(disc,sleeve);shell.setAttribute('aria-hidden','true');(browser.open?browser:document.body).append(shell);
+    const disc=document.createElement('div');disc.className='record-disc';shell.append(disc,sleeve);shell.setAttribute('aria-hidden','true');shell.setAttribute('popover','manual');document.body.append(shell);
     card.style.visibility='hidden';
     const discMotion=disc.animate([{transform:'translateY(0) rotate(0deg)'},{transform:'translateY(-28%) rotate(36deg)'}],{duration:460,fill:'forwards',easing:'cubic-bezier(.2,.7,.2,1)'});
     const flight=shell.animate([
@@ -31,9 +56,10 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
       {transform:'perspective(900px) translate3d(0,-28px,100px) rotateX(-23deg)',opacity:1,offset:.55},
       {transform:'perspective(900px) translate3d(0,-40px,190px) rotateX(-34deg)',opacity:0}
     ],{duration:640,easing:'cubic-bezier(.22,.65,.25,1)',fill:'both'});
-    try{await flight.finished;}catch{}finally{flight.cancel();discMotion.cancel();shell.remove();card.style.visibility='';}
+    try{await Promise.race([flight.finished,new Promise(resolve=>setTimeout(resolve,1000))]);}catch{}finally{flight.cancel();discMotion.cancel();shell.remove();card.style.visibility='';}
   }
   async function revealLoader(){
+    loader.hidden=false;loader.showPopover?.();
     if(browser.open){browser.close();document.dispatchEvent(new Event('library-tour-closed'));panel.insertBefore(list,panel.querySelector('.library-settings'));document.body.classList.remove('library-expanded');for(const card of list.children)card.hidden=false;list.scrollLeft=deckScroll;}
     loader.hidden=false;
     if(!motionAllowed())return;
@@ -44,14 +70,37 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
     ]).catch(()=>{});
   }
   async function dismissLoader(){
+    if(targetProgress>=100)for(let n=0;n<90&&shownProgress<99.95;n++)await new Promise(resolve=>setTimeout(resolve,60));
     if(!loader.hidden&&motionAllowed())await loader.animate([{opacity:1,transform:'translateY(0)'},{opacity:0,transform:'translateY(-10px)'}],{duration:300,easing:'cubic-bezier(.4,0,.8,1)'}).finished.catch(()=>{});
-    loader.hidden=true;if(progressFrame)cancelAnimationFrame(progressFrame);progressFrame=0;
+    loader.hidePopover?.();loader.hidden=true;barMotion?.cancel();barMotion=null;if(progressFrame)cancelAnimationFrame(progressFrame);progressFrame=0;
   }
-  const prefetchScore=id=>{if(!scoreCache.has(id))scoreCache.set(id,fetch(`/api/scores/${id}`).then(response=>{if(!response.ok)throw Error('琴谱读取失败');return response.json();}).catch(()=>{scoreCache.delete(id);return null;}));return scoreCache.get(id);};
+  const scoreTransfers=new Map();
+  const prefetchScore=id=>{
+    while(scoreCache.size>=(lowMemory?1:3)&&!scoreCache.has(id)){const oldest=scoreCache.keys().next().value;if(!scoreTransfers.get(oldest)?.done)scoreTransfers.get(oldest)?.controller.abort();scoreCache.delete(oldest);}
+    if(!scoreCache.has(id)){
+      const state={received:0,total:0,done:false,error:'',controller:new AbortController()};scoreTransfers.set(id,state);
+      scoreCache.set(id,(async()=>{
+        let timer;const arm=()=>{clearTimeout(timer);timer=setTimeout(()=>state.controller.abort(),60000);};arm();
+        const limit=setTimeout(()=>state.controller.abort(),300000);
+        try{
+          const response=await fetch(`/api/scores/${id}`,{signal:state.controller.signal});if(!response.ok)throw Error(`云端读取失败（HTTP ${response.status}）`);
+          state.total=Number(response.headers.get('X-Uncompressed-Length')||response.headers.get('Content-Length'))||0;
+          let data;if(response.body?.getReader){const reader=response.body.getReader(),chunks=[];while(true){const {done,value}=await reader.read();if(done)break;arm();chunks.push(value);state.received+=value.length;}const bytes=new Uint8Array(state.received);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}data=JSON.parse(new TextDecoder().decode(bytes));}else data=await response.json();state.done=true;return data;
+        }catch(error){state.error=['AbortError','TimeoutError'].includes(error.name)?'云端曲谱下载中断：连续 60 秒未收到数据，或总等待超过 5 分钟。请重试。':error.message;scoreCache.delete(id);return null;}
+        finally{clearTimeout(timer);clearTimeout(limit);while(scoreTransfers.size>6)scoreTransfers.delete(scoreTransfers.keys().next().value);}
+      })());
+    }return scoreCache.get(id);
+  };
+  async function obtainScore(id){
+    const pending=prefetchScore(id);
+    const paint=()=>{const state=scoreTransfers.get(id);if(state?.done){updateLoader(32,'已读取曲谱缓存');return;}const received=state?.received||0,total=state?.total||0;const size=n=>(n/1024/1024).toFixed(2)+' MB';updateLoader(total?8+Math.min(1,received/total)*24:8,received?`正在下载电子谱：${size(received)}${total?' / '+size(total):''}`:'正在等待云端曲谱响应');};paint();const interval=setInterval(paint,200);
+    try{const data=await pending;if(!data)throw Error(scoreTransfers.get(id)?.error||'琴谱读取失败，请重试');return data;}finally{clearInterval(interval);}
+  }
+
   const stageCards=mode=>{
     if(document.documentElement.matches('.tour-arrival,.tour-travelling'))return;
     if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
-    for(const [index,card] of [...list.querySelectorAll('.library-score')].entries()){
+    for(const [index,card] of [...list.querySelectorAll('.library-score')].filter(c=>!c.closest('.library-pending-group')).entries()){
       card._deal?.cancel();
       card.style.opacity='0';
     }
@@ -68,10 +117,14 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
     arrow.onpointerup=release;arrow.onpointercancel=release;arrow.onlostpointercapture=release;window.addEventListener('blur',release);
     arrow.onclick=()=>{if(!moved)list.scrollBy({left:direction*list.clientWidth*.72,behavior:'smooth'});};navigation.append(arrow);}heading.after(navigation);refresh.textContent='↻';refresh.setAttribute('aria-label','刷新云曲库');refresh.title='刷新云曲库';navigation.append(refresh);
   const settings=document.createElement('details');settings.className='library-settings';settings.innerHTML='<summary>云曲库设置</summary><div><button class="small-button" type="button" data-ocr>重新 OCR 标题</button><button class="small-button" type="button" data-cover>重新匹配未识别封面</button><button class="small-button" type="button" data-deep>精细重新识谱</button></div>';panel.append(settings);
-  const refreshMetadata=async(mode)=>{const button=document.querySelector(mode==='ocr'?'[data-ocr]':mode==='cover'?'[data-cover]':'[data-deep]');const currentId=document.body.dataset.currentScoreId;const items=mode==='deep'?[...list.children].map(card=>card._item).find(item=>item&&item.id===currentId&&item.hasPdf):[...list.children].map(card=>card._item).filter(item=>item&&(mode==='ocr'?item.hasPdf:!item.cover));if(!items||(Array.isArray(items)&&!items.length)){if(mode==='deep'){button.textContent='请先打开一份 PDF';setTimeout(()=>button.textContent='精细重新识谱',1600);}return;}const queue=Array.isArray(items)?items:[items];button.disabled=true;const original=button.textContent;button.textContent='已加入后台处理';try{await Promise.all(queue.map(item=>fetch(`/api/scores/${item.id}/refresh-metadata`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode})}).then(response=>{if(!response.ok)throw Error();})));setTimeout(reload,400);}catch{button.textContent='服务暂不可用';}finally{setTimeout(()=>{button.disabled=false;button.textContent=original;},1600);}};
+  const refreshMetadata=async(mode)=>{const button=document.querySelector(mode==='ocr'?'[data-ocr]':mode==='cover'?'[data-cover]':'[data-deep]');const currentId=document.body.dataset.currentScoreId;const items=mode==='deep'?[...list.querySelectorAll('.library-score')].map(card=>card._item).find(item=>item&&item.id===currentId&&item.hasPdf):[...list.querySelectorAll('.library-score')].map(card=>card._item).filter(item=>item&&(mode==='ocr'?item.hasPdf:!item.cover));if(!items||(Array.isArray(items)&&!items.length)){if(mode==='deep'){button.textContent='请先打开一份 PDF';setTimeout(()=>button.textContent='精细重新识谱',1600);}return;}const queue=Array.isArray(items)?items:[items];button.disabled=true;const original=button.textContent;button.textContent='已加入后台处理';try{await Promise.all(queue.map(item=>fetch(`/api/scores/${item.id}/refresh-metadata`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode})}).then(response=>{if(!response.ok)throw Error();})));setTimeout(reload,400);}catch{button.textContent='服务暂不可用';}finally{setTimeout(()=>{button.disabled=false;button.textContent=original;},1600);}};
   settings.querySelector('[data-ocr]').onclick=()=>refreshMetadata('ocr');settings.querySelector('[data-cover]').onclick=()=>refreshMetadata('cover');settings.querySelector('[data-deep]').onclick=()=>refreshMetadata('deep');
   const browser=document.createElement('dialog');browser.className='library-browser';browser.innerHTML='<header><h2>云曲库</h2><input type="search" aria-label="搜索曲谱" placeholder="搜索曲谱"><button class="library-close" type="button" aria-label="关闭云曲库" title="关闭">×</button></header>';document.body.append(browser);
   const expand=document.createElement('button');expand.className='small-button library-expand';expand.type='button';expand.textContent='⤢';expand.setAttribute('aria-label','展开云曲库');navigation.insertBefore(expand,navigation.children[1]);
+  const libraryHeader=document.createElement('div');libraryHeader.className='library-heading-row';heading.before(libraryHeader);libraryHeader.append(heading,navigation);
+
+  refresh.classList.add('library-refresh');refresh.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M20 12a8 8 0 1 0-2 5M20 7l-3-3"/></svg><span>刷新曲谱</span>';expand.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5"/></svg><span>更多曲谱</span>';
+
   let closing=false,motion=null,expanding=false,dockRect=null;
   let deckScroll=0,transfer=Promise.resolve(),cardMotion=false;
   const intersects=(box,clip)=>box.right>clip.left&&box.left<clip.right&&box.bottom>clip.top&&box.top<clip.bottom;
@@ -80,7 +133,7 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
     if(fall&&document.documentElement.matches('.tour-arrival,.tour-travelling')){for(const card of list.children){card.style.opacity='';card.style.visibility='';}return;}
     const cleanup=[];
     const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const cards=[...list.querySelectorAll('.library-score')];
+    const cards=[...list.querySelectorAll('.library-score')].filter(card=>!card.closest('.library-pending-group')&&card.getBoundingClientRect().width>0&&card.getBoundingClientRect().height>0);
     // Read layout once before creating flight layers; alternating reads/writes
     // for every cover forces repeated layout on a large library.
     const targetClip=browser.open?{left:0,top:0,right:innerWidth,bottom:innerHeight}:list.getBoundingClientRect();
@@ -128,7 +181,7 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
         {translate:`${dx*.58+(closing?22:-22)}px ${dy*.58-30}px 48px`,scale:`${sx*.58+.42} ${sy*.58+.42}`,rotate:`1 0.6 0.2 ${closing?12:-12}deg`,offset:.42},
         {translate:`${dx*.1}px ${dy*.1-4}px 8px`,scale:`${sx*.1+.9} ${sy*.1+.9}`,rotate:`1 0.6 0.2 ${closing?2:-2}deg`,offset:.8},
         {translate:'0px 0px 0px',scale:absorbing?'0.001 0.001':'1 1',rotate:'1 0.6 0.2 0deg',opacity:absorbing?0:1,clipPath:absorbing?'inset(0px)':inset}
-      ],{duration:fall?620:820,delay:Math.min(index*(fall?30:18),fall?240:126),easing:'cubic-bezier(.22,.55,.25,1)',fill:'both'});
+      ],{duration:fall?560:620,delay:Math.min(index*(fall?22:10),fall?180:70),easing:'cubic-bezier(.22,.55,.25,1)',fill:'both'});
       card._deal=flight;
       const finish=()=>{if(card._deal===flight){card.style.visibility='';flight.cancel();card._deal=null;}ghost.remove();};cleanup.push(finish);
       return flight.finished.catch(()=>{}).finally(finish);
@@ -159,9 +212,9 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
     const origins=cardRects();
     const surface=document.createElement('div');surface.className='library-closing-surface';
     const box=browser.getBoundingClientRect();Object.assign(surface.style,{position:'fixed',inset:'0',background:getComputedStyle(browser).backgroundColor,zIndex:24000,pointerEvents:'none'});document.body.append(surface);
-    const target=dockRect||panel.getBoundingClientRect();
-    const collapse=motionAllowed()?surface.animate([{opacity:1,transform:'translate(0,0) scale(1)',borderRadius:'0px'},{opacity:0,transform:`translate(${target.left+target.width/2-box.width/2}px,${target.top+target.height/2-box.height/2}px) scale(${target.width/box.width},${target.height/box.height})`,borderRadius:'28px'}],{duration:480,easing:'cubic-bezier(.32,0,.18,1)',fill:'both'}):null;
-    collapse?.finished.then(()=>surface.remove(),()=>surface.remove());
+    const target=panel.getBoundingClientRect();
+    const collapse=motionAllowed()?surface.animate([{opacity:1,transform:'translate(0,0) scale(1)',borderRadius:'0px'},{opacity:0,transform:`translate(${target.left+target.width/2-box.width/2}px,${target.top+target.height/2-box.height/2}px) scale(${target.width/box.width},${target.height/box.height})`,borderRadius:'28px'}],{duration:620,easing:'cubic-bezier(.22,.8,.25,1)',fill:'both'}):null;
+    // Keep the collapsing surface until the final card has landed.
     browser.close();document.dispatchEvent(new Event('library-tour-closed'));motion?.cancel();panel.insertBefore(list,panel.querySelector('.library-settings'));
     document.body.classList.remove('library-expanded');for(const card of list.children)card.hidden=false;list.scrollLeft=deckScroll;
     transfer=Promise.all([flyCards(origins),collapse?.finished.catch(()=>{})]);await transfer;surface.remove();
@@ -204,13 +257,15 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
 staff.hidden=item.status!=='running';}
     progressMarkup(card,item);
   }
+  const coverObserver=new IntersectionObserver(entries=>{for(const entry of entries){entry.target._coverVisible=entry.isIntersecting;if(entry.isIntersecting&&entry.target._pendingCover){const item=entry.target._pendingCover;entry.target._pendingCover=null;void hydrateCover(item,entry.target);}}},{rootMargin:'100px'});
   let coverQueue=Promise.resolve();
   function hydrateCover(item,card){
+    if(!card._coverVisible){card._pendingCover=item;return Promise.resolve();}
     coverQueue=coverQueue.then(()=>hydrateCoverNow(item,card)).catch(()=>{});
     return coverQueue;
   }
   async function hydrateCoverNow(item,card){
-    if(item.cover){let image=card.querySelector('.library-cover');if(!image){image=document.createElement('span');image.className='library-cover';card.prepend(image);}image.style.backgroundImage=`url("${item.cover.replace(/"/g,'')}"),url("/api/scores/${item.id}/cover-fallback")`;return;}
+    if(item.cover){let image=card.querySelector('.library-cover');if(!image){image=document.createElement('span');image.className='library-cover';card.prepend(image);}image.style.backgroundImage=`url("${item.cover.replace(/\/\d+x\d+bb\./,'/480x480bb.').replace(/"/g,'')}"),url("/api/scores/${item.id}/cover-fallback")`;return;}
     if(!matchCover||!item.title||item.title==='未命名曲谱')return;
     const title=cleanText(item.title);if(!title)return;
     try{const cover=await matchCover(title,item.id);if(!cover)return;let image=card.querySelector('.library-cover');if(!image){image=document.createElement('span');image.className='library-cover';card.prepend(image);}image.style.backgroundImage=`url("${cover.replace(/"/g,'')}"),url("/api/scores/${item.id}/cover-fallback")`;image.setAttribute('aria-label',`${title}封面`);}catch{}
@@ -225,11 +280,18 @@ staff.hidden=item.status!=='running';}
   }
   async function pollRecognition(){
     try{
-      const response=await fetch('/api/scores');if(!response.ok)throw Error();const data=await response.json();let running=false;
+      const response=await fetch('/api/scores');if(!response.ok)throw Error();const data=await response.json();window.cloudLibrarySnapshot={scores:data.scores,saved:Date.now()};let running=false;
       for(const item of data.scores){const card=list.querySelector(`[data-score-id="${item.id}"]`);updateCard(card,item);if(card&&card.dataset.coverTitle!==item.title){card.dataset.coverTitle=item.title;void hydrateCover(item,card);}if(item.status==='running')running=true;}
-      pollTimer=setTimeout(pollRecognition,4000);
+      regroupPending();pollTimer=setTimeout(pollRecognition,4000);
     }catch{pollTimer=null;}
   }
+  document.addEventListener('ai-open-score',async event=>{
+    const {id,resolve,reject,onProgress=()=>{}}=event.detail;
+    if(opening){reject(Error('另一份曲谱正在打开，请稍后重试'));return;}
+    opening=true;
+    try{await revealLoader();onProgress(.1);const data=await obtainScore(id);await openScore({...data,id},(percent,label)=>{updateLoader(percent,label);onProgress(percent/100);});await dismissLoader();opening=false;resolve();}
+    catch(error){await dismissLoader();opening=false;reject(error);}
+  });
   let reloading=false;
   async function reload(){
     if(reloading||opening)return;reloading=true;refresh.disabled=true;await transfer;
@@ -238,8 +300,9 @@ staff.hidden=item.status!=='running';}
     if(!matchMedia('(prefers-reduced-motion: reduce)').matches)await Promise.all(leaving.map((card,index)=>{card._deal?.cancel();card.style.opacity='';return card.animate([{opacity:1,translate:'0px 0px',rotate:'0deg',scale:'1'},{opacity:0,translate:`${-innerWidth-card.getBoundingClientRect().right}px -35px`,rotate:'18deg',scale:'.25'}],{duration:360,delay:Math.min(index*28,350),easing:'cubic-bezier(.55,.05,.9,.4)',fill:'forwards'}).finished.catch(()=>{});}));
     const controller=new AbortController(),requestTimeout=setTimeout(()=>controller.abort(),20000);
     try{
-      const response=await fetch('/api/scores',{signal:controller.signal});if(!response.ok)throw Error();const data=await response.json();list.replaceChildren();
-      for(const [scoreIndex,item] of data.scores.entries()){
+      const response=await fetch('/api/scores',{signal:controller.signal});if(!response.ok)throw Error();const data=await response.json();window.cloudLibrarySnapshot={scores:data.scores,saved:Date.now()};coverObserver.disconnect();pendingItems.replaceChildren();pendingToggle.setAttribute('aria-expanded','false');pendingGroup.classList.remove('is-expanded');list.replaceChildren();
+      const byTitle=new Map();for(const item of data.scores){const key=String(item.title||'').normalize('NFKC').toLowerCase().replace(/[\s《》「」_-]/g,'');if(!item.ready||!key||/未命名|正在识别/.test(key)){byTitle.set(item.id,item);continue;}const current=byTitle.get(key);if(!current||Number(item.ready)>Number(current.ready)||(item.ready===current.ready&&(item.saved||0)>(current.saved||0)))byTitle.set(key,item);}
+      for(const [scoreIndex,item] of [...byTitle.values()].entries()){
         const button=document.createElement('button');button.className='library-score';button.dataset.scoreId=item.id;button.dataset.status=item.status||'idle';button.dataset.ready=String(!!item.ready);
         button._item=item;
         const fallback=document.createElement('span');fallback.className='library-cover';fallback.style.backgroundImage=`url('/api/scores/${item.id}/cover-fallback')`;button.append(fallback);
@@ -253,20 +316,19 @@ staff.hidden=item.status!=='running';}
           document.body.dataset.currentScoreId=item.id;
           if(item.ready)void prefetchScore(item.id);
           try{
-            await liftRecord(button);
-            shownProgress=0;targetProgress=0;progressTime=0;if(progressFrame)cancelAnimationFrame(progressFrame);progressFrame=0;updateLoader(4,cleanText(item.title)||'正在读取琴谱');await revealLoader();
+            shownProgress=0;targetProgress=0;progressTime=0;progressStarted=performance.now();barMotion?.cancel();barMotion=null;if(progressFrame)cancelAnimationFrame(progressFrame);progressFrame=0;updateLoader(4,cleanText(item.title)||'正在读取琴谱');
+            const recordFlight=liftRecord(button),loaderEntry=revealLoader();document.querySelector('.record-flight')?.showPopover?.();if(item.ready)void prefetchScore(item.id);await Promise.race([Promise.all([recordFlight,loaderEntry]),new Promise(resolve=>setTimeout(resolve,1100))]);
             if(button.dataset.ready==='true'){
-              if(scoreCache.has(item.id)){updateLoader(28,'读取本地预载缓存');const data=await scoreCache.get(item.id)||await prefetchScore(item.id);if(!data)throw Error('琴谱读取失败，请重试');updateLoader(34,'解析音符与声部');await openScore({...data,id:item.id,hasPdf:item.hasPdf},updateLoader);}
-              else{const r=await fetch(`/api/scores/${item.id}`);if(!r.ok)throw Error('琴谱读取失败');let data;if(r.body?.getReader){const reader=r.body.getReader(),chunks=[];let received=0;const total=Number(r.headers.get('Content-Length'))||0;while(true){const {done,value}=await reader.read();if(done)break;chunks.push(value);received+=value.length;updateLoader(total?8+received/total*24:18,'正在下载电子谱');}const bytes=new Uint8Array(received);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}data=JSON.parse(new TextDecoder().decode(bytes));}else data=await r.json();scoreCache.set(item.id,Promise.resolve(data));updateLoader(34,'解析音符与声部');await openScore({...data,id:item.id,hasPdf:item.hasPdf},updateLoader);}
+              const data=await obtainScore(item.id);updateLoader(34,'解析音符与声部');await openScore({...data,id:item.id,hasPdf:item.hasPdf},updateLoader);
             }
             else if(item.hasPdf&&openPending){await openPending(item);}
             else if(item.hasPdf){const pdf=await fetch(`/api/scores/${item.id}/pdf`);if(!pdf.ok)throw Error('原谱读取失败');await openPdf(new File([await pdf.blob()],`${cleanText(item.title)||'云曲谱'}.pdf`,{type:'application/pdf'}));}
             else {document.dispatchEvent(new Event('show-task-center'));detail.textContent='正在后台转录';}
           }catch(e){tourError=e.message;detail.textContent=e.message;}finally{await dismissLoader();button.disabled=false;button.removeAttribute('aria-busy');opening=false;document.dispatchEvent(new CustomEvent('library-tour-selected',{detail:{id:item.id,ready:button.dataset.ready==='true',error:tourError}}));}
         };
-        button.onpointerenter=()=>{if(item.ready)void prefetchScore(item.id);};list.append(button);void hydrateCover(item,button);
+        button.onpointerenter=()=>{if(item.ready&&!lowMemory)void prefetchScore(item.id);};list.append(button);coverObserver.observe(button);void hydrateCover(item,button);
       }
-      if(!data.scores.length)list.textContent='暂无琴谱';
+      regroupPending();if(!data.scores.length)list.textContent='暂无琴谱';
       else {const mode=browser.open?'full':'deck';stageCards(mode);await animateCards(mode);}
       pollTimer=setTimeout(pollRecognition,4000);
     }catch{list.textContent='琴谱库暂不可用，点击刷新重试。';}
@@ -274,5 +336,7 @@ staff.hidden=item.status!=='running';}
   }
   refresh.onclick=async()=>{refresh.animate([{transform:'rotate(0deg)'},{transform:'rotate(250deg)'},{transform:'rotate(360deg)'}],{duration:520,easing:'cubic-bezier(.22,.8,.25,1)'});await reload();};
   document.addEventListener('score-renamed',event=>{const {id,title}=event.detail||{},card=id&&list.querySelector(`[data-score-id="${id}"]`);if(card){card._item={...card._item,title,titleSource:'user'};updateCard(card,card._item);}});
+  document.addEventListener('open-library-score',async event=>{if(reloading)for(let n=0;n<100&&reloading;n++)await new Promise(r=>setTimeout(r,100));const card=list.querySelector(`[data-score-id="${CSS.escape(event.detail.id)}"]`);if(card)card.click();});
   reload();return reload;
 }
+

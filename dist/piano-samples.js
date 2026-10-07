@@ -4,16 +4,23 @@ export const LAYERS=[2,5,8,11,15];
 export const ROOTS=Array.from({length:30},(_,i)=>21+i*3);
 export const sampleRoot=midi=>ROOTS.reduce((a,b)=>Math.abs(b-midi)<Math.abs(a-midi)?b:a);
 export function selectLayer(velocity){return LAYERS[Math.min(4,Math.max(0,Math.floor(velocity*5)))];}
-export function preloadPianoSamples(){const roots=[48,60,72,84];return Promise.all(roots.flatMap(root=>LAYERS.map(layer=>fetch(`/assets/piano/salamander/${name(root)}v${layer}.mp3`,{cache:'force-cache'}).then(()=>true).catch(()=>false))));}
+let warming=null,warmController=null,foreground=false;
+document.addEventListener('library-tour-loading',()=>{foreground=true;warmController?.abort();});
+document.addEventListener('library-tour-selected',()=>{foreground=false;});
+export function preloadPianoSamples(){
+ if(warming)return warming;
+ warming=(async()=>{for(const root of [60,72,48,84]){if(foreground)break;warmController=new AbortController();try{const response=await fetch(`/assets/piano/salamander/${name(root)}v8.mp3`,{cache:'force-cache',signal:warmController.signal});if(response.ok)await response.arrayBuffer();}catch{}finally{warmController=null;}}})().finally(()=>warming=null);return warming;
+}
+
 const name=midi=>['C','Cs','D','Ds','E','F','Fs','G','Gs','A','As','B'][midi%12]+(Math.floor(midi/12)-1);
 // Keep decoded buffers for the lifetime of one AudioContext. Switching scores
 // then reuses the same Salamander layers and only fetches registers that the
 // new score actually needs.
 const contextSampleCache=new WeakMap();
-const PIANO_MIRRORS=globalThis.SOUND_FONT_MIRRORS||['https://cdn.jsdelivr.net/gh/super-tang/piano-soundfonts@main/piano/salamander'];
+const PIANO_MIRRORS=globalThis.SOUND_FONT_MIRRORS||[];
 async function fetchPiano(url){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10000);try{const response=await fetch(url,{signal:controller.signal,cache:'force-cache'});if(!response.ok)throw Error();return response.arrayBuffer();}finally{clearTimeout(timer);}}
 export async function loadPianoSamples(context,score,progress=()=>{}){
- const roots=[...new Set((score?.events.flatMap(e=>e.notes.map(n=>sampleRoot(n.midi)))||[60]))];
+ const roots=[...new Set((score?.events.flatMap(e=>e.notes.filter(n=>(n.instrument||'salamander')==='salamander'&&!n.percussion).map(n=>sampleRoot(n.midi)))||[60]))];
  const jobs=roots.flatMap(root=>LAYERS.map(layer=>({root,layer})));
  const samples=[];let completed=0;const total=jobs.length;
  let cache=contextSampleCache.get(context);if(!cache){cache=new Map();contextSampleCache.set(context,cache);}
