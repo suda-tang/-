@@ -1122,6 +1122,54 @@ bash 超时；子进程各自设超时，被 kill 时会提示「检查是不是
   ★ 排查辅助脚本留在 `scripts/_probe-500.cjs`（遍历打开全部 ready 曲谱并抓所有 4xx/5xx +
   JS 报错），改指向或加操作即可复用到别的路径。
 
+---
+
+## 第六轮：提示词截断全部去掉（2026-10-07）
+
+唐老师：**「限制已经放开，提示词不需要再省略了。」**
+
+### 排查结论
+
+- 包装层（`~/.workbuddy/suda-deepseek/suda_api.py`）本就通过环境变量统一把控总量，
+  且这些变量**可以由唐老师抬到很大**：`WEB_PROMPT_LIMIT`(150000) / `WEB_SYSTEM_LIMIT`(50000) /
+  `WEB_CONTEXT_MESSAGE_LIMIT`(60000) / `WEB_CONTEXT_TURNS`(200)。唐老师这次放开的就是这层。
+- 但本项目 `ai_workspace.py` 里还留着一批**按老上限配的「为省字数」截断**，限制放开后
+  它们反而成了新瓶颈。第五轮只放宽了常量块（CONTEXT_CHARS / HISTORY_MESSAGE_CHARS 等），
+  **prompt 路径上散落的 `[:N]` 没清干净**。
+
+### 改动（`ai_workspace.py`）
+
+| 位置 | 旧 | 新 | 说明 |
+|---|---|---|---|
+| 拼 prompt 的 context（原 751 行） | `context=…[:CONTEXT_CHARS]` | 整份 context 原样发 | 之前 cap 120000，实际被包装层 system 50000 先砍 |
+| 历史消息（原 754 行） | `content[:HISTORY_MESSAGE_CHARS]` | 整条历史原样发 | 旧 60000 |
+| 曲式分析证据（648 行） | `json.dumps(evidence)[:40000]` | 完整证据 | 分析prompt 被截断 |
+| 每小节音高采样（158 行） | `pitches[:200]` | 全部音高 | 分析证据采样 |
+| 声部名（663 行） | `'、'.join(names[:40])` | 全部声部名 | 状态描述被截断 |
+| 模型回复（829 行） | `reply[:8000]` | 完整回复 | **非流式路径砍长回复，流式路径却不砍**——两边不一致 |
+| 常量 `CONTEXT_CHARS` / `HISTORY_MESSAGE_CHARS` | 已定义 | **删除**（不再使用） | 否则 750 行引用未定义变量会 NameError |
+| `MODEL_TOKENS` | 3000 | **8000** | 模型输出上限，也会砍短长回复 |
+
+★ 注意：用脚本一次性替换 + 编译校验，避免并行 Edit 竞态（首轮 6 个并行 Edit 只部分生效，
+差点留下 `context[:CONTEXT_CHARS]` 引用已删常量的崩坏状态）。
+
+### 仍保留的「硬安全闸」（**不是**省字数，是防异常/防撑爆）
+
+- `MAX_BODY=2MB`：请求体字节上限，防单请求撑爆内存。
+- `MAX_MESSAGE_CHARS=60000`：单条**用户**消息上限，防用户误发超大输入（非发给模型的 prompt 裁剪）。
+- `parse_model_json` 里 `content[:200000]`：模型**原始输出**解析前的上限，远高于实际（MODEL_TOKENS 才 8000），不会触发。
+- `action_value` 里 `value[:2000]`：动作 value 本就很小（id / BPM / 声部名）。
+- `friendly_error` 里 `str(error)[:250]`：仅用于给用户看的报错文案，截断无害。
+- 曲式分析那条 `max_tokens=1600`（649 行）**仍保留**；若唐老师要更长的分析，再放开。
+
+### 验证
+
+- `py_compile` 通过；`import` 无 NameError（已删常量无残留引用）。
+- 离线探针 `scripts/_probe-fastplan.py` 全绿：`#45` 仍转模型、`#47` 走规则通道、
+  「第 70 小节里的 70 不当速度」「速度合适吗 → 转模型」等反向用例均正确。
+- 真机全量回归（60 条）**待跑**——当时苏大上游在限频（429），留到限频解除后补。
+
+
 
 
 
