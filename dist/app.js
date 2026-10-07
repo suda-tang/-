@@ -1,3 +1,4 @@
+import {practiceEvidence} from './practice-evidence.js';
 import {updateRangeFill} from './range-fill.js';
 import {VocalTransport} from './vocal-transport.js?v=voice-retry5';
 import {engraveMidiPlayback} from './midi-engraving.js';
@@ -5,7 +6,7 @@ import {readMidi,saveMidi,readLocalMidi} from './midi-loader.js';
 import {layoutDrums} from './drum-layout.js';
 import {chooseDuplicate} from './duplicate-score.js';
 import {writtenExpression} from './written-expression.js';
-import {DawView,scoreTracks} from './daw.js?v=fine-timing1';
+import {DawView,scoreTracks} from './daw.js?v=responsive-render2';
 // The drum staff lives in its own card under the score. It used to be
 // prepended into #notation, where it shared the piano sheet's container and
 // scroll position and so read as one score with two extra staves.
@@ -66,13 +67,13 @@ import {preloadPianoSamples} from './piano-samples.js';
 import {analyzeHarmony,detectChord} from './harmony.js';
 import { parseMusicXML, parseMusicXMLAsync, sampleScore, renderNotation, noteName } from './score.js';
 import {parseMidi} from './midi.js';
-import { renderSimpleNotation, renderSimpleNotationAsync, simplePlaybackTarget } from './simple-notation.js';
-import { sheetWidth,activateLazyEngraving } from './engraving.js';
+import { renderSimpleNotation, renderSimpleNotationAsync, simplePlaybackTarget } from './simple-notation.js?v=responsive-render2';
+import { sheetWidth,activateLazyEngraving } from './engraving.js?v=responsive-render2';
 import './vendor/typedarray-compat.mjs';
 import { PitchListener, Follower, summarize } from './engine.js';
 import { ScorePlayer } from './player.js';
 import { setupScoreEditing } from './score-editing.js';
-import { initLibrary, cleanText } from './library.js?v=card-decks2';
+import { initLibrary, cleanText } from './library.js?v=progress-complete14';
 import { initMediaImport } from './media-import.js';
 
 // PDF.js 5.x uses newer Web APIs that are absent in some embedded Chromium
@@ -169,7 +170,7 @@ function addVocalPart(){
  const select=$('part-solo-select');if(!select.querySelector('[value="__vocal"]')){const option=document.createElement('option');option.value='__vocal';option.textContent='人声';select.append(option);select.disabled=false;}
  if(!$('part-mix').querySelector('[data-part="__vocal"]')){const label=document.createElement('label'),input=document.createElement('input'),text=document.createElement('span');input.type='checkbox';input.checked=true;input.dataset.part='__vocal';text.textContent='人声';label.append(input,text);$('part-mix').append(label);$('part-mix').hidden=false;}
 }
-function syncScoreMix(){syncVocalMix();for(const el of $('notation').querySelectorAll('[data-part]')){const part=el.dataset.part;el.classList.toggle('part-muted',player.soloPart!=='all'?player.soloPart!==part:!!player.disabledParts?.has(part));el.classList.toggle('part-solo',player.soloPart===part);}let legend=$('score-mix-status');if(!legend){legend=document.createElement('div');legend.id='score-mix-status';legend.className='score-mix-status';$('notation').before(legend);}legend.replaceChildren();for(const part of score?.midiParts||[]){const muted=player.soloPart!=='all'?player.soloPart!==part.id:!!player.disabledParts?.has(part.id),solo=player.soloPart===part.id;if(muted||solo){const mark=document.createElement('span');mark.className=solo?'part-solo-label':'part-muted-label';mark.textContent=part.name+(solo?' · 独奏':' · 静音');legend.append(mark);}}}
+function syncScoreMix(){syncVocalMix();const pane=$('notation'),stamp=JSON.stringify([player.soloPart,[...(player.disabledParts||[])]]);if(pane._mixStamp===stamp)return;pane._mixStamp=stamp;for(const el of $('notation').querySelectorAll('[data-part]')){const part=el.dataset.part;el.classList.toggle('part-muted',player.soloPart!=='all'?player.soloPart!==part:!!player.disabledParts?.has(part));el.classList.toggle('part-solo',player.soloPart===part);}let legend=$('score-mix-status');if(!legend){legend=document.createElement('div');legend.id='score-mix-status';legend.className='score-mix-status';$('notation').before(legend);}legend.replaceChildren();for(const part of score?.midiParts||[]){const muted=player.soloPart!=='all'?player.soloPart!==part.id:!!player.disabledParts?.has(part.id),solo=player.soloPart===part.id;if(muted||solo){const mark=document.createElement('span');mark.className=solo?'part-solo-label':'part-muted-label';mark.textContent=part.name+(solo?' · 独奏':' · 静音');legend.append(mark);}}}
 const daw=new DawView($('daw-view'),player,index=>void playFromNote(index),()=>{syncScoreMix();for(const input of $('part-mix').querySelectorAll('input'))input.checked=!player.disabledParts?.has(input.dataset.part);$('part-solo-select').value=player.soloPart;});
 $('daw-button').onclick=()=>{view('daw');daw.show();};
 $('expressive').onchange=event=>{player.expressive=event.target.checked;};
@@ -187,11 +188,12 @@ function scoreSystemBounds(target){
  const bounds=()=>{const boxes=nodes.map(n=>n.getBoundingClientRect());return {top:Math.min(...boxes.map(b=>b.top)),bottom:Math.max(...boxes.map(b=>b.bottom))};};
 
  const result=bounds(),area=$('sheet-scroll'),required=Math.ceil(result.bottom-result.top+48);
- if(required>area.clientHeight+8)area.style.setProperty('--score-view-height',Math.max(required,Math.round(innerHeight*.65))+'px');
+ if(!player.playing&&required>area.clientHeight+8)area.style.setProperty('--score-view-height',Math.max(required,Math.round(innerHeight*.65))+'px');
  return {...result,anchor:nodes[0]};
 }
 let followSystem=null,followBeat=-1,followScore=null,followView='',lastFollowMeasure=-1,lastTransportState=null,playbackElements=new Map(),playbackElementScore=null;
-function rebuildPlaybackElements(){playbackElements.clear();for(const el of $('notation').querySelectorAll('.note-event')){const index=Number(el.dataset.index);if(!playbackElements.has(index))playbackElements.set(index,[]);playbackElements.get(index).push(el);}playbackElementScore=score;}
+function rebuildPlaybackElements(){const pane=$('notation');if(pane._playbackElements&&pane._playbackScore===score){playbackElements=pane._playbackElements;playbackElementScore=score;return;}playbackElements=new Map();for(const el of pane.querySelectorAll('.note-event')){const index=Number(el.dataset.index);if(!playbackElements.has(index))playbackElements.set(index,[]);playbackElements.get(index).push(el);}pane._playbackElements=playbackElements;pane._playbackScore=score;playbackElementScore=score;}
+
 function paintPlayback({beat,index,totalBeats}){
  vocalTrack.sync();
  if(followScore!==score||followView!==currentView||beat<followBeat-.02){followSystem=null;followScore=score;followView=currentView;}followBeat=beat;
@@ -224,8 +226,7 @@ function paintPlayback({beat,index,totalBeats}){
    if(b.anchor!==followSystem){
    followSystem=b.anchor;
    if(b.top<area.top+12||b.bottom>area.bottom-12){const nextTop=Math.max(0,scroll.scrollTop+b.top-area.top-16);if(!player.playing||nextTop>=scroll.scrollTop-2)scroll.scrollTo({top:nextTop,behavior:'instant'});}
-   const position=scoreSystemBounds(target),header=document.querySelector('.top'),top=Math.max(16,header?.getBoundingClientRect().bottom||0),bottom=innerHeight-16;
-   if(position.top<top||position.bottom>bottom){const delta=position.bottom-position.top>bottom-top?position.top-top:position.top<top?position.top-top:position.bottom-bottom;if(!player.playing||delta>0)window.scrollBy({top:delta,behavior:'instant'});}
+
    }
   }
  }
@@ -364,7 +365,7 @@ document.addEventListener('ai-workspace-context',event=>{
  event.detail.resolve({currentId:score?.serverId||null,measure,beat:player.beat,playing:player.playing,
   // 内部叫 notation，动作里叫 engraved —— 直接透传会让模型看到「当前视图 notation」，
   // 而它要发动作时只被允许用 engraved，两边对不上。
-  view:currentView==='notation'?'engraved':currentView,
+  view:currentView==='notation'?'engraved':currentView,practice:practiceEvidence(records),
   measureNumbers:[...new Set(score?.events.map(e=>e.measure)||[])],measureCount:score?.measures||null,solo:player.soloPart,disabledParts:[...player.disabledParts||[]],currentChord:chord?.name||null,chordConfidence:chord?.confidence||0});
 });
 document.addEventListener('ai-set-view',async event=>{try{
@@ -454,8 +455,8 @@ function message(text,type=''){
  notice.append(copy,close);notice.className=`notice ${type}`;notice.classList.remove('notice-hidden');
  const persistent=text==='待载入琴谱';if(!persistent)noticeTimer=setTimeout(()=>notice.classList.add('notice-hidden'),type==='error'?12000:type==='warning'?8500:5200);
 }
-function paintImportProgress(now){const bar=$('import-progress');if(!bar){importProgressFrame=0;return;}const elapsed=Math.min(48,now-(importProgressClock||now));importProgressClock=now;const gap=importProgressValue-importProgressShown;importProgressShown=Math.abs(gap)<.08?importProgressValue:importProgressShown+Math.sign(gap)*Math.min(Math.abs(gap),elapsed*.105);$('import-progress-label').textContent=`${Math.round(importProgressShown)}%`;$('import-progress-bar').style.width=`${importProgressShown}%`;if(Math.abs(importProgressValue-importProgressShown)>.08)importProgressFrame=requestAnimationFrame(paintImportProgress);else importProgressFrame=0;}
-function setImportProgress(value,label,mode='active'){reportTask('current-work',{label:'当前操作',detail:label,progress:value,status:mode==='done'?'complete':mode==='failed'?'failed':'running'});const bar=$('import-progress');if(!bar)return;importProgressValue=Math.max(0,Math.min(100,Math.round(value)));bar.hidden=false;bar.className=`import-progress ${mode==='done'?'done':mode==='failed'?'failed':''}`;$('import-progress-status').textContent=label;if(!importProgressFrame)importProgressFrame=requestAnimationFrame(paintImportProgress);}
+function paintImportProgress(now){const bar=$('import-progress');if(!bar){importProgressFrame=0;return;}const elapsed=Math.min(48,now-(importProgressClock||now));importProgressClock=now;const gap=importProgressValue-importProgressShown;importProgressShown=importProgressValue>=100?100:Math.abs(gap)<.08?importProgressValue:importProgressShown+Math.sign(gap)*Math.min(Math.abs(gap),elapsed*.105);$('import-progress-label').textContent=`${Math.round(importProgressShown)}%`;$('import-progress-bar').style.width=`${importProgressShown}%`;if(Math.abs(importProgressValue-importProgressShown)>.08)importProgressFrame=requestAnimationFrame(paintImportProgress);else importProgressFrame=0;}
+function setImportProgress(value,label,mode='active'){reportTask('current-work',{label:'当前操作',detail:label,progress:value,status:mode==='done'?'complete':mode==='failed'?'failed':'running'});const bar=$('import-progress');if(!bar)return;importProgressValue=Math.max(0,Math.min(100,Math.round(value)));bar.hidden=false;bar.className=`import-progress ${mode==='done'?'done':mode==='failed'?'failed':''}`;$('import-progress-status').textContent=label;if(importProgressValue>=100||mode==='done'){importProgressValue=100;importProgressShown=100;if(importProgressFrame)cancelAnimationFrame(importProgressFrame);importProgressFrame=0;$('import-progress-bar').style.transition='none';paintImportProgress(performance.now());return;}$('import-progress-bar').style.transition='';if(!importProgressFrame)importProgressFrame=requestAnimationFrame(paintImportProgress);}
 function hideImportProgress(){const bar=$('import-progress');if(bar)bar.hidden=true;if(importProgressFrame)cancelAnimationFrame(importProgressFrame);importProgressFrame=0;importProgressValue=0;importProgressShown=0;importProgressClock=0;}
 function fallbackTitle(filename){return String(filename||'导入的琴谱').replace(/\.pdf$/i,'').replace(/[_ -]\d{4,}$/,'').split(/[「【\[]/)[0].replace(/\s+/g,' ').trim()||'导入的琴谱';}
 function parseOcrMetadata(raw,filename){const lines=String(raw||'').split(/\r?\n/).map.map(line=>line.replace(/\s+/g,' ').replace(/[|｜]/g,'').trim()).filter(line=>line.length>=2);const ocrTitle=lines.find(line=>/[\u3400-\u9fff]/.test(line)&&line.length>=4&&!/^(作曲|编曲|改编|演奏|速度|拍号|调性|曲名|作者|词|曲)/.test(line))||'';const title=ocrTitle;const credits=lines.map(line=>{const match=line.match(/^(作曲|编曲|改编|演奏|作者|词|曲)\s*[:：;；]\s*(.+)$/);return match?`${match[1]}：${match[2]}`:''}).filter(Boolean).filter(line=>line!==title).slice(0,4).join('　');const tempo=lines.find(line=>/[Jj]?\s*=\s*\d+|速度|自由地/.test(line))||'';return{title:title.replace(/^[：:、,.，。\s]+|[：:、,.，。\s]+$/g,''),ocrTitle:ocrTitle.replace(/^[：:、,.，。\s]+|[：:、,.，。\s]+$/g,''),credits,tempo,ocrText:lines.slice(0,8).join('　'),source:'OCR'};}
@@ -539,7 +540,7 @@ function decoratePdfCoordinates(score){
 const warmPiano=()=>void preloadPianoSamples();
 if('requestIdleCallback' in window)requestIdleCallback(warmPiano,{timeout:1800});else setTimeout(warmPiano,1200);
 function controls(){ $('start-button').disabled=!score||running||starting||importing; $('start-button').hidden=running; $('stop-button').hidden=!running; $('reset-button').disabled=!score; $('tempo').disabled=running; $('tempo-up').disabled=running; $('tempo-down').disabled=running; $('demo-button').disabled=(running&&!demo)||starting||importing;$('demo-button').textContent=(player.playing||running&&demo)?'暂停':'试听';$('demo-button').setAttribute('aria-pressed',String(player.playing||running&&demo)); $('export-button').disabled=!records.length;$('play-button').disabled=!score||starting||importing;$('play-button').textContent=player.playing?'暂停播放':player.beat>0&&player.beat<player.totalBeats?'继续播放':'自动演奏';$('play-reset').disabled=!score||importing; }
-function view(type){currentView=type;$('daw-view').hidden=type!=='daw';$('daw-button').disabled=!score; $('notation').hidden=!['notation','simple'].includes(type)||!score; $('pdf-pages').hidden=type!=='pdf'; $('empty-score').hidden=!!score||type==='pdf'; $('simple-button').disabled=!score||importing; for(const [id,on] of [['notation-button',type==='notation'],['simple-button',type==='simple'],['original-button',type==='pdf'],['daw-button',type==='daw']]){$(id).classList.toggle('active',on);$(id).setAttribute('aria-pressed',String(on));}}
+function view(type){if(!['notation','simple'].includes(type))$('notation').lazyEngravingObserver?.disconnect();currentView=type;$('daw-view').hidden=type!=='daw';$('daw-button').disabled=!score; $('notation').hidden=!['notation','simple'].includes(type)||!score; $('pdf-pages').hidden=type!=='pdf'; $('empty-score').hidden=!!score||type==='pdf'; $('simple-button').disabled=!score||importing; for(const [id,on] of [['notation-button',type==='notation'],['simple-button',type==='simple'],['original-button',type==='pdf'],['daw-button',type==='daw']]){$(id).classList.toggle('active',on);$(id).setAttribute('aria-pressed',String(on));}}
 function recognizedTempo(next){const parsed=Number(next?.tempo);if(Number.isFinite(parsed)&&parsed>=30&&parsed<=240)return Math.round(parsed);const raw=String(next?.meta?.tempo||'');const match=raw.match(/(?:[Jj♩]|每分钟)?\s*[=:：]?\s*(\d{2,3})\s*(?:BPM|拍)?/i);const value=Number(match?.[1]);return value>=30&&value<=240?Math.round(value):null;}
 function updateScoreSubtitle(current=score){
  if(!current)return;
@@ -553,7 +554,7 @@ function updateScoreSubtitle(current=score){
 async function setScore(next,isSample=false){
  setScoreFollow(true);$('sheet-scroll').style.removeProperty('--score-view-height');
  if(!next.vocal&&next.serverId&&next.serverId===score?.serverId)next.vocal=score.vocal;
- const generation=++scoreRenderGeneration;$('notation').renderGeneration={};next.harmony=analyzeHarmony(next);stop();score=next;vocalTrack.configure(next);
+ const generation=++scoreRenderGeneration;++notationSwitchRequest;for(const pane of liveNotationViews.values())pane.remove();liveNotationViews.clear();liveNotationKey='';liveNotationScore=null;$('notation').lazyEngravingObserver?.disconnect();$('notation').renderGeneration={};$('notation')._mixStamp=null;$('notation')._playbackElements=null;next.harmony=analyzeHarmony(next);stop();score=next;vocalTrack.configure(next);
  if(!next.midiParts?.length)next.midiParts=scoreTracks(next).map(({id,name})=>({id,name}));
  const soloSelect=$('part-solo-select');soloSelect.replaceChildren();for(const [id,label] of [['all','全部乐器'],...(next.midiParts||[]).map(part=>[part.id,part.name])]){const option=document.createElement('option');option.value=id;option.textContent=label;soloSelect.append(option);}soloSelect.disabled=!next.midiParts?.length;
  const mix=$('part-mix');mix.replaceChildren();const parts=next.midiParts||[];mix.hidden=parts.length<2;for(const part of parts){const label=document.createElement('label'),input=document.createElement('input'),text=document.createElement('span');input.type='checkbox';input.checked=true;input.dataset.part=part.id;text.textContent=part.name;label.append(input,text);mix.append(label);}if(next.midiSource){player.arrangement='original';$('arrangement-select').value='original';}player.enabledParts=new Set(parts.map(part=>part.id));
@@ -565,7 +566,7 @@ async function setScore(next,isSample=false){
  $('score-title').textContent=next.title;updateScoreSubtitle(next);paintedIndex=-1;paintedScore=null;
  const renderKey=`${next.serverId||next.arrangementKey||next.title}${next.variants?.active?'@'+next.variants.active:''}:${notationMode}:${sheetWidth($('notation'))}:layout-v17`;const cachedNotation=notationCache.get(renderKey);
  if(cachedNotation){$('notation').replaceChildren(...[...cachedNotation.childNodes].map(node=>node.cloneNode(true)));notationCache.delete(renderKey);notationCache.set(renderKey,cachedNotation);}
- else{const modeAtStart=notationMode,staging=document.createElement('div');if(modeAtStart==='simple')renderSimpleNotation(staging,next);else await renderNotation(staging,next);if(generation!==scoreRenderGeneration||score!==next||modeAtStart!==notationMode)return;$('notation').replaceChildren(...[...staging.childNodes].map(node=>node.cloneNode(true)));notationCache.set(renderKey,staging.cloneNode(true));while(notationCache.size>((matchMedia('(pointer:coarse)').matches||innerWidth<800)?1:4))notationCache.delete(notationCache.keys().next().value);}
+ else{const modeAtStart=notationMode,staging=document.createElement('div');if(modeAtStart==='simple')await renderSimpleNotationAsync(staging,next,{cancelled:()=>generation!==scoreRenderGeneration});else await renderNotation(staging,next);if(generation!==scoreRenderGeneration||score!==next||modeAtStart!==notationMode)return;$('notation').replaceChildren(...[...staging.childNodes].map(node=>node.cloneNode(true)));notationCache.set(renderKey,staging.cloneNode(true));while(notationCache.size>((matchMedia('(pointer:coarse)').matches||innerWidth<800)?1:4))notationCache.delete(notationCache.keys().next().value);}
  // Arrangements are often opened while the workspace transition is still
  // settling. If OSMD returned only its temporary caption, give it one laid
  // out frame and render once more so the first open never requires a manual
@@ -590,26 +591,36 @@ function setTempo(value){if(running)return;$('tempo').value=String(Math.max(30,M
 $('play-button').onclick=()=>{if(player.playing){vocalTrack.pause();player.pause();controls();$('play-status').textContent=`播放已暂停　${tempo()} BPM`;}else{setImportProgress(0,'正在准备钢琴音源');requestAnimationFrame(()=>{const progress=$('import-progress');if(progress&&!progress.hidden)progress.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'center'});});void playScore();}};
 $('play-reset').onclick=()=>{vocalTrack.pause();player.rewind();vocalTrack.seek(0,tempo());metronomeLastBeat=-1;playbackView=false;refresh();controls();$('play-status').textContent='已回到开头，点击“自动演奏”开始。';};
 $('start-button').addEventListener('click',()=>{player.pause();playbackView=false;refresh();controls();},true);
+let notationRenderQueue=Promise.resolve();
 let notationSwitchRequest=0,liveNotationScore=null,liveNotationKey='',liveNotationViews=new Map();
+function activateNotationPane(pane,key){
+ const current=$('notation');current.lazyEngravingObserver?.disconnect();
+ if(liveNotationKey){current.removeAttribute('id');current.hidden=true;liveNotationViews.set(liveNotationKey,current);}else current.remove();
+ liveNotationViews.delete(key);pane.id='notation';pane.hidden=false;if(!pane.isConnected)$('sheet-scroll').prepend(pane);
+ liveNotationKey=key;playbackElementScore=null;followSystem=null;
+ while(liveNotationViews.size>2){const oldest=liveNotationViews.keys().next().value;liveNotationViews.get(oldest).remove();liveNotationViews.delete(oldest);}
+}
 function installNotation(nodes,key){
- if(liveNotationKey){const fragment=document.createDocumentFragment();fragment.append(...$('notation').childNodes);liveNotationViews.set(liveNotationKey,fragment);}
- $('notation').replaceChildren(...nodes);liveNotationKey=key;playbackElementScore=null;followSystem=null;
+ const pane=document.createElement('div');pane.append(...nodes);activateNotationPane(pane,key);
 }
 
 async function setNotationMode(mode,{preserveTransport=true}={}){
  const request=++notationSwitchRequest,target=score;notationMode=mode;
  if(!target){view(mode==='simple'?'simple':'notation');return;}
- const width=sheetWidth($('notation'));if(liveNotationScore!==target){liveNotationScore=target;liveNotationViews.clear();liveNotationKey=(currentView==='simple'?'simple':'engraved')+':'+width;}const liveKey=mode+':'+width,key=`${target.serverId||target.title}:${mode}:${width}:layout-v17`;
+ const width=sheetWidth($('notation'));if(liveNotationScore!==target){liveNotationScore=target;for(const pane of liveNotationViews.values())pane.remove();liveNotationViews.clear();liveNotationKey=(currentView==='simple'?'simple':'engraved')+':'+width;}const liveKey=mode+':'+width,key=`${target.serverId||target.title}:${mode}:${width}:layout-v17`;
  view(mode==='simple'?'simple':'notation');
  if(liveNotationKey===liveKey&&$('notation').querySelector('svg,.simple-system')){fitVisibleScore();refresh();return;}
- const live=liveNotationViews.get(liveKey);if(live){installNotation([...live.childNodes],liveKey);if(mode==='engraved')activateLazyEngraving($('notation'),score);paintedIndex=-1;paintedScore=null;lastPlaybackIndex=-1;syncScoreMix();fitVisibleScore();refresh();return;}
+ const live=liveNotationViews.get(liveKey);if(live){activateNotationPane(live,liveKey);if(mode==='engraved')activateLazyEngraving($('notation'),score);paintedIndex=-1;paintedScore=null;lastPlaybackIndex=-1;syncScoreMix();fitVisibleScore();refresh();return;}
  const cached=notationCache.get(key);
  if(cached&&cached.querySelector('svg,.simple-system'))installNotation([...cached.childNodes].map(n=>n.cloneNode(true)),liveKey);
  else{
   const staging=document.createElement('div');staging.style.cssText=`position:fixed;left:-20000px;top:0;width:${width}px;visibility:hidden`;document.body.append(staging);
-  try{if(mode==='simple')await renderSimpleNotationAsync(staging,target);else await renderNotation(staging,target);
+  try{const work=notationRenderQueue.catch(()=>{}).then(async()=>{
+    if(request!==notationSwitchRequest||score!==target||currentView==='daw'||currentView==='pdf')return;
+    if(mode==='simple')await renderSimpleNotationAsync(staging,target,{cancelled:()=>request!==notationSwitchRequest||score!==target||currentView==='daw'||currentView==='pdf'});else await renderNotation(staging,target);
+   });notationRenderQueue=work;await work;
    if(request!==notationSwitchRequest||score!==target||currentView==='daw'||currentView==='pdf')return;
-   installNotation([...staging.childNodes],liveKey);if(mode!=='simple')notationCache.set(key,$('notation').cloneNode(true));
+   installNotation([...staging.childNodes],liveKey);
   }catch(error){message(`谱面加载失败：${error.message}`,'error');}finally{staging.remove();}
  }
  if(request!==notationSwitchRequest||score!==target)return;
@@ -1035,6 +1046,6 @@ void (async()=>{
  }
 })();
 
-document.addEventListener('engraving-chunk-ready',()=>{if(score){playbackElementScore=null;lastPlaybackIndex=-1;syncScoreMix();if(playbackView)paintPlayback({beat:player.beat,index:player.displayIndex(player.beat),totalBeats:player.totalBeats});}});
+document.addEventListener('engraving-chunk-ready',()=>{if(score){$('notation')._playbackElements=null;$('notation')._mixStamp=null;playbackElementScore=null;lastPlaybackIndex=-1;syncScoreMix();if(playbackView)paintPlayback({beat:player.beat,index:player.displayIndex(player.beat),totalBeats:player.totalBeats});}});
 
 let drumResizeTimer;new ResizeObserver(()=>{clearTimeout(drumResizeTimer);drumResizeTimer=setTimeout(()=>{if(score&&!$('drum-card').hidden)refreshDrumLane();},180);}).observe($('drum-card'));

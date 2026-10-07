@@ -88,7 +88,7 @@ function init(){
   document.body.append(pill);requestAnimationFrame(()=>pill.classList.add('is-visible'));
   clearTimeout(settleTimer);settleTimer=setTimeout(()=>{pill.classList.remove('is-visible');setTimeout(()=>pill.remove(),420);},4600);
  }
- const labels={panel:'切换工作区',view:'切换谱面',search:'查找曲谱',open:'打开曲谱',play:'开始播放',pause:'暂停播放',stop:'停止播放',solo:'选择独奏声部',solo_group:'声部分组',mute:'调整声部',unmute:'恢复声部',set_tempo:'调整速度',set_metronome:'开关节拍器',set_instrument:'切换音色',set_arrangement:'选择配器',generate_arrangement:'生成总谱',web_search:'联网搜索',skill_search:'查找技能',choose_scores:'列出曲谱',seek_measure:'定位小节',chords:'提取和弦'};
+ const labels={panel:'切换工作区',view:'切换谱面',search:'查找曲谱',open:'打开曲谱',play:'开始播放',pause:'暂停播放',stop:'停止播放',solo:'选择独奏声部',solo_group:'声部分组',mute:'调整声部',unmute:'恢复声部',set_tempo:'调整速度',set_metronome:'开关节拍器',set_instrument:'切换音色',set_arrangement:'选择配器',generate_arrangement:'生成总谱',web_search:'联网搜索',skill_search:'查找技能',choose_scores:'列出曲谱',seek_measure:'定位小节',chords:'提取和弦',score_report:'核对曲谱'};
 // 动作执行后回读界面，确认它真的生效了。
 // 为什么需要：AI 常说「我来处理」并发回动作，但动作在界面上什么都没改变 ——
 // 这类「嘴上说好了、界面没动」的失败最难发现，只能靠执行后回读来兜住。
@@ -97,7 +97,7 @@ const PANELS=['library','play','arrange','tasks'];
 // 于是「切换到演奏」会跳到曲库——看着像执行了，其实跑偏。这里先归一，认不出才退回曲库。
 const PANEL_ALIAS={library:'library',曲库:'library',乐谱库:'library',乐谱:'library',play:'play',演奏:'play',播放:'play',弹奏:'play',arrange:'arrange',改编:'arrange',tasks:'tasks',任务:'tasks',任务中心:'tasks'};
 const panelValue=value=>PANEL_ALIAS[String(value??'').trim().toLowerCase()]||'library';
-const KNOWN_TYPES=new Set(['view','solo_group','choose_scores','panel','search','open','chords','seek_measure','play','pause','stop','solo','mute','unmute','set_tempo','set_metronome','set_instrument','set_arrangement','generate_arrangement','skill_search','web_search']);
+const KNOWN_TYPES=new Set(['view','solo_group','choose_scores','panel','search','open','chords','score_report','seek_measure','play','pause','stop','solo','mute','unmute','set_tempo','set_metronome','set_instrument','set_arrangement','generate_arrangement','skill_search','web_search']);
 // ★ 破坏性动作在**前端也拦一道**：后端 ai_workspace 的 FORBIDDEN_TYPES 是第一道闸，
 //   这里补第二道 —— 万一以后新增了动作类型、或绕过模型直连的路径把这类动作送进来，
 //   也不允许碰云曲库。放在 KNOWN_TYPES 之前判定，否则会先落进「暂时不支持这个操作」，
@@ -146,7 +146,7 @@ function snapshot(){
 }
 // 每种动作预期会改动哪些字段；产出文字/按钮的动作以「对话多了一行」为准。
 // view 看谱面按钮的选中态（切谱面不会动工作区面板），solo_group 看声部勾选。
-const EXPECT={panel:['panel'],view:['viewMode'],open:['title','scoreId'],play:['playing','playDisabled'],pause:['playing','playDisabled'],stop:['playing','playDisabled'],solo:['solo'],mute:['muted'],unmute:['muted'],solo_group:['solo','muted'],set_tempo:['tempo'],set_metronome:['metronome'],set_instrument:['instrument'],set_arrangement:['arrangement'],generate_arrangement:['logLines'],seek_measure:['position'],chords:['logLines'],search:['logLines'],web_search:['logLines'],skill_search:['logLines'],choose_scores:['logLines']};
+const EXPECT={panel:['panel'],view:['viewMode'],open:['title','scoreId'],play:['playing','playDisabled'],pause:['playing','playDisabled'],stop:['playing','playDisabled'],solo:['solo'],mute:['muted'],unmute:['muted'],solo_group:['solo','muted'],set_tempo:['tempo'],set_metronome:['metronome'],set_instrument:['instrument'],set_arrangement:['arrangement'],generate_arrangement:['logLines'],seek_measure:['position'],chords:['logLines'],score_report:['logLines'],search:['logLines'],web_search:['logLines'],skill_search:['logLines'],choose_scores:['logLines']};
 // 回读留一个观察窗口：切面板、换谱面这类改动要过一帧才落到 DOM，
 // 立刻比对会把「其实成功了」误判成「没生效」。已经站在目标面板上则直接算完成。
 async function verifyAction(a,before){
@@ -181,7 +181,7 @@ function currentSettings(){
 // ★ 全站**唯一**的 context 构造入口。主流程以前在别处手工拼了第二份（漏了 settings），
 //   于是「快一点 / 慢一点」的基准永远到不了后端 —— 长流程 #29 的波动就是这么来的。
 //   以后要加 context 字段**只改这里**，不要再手工拼一份。
-async function workspaceContext(extra){const data=await readCloudLibrary();const live=await readLiveContext();return {...libraryContext(data.scores),...live,controls:CONTROLS,settings:currentSettings(),parts:parts(),current:document.querySelector('#score-title')?.textContent,...extra};}
+async function workspaceContext(extra){const data=await readCloudLibrary();const live=await readLiveContext();return {...libraryContext(data.scores),...live,language:document.documentElement.lang,controls:CONTROLS,settings:currentSettings(),parts:parts(),current:document.querySelector('#score-title')?.textContent,...extra};}
  async function repairActions(failed,error,completed){line('操作没有完成，正在重新核对曲谱、声部和播放位置…');const context=await workspaceContext();const response=await fetch('/api/workspace-ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:historyForModel(),context:{...context,executed:executedActions.slice(-12)},repair:{failed,error:readableNetworkError(error),completed}}),signal:deadline(110000)});const result=await response.json();if(!response.ok)throw Error(result.error);line(result.reply);if(!result.actions?.length)throw Error('重新核对后仍无法完成：'+error.message);return result.actions;}
  async function runActions(actions,summary=''){if(!actions.length)return false;actions=[...actions];let repairCount=0,unverified=0;const failedStates=new Set();const completed=[];awaitingUser=false;await close();document.body.classList.add('ai-executing');trigger.disabled=true;taskPercent=0;taskProgress(0,'准备操作');try{for(let i=0;i<actions.length;i++){const a=actions[i];taskProgress(i/actions.length*100,labels[a.type]||'正在操作');const snapBefore=snapshot();try{const outcome=await action(a,p=>taskProgress((i+p)/actions.length*100,labels[a.type]||'正在操作'));if(outcome!=='skipped'&&!await verifyAction(a,snapBefore)){unverified++;line('注意：'+(labels[a.type]||'这一步')+'执行后界面没有变化，可能没有真正生效。');}}catch(error){const signature=JSON.stringify(a)+'|'+error.message;if(repairCount>=2||failedStates.has(signature))throw error;failedStates.add(signature);repairCount++;const replacement=await repairActions(a,error,completed);actions.splice(i,actions.length-i,...replacement.slice(0,6));i--;continue;}completed.push(a);executedActions.push({type:a.type,value:a.value});if(executedActions.length>30)executedActions=executedActions.slice(-30);taskProgress((i+1)/actions.length*100,labels[a.type]||'正在操作');}if(unverified)line('这一步里共有 '+unverified+' 个子操作执行后界面没有变化，可能没有真正生效。建议换个更具体的说法再试一次（例如直接点曲名或说面板名）。');taskProgress(100,'已完成');await wait(reduced()?0:350);}catch(error){trigger.classList.add('task-failed');throw error;}finally{document.body.classList.remove('ai-executing');trigger.disabled=false;}
  // ★ 操作已经做完（比如已经在自动演奏）就把面板收回，不挡着谱面；只有还需要用户拍板
@@ -272,7 +272,7 @@ const CONTROLS=[
  '配器 set_arrangement（原谱/原谱加鼓/室内乐/管弦乐/弦乐四重奏/木管四重奏/铜管四重奏/自选编制），generate_arrangement 生成总谱',
  '播放声部 solo 独奏 / solo_group 声部分组 / mute 静音 / unmute 取消静音（值用 context.parts 里的真实声部名，mute/unmute 用 all 表示全部）',
  '谱面 view：engraved 五线谱 / simple 简谱 / pdf 原稿 / daw 音轨',
- '和弦分析 chords（value=all 或 piano）',
+ '和弦分析 chords（value=all 或 piano）；score_report 核对全部声部的拍号、时值、力度和曲谱档案；支持结合实际小节的练习建议',
  '播放 pause 暂停 / stop 停止并回到开头 / play 开始播放 / seek_measure 跳到第 N 小节',
  '工作区面板 panel：library 曲库 / play 演奏 / arrange 改编 / tasks 任务',
  '跟练相关（start-button 开始跟练、sensitivity 麦克风灵敏度 1–5）目前不支持用指令调整'
@@ -345,13 +345,30 @@ const CONTROLS=[
   // 已经站在目标面板上就别再点一遍：省掉 650ms 的聚光动画，也不会被回读当成「没生效」。
   if(a.type==='panel'){const value=panelValue(a.value);if(document.body.dataset.workspace===value)return;const el=document.querySelector(`.workspace-nav [data-panel="${value}"]`);await spotlight(el);el?.click();return;}
   if(a.type==='search'){
+   awaitingUser=true;await action({type:'panel',value:'library'});
+   const terms=String(a.value||'').replace(/的歌|歌曲|播放/g,'').trim();
+   if(!terms){line('你想找哪一首？说个曲名或歌手，我就去曲库里翻。');return;}
+   const catalog=(await readCloudLibrary()).scores||[];
+   let hits=catalog.filter(item=>String(item.title||'').toLowerCase().includes(terms.toLowerCase()));
+   if(!hits.length){
+    const response=await fetch('/api/scores/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:terms,scores:catalog.map(({id,title})=>({id,title}))}),signal:deadline(90000)});
+    const result=await response.json();if(!response.ok)throw Error(result.error||'曲库搜索失败');const ids=new Set(result.ids||[]);hits=catalog.filter(item=>ids.has(item.id));if(result.warning)line(result.warning);
+   }
+   line(hits.length?'找到 '+hits.length+' 首相关曲谱，请选择：':'曲库里没有找到，要在网上查找吗？');
+   let offset=0;const more=document.createElement('button');more.type='button';more.textContent='更多结果';
+   const reveal=()=>{more.remove();for(const item of hits.slice(offset,offset+12)){const choice=document.createElement('button');choice.type='button';choice.textContent=item.title+(item.ready?'':'（尚未就绪）');choice.onclick=async()=>{choice.disabled=true;try{await runActions([{type:'open',value:item.id},...(item.ready?[{type:'play',value:''}]:[])]);}catch(error){line(readableNetworkError(error));}finally{choice.disabled=false;}};log.append(choice);}offset+=12;if(offset<hits.length)log.append(more);};more.onclick=reveal;reveal();
+   messages.push({role:'assistant',content:'曲库实际结果：'+JSON.stringify(hits.map(({id,title,ready})=>({id,title,ready}))) });return;
+  }
+  if(a.type==='score_report'){
    awaitingUser=true;
-   await action({type:'panel',value:'library'});const cards=[...document.querySelectorAll('.library-score')];const terms=a.value.replace(/的歌|歌曲|播放/g,'').trim();
-   // 关键词为空时下面的 includes('') 会命中所有曲子，等于把整个曲库倒出来。先问清楚再说。
-   if(!terms){line('你想找哪一首？说个曲名或歌手，我就去曲库里翻。');return;}const hits=cards.filter(c=>(c._item?.title||c.textContent).includes(terms));
-   for(const c of hits)await spotlight(c);line(hits.length?'找到：'+hits.map(c=>c._item?.title||c.querySelector('strong')?.textContent).join('、')+'。您想听哪首？':'曲库里没有找到，要在网上查找吗？');
-   for(const card of hits){const choice=document.createElement('button');choice.textContent=card._item?.title||card.querySelector('strong')?.textContent;choice.onclick=async()=>{choice.disabled=true;try{await runActions([{type:'open',value:card.dataset.scoreId},{type:'play',value:''}]);}catch(e){line(readableNetworkError(e));}finally{choice.disabled=false;}};log.append(choice);}
-   messages.push({role:'assistant',content:'查曲实际结果：'+JSON.stringify(hits.map(c=>({id:c.dataset.scoreId,title:c._item?.title}))) });
+   const ident=a.value||await currentScoreId();if(!ident)throw Error('请先选择曲谱');
+   onProgress(.15);const response=await fetch('/api/scores/'+encodeURIComponent(ident)+'/profile',{signal:deadline(90000)});const result=await response.json();if(!response.ok)throw Error(result.error||'曲谱档案读取失败');onProgress(.9);
+   line('《'+result.title+'》：'+result.measureCount+' 小节，'+result.parts.length+' 个声部。'+(result.tempo?'原谱速度 '+result.tempo+' BPM。':'谱面未提供明确速度。'));
+   line(result.parts.map(part=>part.name+'：'+part.notes+' 个音符'+(part.staves.length>1?'，'+part.staves.length+' 行谱表':'')).join('；')+'。');
+   line(result.writtenDynamics?'谱面包含 '+result.writtenDynamics+' 处力度信息，可以沿用原谱。':'未检出明确力度标记；这不代表作品没有表情要求。');
+   const issues=result.issues||[];line(issues.length?'有 '+issues.length+' 处记谱疑点，需对照原稿核对；未改动音符或节奏。':'未发现时值检查能确定的异常；仍需对照原稿核对音高与声部。');
+   let offset=0;const more=document.createElement('button');more.type='button';more.textContent='更多核对位置';
+   const show=()=>{more.remove();for(const issue of issues.slice(offset,offset+12)){const part=result.parts.find(p=>p.value===issue.part);const label='第 '+issue.measure+' 小节 '+(part?.name||'')+'：'+issue.message;const button=document.createElement('button');button.type='button';button.textContent=label;button.title='定位试听这一小节';button.onclick=()=>void runActions([{type:'seek_measure',value:String(issue.measure)}]).catch(error=>line(readableNetworkError(error)));log.append(button);taskLines.push(label);}offset+=12;if(offset<issues.length)log.append(more);};more.onclick=show;show();onProgress(1);return;
   }
   if(a.type==='open'){
    // 实测抓到的主力失败：后端路由听不懂指令时，兜底会把「打开当前这首」当成动作发回来
@@ -364,7 +381,7 @@ const CONTROLS=[
    const card=[...document.querySelectorAll('.library-score')].find(c=>c.dataset.scoreId===a.value);if(card)await spotlight(card);
    await new Promise((resolve,reject)=>document.dispatchEvent(new CustomEvent('ai-open-score',{detail:{id:a.value,resolve,reject,onProgress}})));
   }
-  if(a.type==='chords'){const result=await new Promise((resolve,reject)=>document.dispatchEvent(new CustomEvent('ai-analyze-chords',{detail:{part:a.value,resolve,reject,onProgress}})));const known=result.chords.filter(c=>c.name).length;
+  if(a.type==='chords'){awaitingUser=true;const result=await new Promise((resolve,reject)=>document.dispatchEvent(new CustomEvent('ai-analyze-chords',{detail:{part:a.value,resolve,reject,onProgress}})));const known=result.chords.filter(c=>c.name).length;
    // 三个数分开说。以前只说「N 个得到和弦候选，其余需核对」，而下面按小节列了全部行，
    // 用户会觉得「说 8 个却列了 35 行」是错的（报告 #6）。把总数/命中/待核对都写出来。
    line('《'+result.title+'》：共分析 '+result.chords.length+' 个小节，其中 '+known+' 个得到和弦候选，另有 '+(result.chords.length-known)+' 个需核对。以下按小节列出，属于音符匹配结果，不是已核定的和声分析。');line(result.chords.map(c=>'第 '+c.measure+' 小节：'+(c.name||'待核对')).join('\n'));messages.push({role:'assistant',content:JSON.stringify(result)});return;}

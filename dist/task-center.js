@@ -1,5 +1,5 @@
 const labels={queued:'排队中',running:'进行中',complete:'已完成',failed:'失败',cancelled:'已取消',needs_review:'待校验'};
-const kinds={arrangement:'配器与鼓伴奏',expression:'演奏表情',metadata:'标题与封面',pdf:'PDF 预览',transcription:'音视频转录',photos:'照片整理与识谱',ai:'AI 指令'};
+const kinds={profile:'曲谱档案与记谱核对',arrangement:'配器与鼓伴奏',expression:'演奏表情',metadata:'标题与封面',pdf:'PDF 预览',transcription:'音视频转录',photos:'照片整理与识谱',ai:'AI 指令'};
 function naturalDetail(item){
  const detail=String(item.detail||item.error||labels[item.status]||item.status||'');
  if(item.status==='failed'&&item.kind==='ai')return '未完成：'+detail;
@@ -21,7 +21,7 @@ function draw(){
  const signature=JSON.stringify([items,foreground]);if(signature===lastDraw)return;lastDraw=signature;
  summary.textContent='任务中心';list.replaceChildren();if(!items.length){list.textContent=polling?'正在同步任务记录…':lastPollError?'任务暂时无法载入，正在重试：'+lastPollError:'暂无任务';return;}
  const active=items.find(item=>item.status==='running')||items.find(item=>item.status==='queued');
- if(active||foreground?.owner){const resource=document.createElement('p');resource.className='task-resource';const owner=foreground?.owner?'前台操作不会暂停后台队列':'后台队列空闲，准备开始';resource.textContent=active?`当前任务：${active.scoreTitle||active.label||'未命名曲谱'} · ${({arrangement:'配器与鼓伴奏',expression:'演奏表情',metadata:'标题与封面',pdf:'PDF 预览',transcription:'音视频转录',photos:'照片整理与识谱',ai:'AI 指令'})[active.kind]||'音符识别'}。${active.status==='running'?'正在处理。':'已排队，后台将继续运行。'}`:owner;list.append(resource);}
+ if(active||foreground?.owner){const resource=document.createElement('p');resource.className='task-resource';const owner=foreground?.owner?'前台操作不会暂停后台队列':'后台队列空闲，准备开始';resource.textContent=active?`当前任务：${active.scoreTitle||active.label||'未命名曲谱'} · ${({profile:'曲谱档案与记谱核对',arrangement:'配器与鼓伴奏',expression:'演奏表情',metadata:'标题与封面',pdf:'PDF 预览',transcription:'音视频转录',photos:'照片整理与识谱',ai:'AI 指令'})[active.kind]||'音符识别'}。${active.status==='running'?'正在处理。':'已排队，后台将继续运行。'}`:owner;list.append(resource);}
  const containers={};for(const [key,label]of [['ai','AI 任务'],['queue','处理队列']]){
   const subset=items.filter(item=>(item.kind==='ai')===(key==='ai'));const group=document.createElement('section');group.className='task-group';group.classList.toggle('is-expanded',groupOpen[key]);const toggle=document.createElement('button');toggle.type='button';toggle.className='task-group-toggle';toggle.setAttribute('aria-expanded',String(groupOpen[key]));const name=document.createElement('span');name.textContent=label;const count=document.createElement('small');count.textContent=String(subset.length);toggle.append(name,count);const fold=document.createElement('div');fold.className='task-group-fold';const body=document.createElement('div');body.className='task-group-items';body.inert=!groupOpen[key];fold.append(body);group.append(toggle,fold);list.append(group);containers[key]=body;toggle.onclick=()=>{groupOpen[key]=!groupOpen[key];toggle.setAttribute('aria-expanded',String(groupOpen[key]));group.classList.toggle('is-expanded',groupOpen[key]);body.inert=!groupOpen[key];if(groupOpen[key]){group.classList.add('is-unfurling');setTimeout(()=>group.classList.remove('is-unfurling'),1100);}};
  }
@@ -29,7 +29,7 @@ function draw(){
   const row=document.createElement('div');row.className='task-row';row.dataset.status=item.status;
   const title=document.createElement('strong');title.textContent=item.scoreTitle||item.label||('曲谱 '+(item.digest||'').slice(0,8));
   const state=document.createElement('span');state.className='task-detail';state.textContent=naturalDetail(item);state.title=state.textContent;
-  const kind=document.createElement('small');kind.textContent=({arrangement:'配器与鼓伴奏',expression:'演奏表情',metadata:'标题与封面',pdf:'PDF 预览',transcription:'音视频转录',photos:'照片整理与识谱',ai:'AI 指令'})[item.kind]||item.label||'音符识别';
+  const kind=document.createElement('small');kind.textContent=({profile:'曲谱档案与记谱核对',arrangement:'配器与鼓伴奏',expression:'演奏表情',metadata:'标题与封面',pdf:'PDF 预览',transcription:'音视频转录',photos:'照片整理与识谱',ai:'AI 指令'})[item.kind]||item.label||'音符识别';
   const waiting=item.status==='queued'&&(!Number.isFinite(item.progress)||Number(item.progress)<=0);const percent=document.createElement('b');percent.className='task-percent';percent.textContent=waiting?'等待':Number.isFinite(item.progress)?Math.round(Math.max(0,Math.min(100,item.progress)))+'%':'等待';
   row.append(title,kind,percent,state);if(!waiting){const bar=document.createElement('progress');bar.max=100;bar.value=visualProgress.get(item.id)??0;bar.setAttribute('aria-label',title.textContent+' '+kind.textContent);row.append(bar);smoothProgress(bar,item.id,Number(item.progress)||0);}
   if(item.kind==='transcription'&&item.status==='needs_review'){

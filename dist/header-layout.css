@@ -22,3 +22,6 @@
 .studio .top .brand-language-group{display:flex;align-items:center;gap:10px;min-width:0;flex:0 1 auto}.studio .top .brand-language-group .brand{flex:0 1 auto!important;width:auto!important;max-width:190px!important}.studio .top .brand-language-group #language-switch{margin-left:0!important;flex:0 0 104px}.studio .top .brand strong{overflow-wrap:normal!important;word-break:normal!important}.studio .top #language-trigger span{white-space:nowrap!important;word-break:normal!important;overflow-wrap:normal!important}.studio button{word-break:normal;overflow-wrap:normal}
 @media(max-width:850px){.studio .top .brand-language-group{max-width:calc(100% - 112px);gap:8px}.studio .top .brand-language-group .brand{min-width:0!important;max-width:calc(100% - 112px)!important}.studio .top .brand strong span{overflow-wrap:normal!important}}
 @media(max-width:380px){.studio .top .brand-language-group{max-width:calc(100% - 88px)}}
+
+/* Cycling language names keep the header and button dimensions fixed. */
+#language-trigger>span{display:inline-block;max-width:100%;font-size:inherit;line-height:1.4;white-space:nowrap;overflow:hidden;vertical-align:middle}

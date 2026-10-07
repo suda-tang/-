@@ -146,7 +146,7 @@ def read_score_list_entry(digest):
             pass
     return ready, meta, saved
 
-def _score_list_item(digest, background_active):
+def _score_list_item_uncached(digest, background_active):
     """构建单首曲库列表项；任一异常由调用方捕获，绝不让整列表崩。"""
     item_ready, meta, saved = read_score_list_entry(digest)
     if meta.get('hiddenFromLibrary'):
@@ -165,6 +165,71 @@ def _score_list_item(digest, background_active):
     title=resolved_import_title(user_title or cloud_title or meta.get('title'),name,meta)
     state=active.get('status') if active else ('complete' if item_ready else 'queued');progress=100 if state=='complete' else (active.get('progress',0) if active else 0)
     return {'id':digest,'title':title,'cover':meta.get('cover',''),'titleVersion':str(meta.get('titleVersion','')),'titleVerification':meta.get('titleVerification',''),'titleSource':'ocr' if cloud_title else ('user' if user_title else 'pending'),'jobId':active.get('id') if active else None,'ready':item_ready, 'hasPdf':(CACHE_DIR/(digest+'.pdf')).exists(), 'status':state, 'progress':progress, 'stage':active.get('stage',active.get('detail','')) if active else '', 'error':active.get('error','') if active else ('任务已停止，请在任务中心重新处理' if state=='failed' else ''), 'saved':saved if saved is not None else (label.stat().st_mtime if label.exists() else 0)}
+
+# Cache only compact list entries; never retain score XML or MIDI event arrays.
+# ★ 这份缓存现在**落盘**（.sites-runtime/score-list-cache.json）。云曲库涨到 1882 首 /
+# 2586 个缓存文件（合计 4.4 GB，中位 600KB、最大 40MB）之后，冷启动要真读一遍全部大文件，
+# 实测 40~60s 直接把请求拖到超时（客户端收到空回复）。纯内存缓存一重启就空，必须持久化。
+SCORE_LIST_CACHE={}
+SCORE_LIST_CACHE_PATH=ROOT/'.sites-runtime'/'score-list-cache.json'
+_SCORE_LIST_CACHE_LOADED=False
+_SCORE_LIST_CACHE_DIRTY=False
+
+def _sig_to_json(sig):
+    stamps,active,jobs=sig
+    return [[list(s) if s is not None else None for s in stamps],active,jobs]
+
+def _sig_from_json(js):
+    stamps,active,jobs=js
+    return (tuple(tuple(s) if s is not None else None for s in stamps),active,jobs)
+
+def _score_list_cache_load():
+    """进程起来后第一次列曲库时，把上次跑出来的缓存读回来。读不到就当空缓存，不影响正确性。"""
+    global _SCORE_LIST_CACHE_LOADED
+    if _SCORE_LIST_CACHE_LOADED:return
+    _SCORE_LIST_CACHE_LOADED=True
+    try:
+        raw=json.loads(SCORE_LIST_CACHE_PATH.read_text(encoding='utf-8'))
+    except (OSError,ValueError):return
+    if not isinstance(raw,dict):return
+    for digest,entry in raw.items():
+        try:
+            SCORE_LIST_CACHE[digest]=(_sig_from_json(entry[0]),entry[1])
+        except (KeyError,TypeError,ValueError,IndexError):continue
+
+def _score_list_cache_save():
+    """把缓存原子写回磁盘。这只是加速手段 —— 任何失败都不能影响曲库接口的返回。"""
+    global _SCORE_LIST_CACHE_DIRTY
+    if not _SCORE_LIST_CACHE_DIRTY:return
+    try:
+        SCORE_LIST_CACHE_PATH.parent.mkdir(parents=True,exist_ok=True)
+        out={d:[_sig_to_json(sig),item] for d,(sig,item) in SCORE_LIST_CACHE.items()}
+        tmp=SCORE_LIST_CACHE_PATH.with_name(SCORE_LIST_CACHE_PATH.name+'.tmp')
+        tmp.write_text(json.dumps(out,ensure_ascii=False),encoding='utf-8')
+        tmp.replace(SCORE_LIST_CACHE_PATH)
+        _SCORE_LIST_CACHE_DIRTY=False
+    except (OSError,ValueError,TypeError):pass
+
+def _score_list_item(digest,background_active):
+    global _SCORE_LIST_CACHE_DIRTY
+    _score_list_cache_load()
+    stamps=[]
+    for suffix in ('.json','.metadata.json','.name','.pdf'):
+        try:
+            stat=(CACHE_DIR/(digest+suffix)).stat();stamps.append((stat.st_mtime_ns,stat.st_size))
+        except OSError:stamps.append(None)
+    with LOCK:
+        jobs=[(j.get('id'),j.get('status'),j.get('progress'),j.get('stage'),j.get('error')) for j in JOBS.values() if j.get('digest')==digest]
+    signature=(tuple(stamps),repr(background_active),repr(jobs))
+    hit=SCORE_LIST_CACHE.get(digest)
+    if hit and hit[0]==signature:return dict(hit[1]) if hit[1] else None
+    item=_score_list_item_uncached(digest,background_active)
+    # ★ 上限从 2000 提到 20000：曲库本身就 1882 首，2000 会频繁把整份缓存清空，
+    #   等于每次都要重读 4.4 GB。真正的清理交给下面按「曲库里还存不存在」来剪。
+    if len(SCORE_LIST_CACHE)>20000:SCORE_LIST_CACHE.clear()
+    SCORE_LIST_CACHE[digest]=(signature,item)
+    _SCORE_LIST_CACHE_DIRTY=True
+    return dict(item) if item else None
 
 def looks_like_filename(value):
     text=str(value or '').strip()
@@ -720,11 +785,22 @@ class Handler(SimpleHTTPRequestHandler):
                     continue
                 if it is not None:
                     items.append(it)
+            # 曲库里已经没有的 digest 从缓存里剪掉（删谱后不会无限堆积），再把缓存落盘，
+            # 这样下次重启不用重新读一遍 4.4 GB 的谱面文件。
+            try:
+                for stale in [k for k in SCORE_LIST_CACHE if k not in ids]:SCORE_LIST_CACHE.pop(stale,None)
+                _score_list_cache_save()
+            except Exception:pass
             return self.json_response({'scores':sorted(items,key=lambda x:x['saved'],reverse=True)})
         if path.startswith('/api/scores/'):
             parts = path.split('/')
             digest = parts[3]
             if not re.fullmatch(r'[a-f0-9]{64}', digest): return self.json_response({'error':'无效琴谱编号'},400)
+            if len(parts)==5 and parts[4]=='profile':
+                from score_profiles import get_profile
+                try:return self.json_response(get_profile(digest))
+                except FileNotFoundError as error:return self.json_response({'error':str(error)},404)
+                except Exception as error:return self.json_response({'error':'作品档案无法生成：'+str(error)},422)
             if len(parts)==5 and parts[4]=='cover-fallback':
                 from html import escape
                 import background_jobs
@@ -829,6 +905,9 @@ class Handler(SimpleHTTPRequestHandler):
         if urlparse(self.path).path=='/api/ai-tasks':
             import ai_task_store
             return ai_task_store.handle(self)
+        if urlparse(self.path).path=='/api/scores/search':
+            import library_classification
+            return library_classification.handle_search(self)
         if urlparse(self.path).path=='/api/scores/classify':
             import library_classification
             return library_classification.handle(self,sys.modules[__name__])

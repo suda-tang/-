@@ -1,3 +1,4 @@
+import {animateLanguageNames} from './language-hello.js?v=1';
 import {dictionary,translateDynamic} from './translations-en.js';
 import {extraDictionary} from './translations-extra.js';
 Object.assign(dictionary,extraDictionary,{'更多曲谱':'More scores','刷新曲谱':'Refresh scores'});
@@ -14,7 +15,7 @@ function textNode(node){
  const previous=originals.get(node),source=previous&&node.data===previous.rendered?previous.source:node.data;
  const translation=english?translate(source):null,rendered=translation===null?source:source.replace(source.trim(),translation);
  if(english&&translation===null&&/[\u3400-\u9fff]/.test(source))missing.add(source.trim());
- const compact=node.parentElement?.tagName==='TITLE'||node.parentElement?.matches('#startup strong');const finalText=compact?rendered.replace(/\s+/g,''):rendered;
+ const compact=node.parentElement?.tagName==='TITLE'||node.parentElement?.matches('#startup strong');const finalText=compact&&['zh','zh-Hant','yue'].includes(currentLocale)?rendered.replace(/\s+/g,''):rendered;
  originals.set(node,{source,rendered:finalText});if(node.data!==finalText)node.data=finalText;
 }
 function attr(element,name){
@@ -40,7 +41,7 @@ function paint(full=true){
 function setLanguage(locale){
  currentLocale=languages.some(l=>l[0]===locale)?locale:'zh';english=currentLocale!=='zh';document.documentElement.lang=languages.find(l=>l[0]===currentLocale)[2];
  try{localStorage.setItem('suda-piano-language',locale);}catch{}
- const button=document.getElementById('language-switch');button.dataset.locale=currentLocale;const label={zh:'语言',en:'Language',fr:'Langue',de:'Sprache',es:'Idioma',ja:'言語',ko:'언어','zh-Hant':'語言',yue:'語言',pt:'Idioma'}[currentLocale];document.querySelector('#language-trigger span').textContent=label;document.querySelector('#language-trigger').title=languages.find(l=>l[0]===currentLocale)[1];document.querySelector('#language-trigger').setAttribute('aria-label','语言 / Language');window.syncLanguageDial?.();button.setAttribute('aria-label','Language / 语言');document.querySelectorAll('#language-menu button').forEach(option=>option.setAttribute('aria-checked',String(option.dataset.locale===currentLocale)));
+ const button=document.getElementById('language-switch');button.dataset.locale=currentLocale;const label={zh:'语言',en:'Language',fr:'Langue',de:'Sprache',es:'Idioma',ja:'言語',ko:'언어','zh-Hant':'語言',yue:'語言',pt:'Idioma'}[currentLocale];if(window.resetLanguageHello)window.resetLanguageHello(currentLocale);else document.querySelector('#language-trigger span').textContent=label;document.querySelector('#language-trigger').title=languages.find(l=>l[0]===currentLocale)[1];document.querySelector('#language-trigger').setAttribute('aria-label','语言 / Language');window.syncLanguageDial?.();button.setAttribute('aria-label','Language / 语言');document.querySelectorAll('#language-menu button').forEach(option=>option.setAttribute('aria-checked',String(option.dataset.locale===currentLocale)));
  paint();if(changing&&!matchMedia('(prefers-reduced-motion: reduce)').matches){const nodes=document.querySelectorAll('.view-buttons button,.workspace-nav button,.heading h2,.section-label,.technical summary,.top-title');for(const node of nodes)node.animate([{opacity:.25,filter:'blur(2px)',clipPath:'inset(0 100% 0 0)'},{opacity:1,filter:'blur(0px)',clipPath:'inset(0)'}],{duration:440,easing:'cubic-bezier(.22,1,.36,1)'});}
  document.dispatchEvent(new CustomEvent('languagechange',{detail:{locale}}));paint();
 }
@@ -59,6 +60,7 @@ function init(){
 
  const button=document.createElement('div');button.id='language-switch';button.className='language-toggle language-dial';button.setAttribute('aria-label','Language / 语言');
  const trigger=document.createElement('button');trigger.id='language-trigger';trigger.innerHTML='<svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M5 6.5h14M5 17.5h14"/></svg><span>语言</span>';trigger.type='button';trigger.setAttribute('aria-label','Language / 语言');button.append(trigger);const wheel=document.createElement('dialog');wheel.id='language-wheel';const rail=document.createElement('div');rail.className='language-dial-rail';rail.setAttribute('role','group');rail.setAttribute('aria-label','Language');wheel.append(rail);document.body.append(wheel);let closing=false;async function dismissWheel(){if(!wheel.open||closing||changing)return;closing=true;clearTimeout(settleTimer);wheel.classList.add('is-leaving');await new Promise(resolve=>setTimeout(resolve,matchMedia('(prefers-reduced-motion:reduce)').matches?0:700));wheel.close();wheel.classList.remove('is-leaving');closing=false;}trigger.onclick=()=>{if(closing)return;wheel.showModal();requestAnimationFrame(center);};wheel.addEventListener('click',e=>{if(e.target===wheel)void dismissWheel();});wheel.addEventListener('cancel',e=>{e.preventDefault();void dismissWheel();});
+ window.resetLanguageHello=animateLanguageNames(trigger,wheel,languages);
  let settleTimer,moving=false;
  const choices=languages.map(([id,label])=>{const choice=document.createElement('button');choice.type='button';choice.textContent=label;choice.dataset.locale=id;choice.onclick=()=>void toggle(id).then(()=>dismissWheel()).catch(error=>{button.title=error.message;});rail.append(choice);return choice;});
  function center(){const active=choices.find(c=>c.dataset.locale===currentLocale);if(active)rail.scrollTo({top:active.offsetTop-(rail.clientHeight-active.offsetHeight)/2,behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'instant':'smooth'});}

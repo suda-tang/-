@@ -80,3 +80,12 @@
 @keyframes workspace-reveal{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:none}}
 @keyframes library-zoom-in{from{opacity:0;transform:translate3d(0,18px,0) scale(.955)}to{opacity:1;transform:translate3d(0,0,0) scale(1)}}
 @keyframes library-card-in{from{opacity:0;transform:translateY(15px) scale(.96)}to{opacity:1;transform:none}}
+
+/* Translated playback controls wrap as complete controls, then text if needed. */
+.studio .playback-options{min-width:0;max-width:100%;flex-wrap:wrap!important;gap:10px 12px!important}
+.studio .playback-options>label,.studio .playback-options>.expression-control,.studio .playback-options>.metronome-toggle{box-sizing:border-box;flex:0 1 auto;min-width:0;max-width:100%;height:auto!important;min-height:34px;white-space:normal!important;line-height:1.45!important;overflow-wrap:anywhere}
+.studio .playback-panel{min-width:0;max-width:100%}
+
+/* Playback scrolls the score, never its toolbar or the surrounding document. */
+.studio .sheet-scroll{overscroll-behavior:contain;overflow-anchor:none}
+.studio .score-card>.score-toolbar{position:sticky;top:0;z-index:12;background:var(--score-toolbar-surface,#f8f5faef);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}

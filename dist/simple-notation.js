@@ -18,9 +18,13 @@ function keyLabel(score){const key=Number(score.keyFifths);if(!Number.isFinite(k
 const INSTRUMENT_LABELS={voice:'人声',vocal:'人声','voice oohs':'人声',melody:'旋律',piano:'钢琴',keyboard:'键盘',violin:'小提琴',viola:'中提琴',cello:'大提琴',contrabass:'低音提琴',flute:'长笛',piccolo:'短笛',clarinet:'单簧管',oboe:'双簧管',bassoon:'大管','french horn':'圆号',trumpet:'小号',trombone:'长号',tuba:'大号','string ensemble 1':'弦乐组','string ensemble':'弦乐组',strings:'弦乐组','orchestral harp':'竖琴',harp:'竖琴',drums:'鼓',percussion:'打击乐',timpani:'定音鼓',guitar:'吉他','acoustic guitar':'吉他',organ:'风琴',soprano:'女高音',alto:'女低音',tenor:'男高音',bass:'男低音'};
 function partLabel(name){const text=String(name||'').trim();return INSTRUMENT_LABELS[text.toLowerCase()]||text||'声部';}
 // Follow a whole system, rather than alternately chasing notes in each hand.
+const systemIndexes=new WeakMap();
 export function simplePlaybackTarget(container,measure){
- return [...container.querySelectorAll('.simple-system')].find(system=>measure>=Number(system.dataset.startMeasure)&&measure<=Number(system.dataset.endMeasure))||null;
+ const sheet=container.querySelector('.simple-sheet');if(!sheet)return null;
+ let rows=systemIndexes.get(sheet);if(!rows){rows=[...sheet.querySelectorAll('.simple-system')].map(node=>({node,start:Number(node.dataset.startMeasure),end:Number(node.dataset.endMeasure)}));systemIndexes.set(sheet,rows);}
+ let low=0,high=rows.length-1;while(low<=high){const mid=(low+high)>>1,row=rows[mid];if(measure<row.start)high=mid-1;else if(measure>row.end)low=mid+1;else return row.node;}return null;
 }
+
 function* renderSimpleSteps(container,score){
  // Build the whole sheet off-screen and swap it in one go. Clearing first left
  // the panel blank whenever a rebuild threw or an in-flight staff render kept
@@ -63,7 +67,7 @@ function* renderSimpleSteps(container,score){
 }
 
 export function renderSimpleNotation(container,score){for(const _ of renderSimpleSteps(container,score)){} }
-export async function renderSimpleNotationAsync(container,score){
+export async function renderSimpleNotationAsync(container,score,{cancelled=()=>false}={}){
  const iterator=renderSimpleSteps(container,score);let deadline=performance.now()+8;
- for(const _ of iterator){if(performance.now()>deadline){await new Promise(resolve=>setTimeout(resolve,0));deadline=performance.now()+8;}}
+ for(const _ of iterator){if(cancelled())return;if(performance.now()>deadline){await new Promise(resolve=>setTimeout(resolve,0));deadline=performance.now()+8;}}
 }

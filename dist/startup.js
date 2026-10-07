@@ -23,31 +23,22 @@ function revealMark(mark) {
   if (document.readyState === 'loading') requestAnimationFrame(watchMark);
 })();
 
-// ---- 百分比进度：纯时间驱动 ----
-// 之前是「显示值去追一个 target」，而 target 由资源计数、加载阶段、爬行定时器
-// 反复改写。于是进度条走到某个数字就停下来等资源，资源到了又猛冲一下，
-// 一顿一顿；而且那个爬行定时器把 target 封顶在 92，网络再慢也永远上不去 ——
-// 就是「卡在 92」的由来。
-//
-// 现在彻底解耦：显示值只跟时间走，跟真实下载状态无关。
-//   0→90%  快速推进（约 1.5 秒走完），正常的加载过程都落在这段里；
-//   90→99.4% 仍然缓慢前进，加载再慢进度条也不会僵住；
-//   100% 只在真正全部就绪后，用一段与剩余距离匹配的收尾动画走到。
+// One linear visual rate; show a waiting state rather than a frozen 99%.
 const bar = () => document.querySelector('#boot-bar');
 const percent = () => document.querySelector('#boot-percent');
-const FAST_RATE = 62, SLOW_RATE = 1.7, FAST_UNTIL = 90, CEILING = 99.4;
+const RATE = 20, CEILING = 95;
 let shown = 0, raf = 0, finishing = false, last = performance.now();
 function paint() {
   const line = bar(), text = percent();
   if (line) line.style.width = shown.toFixed(1) + '%';
-  if (text) text.textContent = Math.round(shown) + '%';
+  if (text) text.textContent = !finishing && shown >= CEILING ? '等待工作区就绪' : Math.floor(shown) + '%';
 }
 function tick(now) {
   const stamp = now || performance.now();
   const dt = Math.min(0.12, (stamp - last) / 1000);
   last = stamp;
   if (!finishing && !finished) {
-    shown = Math.min(CEILING, shown + (shown < FAST_UNTIL ? FAST_RATE : SLOW_RATE) * dt);
+    shown = Math.min(CEILING, shown + RATE * dt);
     paint();
   }
   raf = requestAnimationFrame(tick);
@@ -65,22 +56,10 @@ const timeout = setTimeout(() => {
 async function completeWorkspace() {
   if (finished || completing) return;
   completing = true;
-  // 字体就绪前进度条照常匀速前进，这里只等一小会儿，不让它拖住收尾。
-  await Promise.race([document.fonts.ready, new Promise(resolve => setTimeout(resolve, 800))]);
   finishing = true;
-  // 收尾时长跟剩余距离挂钩：加载得快时不会从三四成「唰」地跳满，
-  // 加载慢时也不会拖成一条长尾巴。
-  const remain = 100 - shown;
-  const duration = Math.min(1200, Math.max(320, remain * 12));
-  await new Promise(resolve => {
-    const from = shown, start = performance.now();
-    (function step(now) {
-      const t = Math.min(1, ((now || performance.now()) - start) / duration);
-      shown = from + (100 - from) * t;
-      paint();
-      if (t < 1) requestAnimationFrame(step); else resolve();
-    })(performance.now());
-  });
+  cancelAnimationFrame(raf);
+  const line=bar();if(line)line.style.transition='none';
+  shown=100;paint();
   requestAnimationFrame(() => requestAnimationFrame(() => {
     finished = true;
     clearTimeout(timeout);

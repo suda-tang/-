@@ -63,3 +63,13 @@ scripts/_longflow-*.jsonl
 /dist/research.html
 /dist/research.js
 /dist/research.css
+
+# 大体积二进制资源：142 MB（3D 讲解模型 / 背景音轨 / 字体 / 钢琴音色采样）。
+# 这些是不可再压缩的原始数据，放进 Git 会让每次推送都在几十分钟的量级上，
+# 且改动一次就要重传一遍。网站运行时读的是本机 dist/ 目录，不依赖 Git，
+# 所以从索引里排除它们既不影响使用，也让同步变得可行。
+dist/narration/models/
+dist/narration/background/
+dist/narration/tour-male/
+dist/fonts/
+dist/assets/piano/salamander/

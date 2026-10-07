@@ -4,7 +4,7 @@ from pathlib import Path
 from storage import write_json
 from idle_runtime import foreground as foreground_state,checkpoint
 ROOT=Path(__file__).resolve().parent;RUNTIME=ROOT/'.sites-runtime';DB=RUNTIME/'processing.sqlite3';CACHE=RUNTIME/'score-cache';ARTIFACTS=RUNTIME/'analysis';_thread=None
-KINDS={'metadata':'标题校验与封面','expression':'演奏表情分析','pdf':'PDF 后台预览','arrangement':'配器与鼓伴奏','transcription':'音视频转录','photos':'照片整理与识谱'}
+KINDS={'profile':'曲谱档案与记谱核对','metadata':'标题校验与封面','expression':'演奏表情分析','pdf':'PDF 后台预览','arrangement':'配器与鼓伴奏','transcription':'音视频转录','photos':'照片整理与识谱'}
 
 class QueueConnection(sqlite3.Connection):
  def __exit__(self,*args):
@@ -142,6 +142,9 @@ def run_job(job,server):
   if not verified.get('title'):update(key,status='needs_review',progress=100,detail='标题证据不足，保留待校验状态');return
   existing=({key:value for key,value in meta.items() if key!='userTitle'} if force else dict(meta));existing={**existing,**verified};write_json(CACHE/(digest+'.metadata.json'),existing)
   if cached.get('xml'):server.write_cached_score(digest,cached['xml'],existing)
+ elif kind=='profile':
+  from score_profiles import get_profile
+  update(key,detail='核对全部声部与拍号',progress=10);profile=get_profile(digest);update(key,result=json.dumps({'issues':len(profile['issues']),'measures':profile['measureCount']}),progress=95,detail='保存作品档案')
  elif kind=='expression':
   import performance_service
   if not cached.get('xml'):raise ValueError('尚未完成识谱')
@@ -179,7 +182,7 @@ def scan(server):
   if meta.get('sourceType') not in ('audio','video') and (not meta.get('cover') or (meta.get('titleSource')!='user' and str(meta.get('titleVersion'))!='7')):enqueue(digest,'metadata','title-cover-9',priority=10)
   enqueue(digest,'pdf','1',priority=40)
   if cached.get('xml'):
-   xmlhash=hashlib.sha256(cached['xml'].encode()).hexdigest();enqueue(digest,'expression','2:'+xmlhash,priority=30)
+   xmlhash=hashlib.sha256(cached['xml'].encode()).hexdigest();enqueue(digest,'profile','1:'+xmlhash,priority=25);enqueue(digest,'expression','2:'+xmlhash,priority=30)
 def start(server):
  global _thread
  if _thread and _thread.is_alive():return

@@ -1,4 +1,4 @@
-import {createCardDecks} from './library-decks.js?v=1';
+import {createCardDecks} from './library-decks.js?v=8';
 export function cleanText(value) {
   return String(value || '').replace(/[\uFFFD\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\u200b\uFEFF]/g, '').replace(/[\uE000-\uF8FF]/g, '').trim();
 }
@@ -26,16 +26,19 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
     // stages stay in the text; only successful completion may reach 100%.
     const age=(now-progressStarted)/1000;
     const estimate=Math.min(95,age*3);
-    shownProgress=targetProgress>=100?Math.min(100,shownProgress+elapsed*.04):estimate;
+    shownProgress=targetProgress>=100?100:estimate;
     const fill=loader.querySelector('.score-loading-progress i');
     if(!barMotion&&targetProgress<100){fill.style.width='100%';fill.style.transformOrigin='left center';barMotion=fill.animate([{transform:'scaleX(0)'},{transform:'scaleX(.95)'}],{duration:31667,easing:'linear',fill:'forwards'});}
-    if(targetProgress>=100){barMotion?.cancel();barMotion=null;fill.style.transform=`scaleX(${shownProgress/100})`;}
+    if(targetProgress>=100){barMotion?.cancel();barMotion=null;fill.style.transition='none';fill.style.transform=`scaleX(${shownProgress/100})`;}
     loader.querySelector('small').textContent=targetProgress>=100&&shownProgress>=99.95?'100%':`${shownProgress.toFixed(1)}%`;
     progressFrame=shownProgress<100?requestAnimationFrame(animateProgress):0;
   };
-  const updateLoader=(value,label)=>{targetProgress=Math.max(targetProgress,Math.max(0,Math.min(100,Number(value)||0)));if(!progressStarted)progressStarted=performance.now();if(!progressFrame)progressFrame=requestAnimationFrame(animateProgress);if(label)loader.querySelector('span').textContent=label;};
-  const scoreCache=new Map();
+  const updateLoader=(value,label)=>{targetProgress=Math.max(targetProgress,Math.max(0,Math.min(100,Number(value)||0)));if(targetProgress>=100){if(progressFrame)cancelAnimationFrame(progressFrame);progressFrame=0;animateProgress(performance.now());}if(!progressStarted)progressStarted=performance.now();if(targetProgress<100&&!progressFrame)progressFrame=requestAnimationFrame(animateProgress);if(label)loader.querySelector('span').textContent=label;};
+  const scoreCache=new Map(),scoreVersions=new Map();
+  function invalidateChangedScores(items){for(const item of items){const version=JSON.stringify([item.saved,item.ready,item.status,item.variant]);if(scoreVersions.has(item.id)&&scoreVersions.get(item.id)!==version)scoreCache.delete(item.id);scoreVersions.set(item.id,version);}}
+
   const lowMemory=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  document.body.classList.toggle('library-low-memory',lowMemory);
   const motionAllowed=()=>!matchMedia('(prefers-reduced-motion: reduce)').matches;
   async function liftRecord(card){
     if(!motionAllowed())return;
@@ -54,7 +57,7 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
   }
   async function revealLoader(){
     loader.hidden=false;loader.showPopover?.();
-    if(browser.open){decks.reset();categoryControl.textContent=categoryRunning?'正在分类…':'重新分类';browser.close();document.dispatchEvent(new Event('library-tour-closed'));panel.insertBefore(list,panel.querySelector('.library-settings'));document.body.classList.remove('library-expanded');for(const card of list.children)card.hidden=false;list.scrollLeft=deckScroll;}
+    if(browser.open){decks.reset();categoryControl.setAttribute('aria-busy',String(categoryRunning));browser.close();document.dispatchEvent(new Event('library-tour-closed'));panel.insertBefore(list,panel.querySelector('.library-settings'));document.body.classList.remove('library-expanded');for(const card of list.children)card.hidden=false;list.scrollLeft=deckScroll;}
     loader.hidden=false;
     if(!motionAllowed())return;
     const surface=loader.querySelector('.score-loading-dialog');
@@ -64,7 +67,7 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
     ]).catch(()=>{});
   }
   async function dismissLoader(){
-    if(targetProgress>=100)for(let n=0;n<90&&shownProgress<99.95;n++)await new Promise(resolve=>setTimeout(resolve,60));
+    if(targetProgress>=100){shownProgress=100;animateProgress(performance.now());}
     if(!loader.hidden&&motionAllowed())await loader.animate([{opacity:1,transform:'translateY(0)'},{opacity:0,transform:'translateY(-10px)'}],{duration:300,easing:'cubic-bezier(.4,0,.8,1)'}).finished.catch(()=>{});
     loader.hidePopover?.();loader.hidden=true;barMotion?.cancel();barMotion=null;if(progressFrame)cancelAnimationFrame(progressFrame);progressFrame=0;
   }
@@ -94,7 +97,7 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
   const stageCards=mode=>{
     if(document.documentElement.matches('.tour-arrival,.tour-travelling'))return;
     if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
-    for(const [index,card] of [...list.querySelectorAll('.library-score')].filter(c=>!c.closest('.library-pending-group')).entries()){
+    for(const [index,card] of [...list.querySelectorAll('.library-score')].filter(c=>!c.closest('.library-pending-group')).slice(0,lowMemory?8:24).entries()){
       card._deal?.cancel();
       card.style.opacity='0';
     }
@@ -119,22 +122,34 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
 
   refresh.classList.add('library-refresh');refresh.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M20 12a8 8 0 1 0-2 5M20 7l-3-3"/></svg><span>刷新曲谱</span>';expand.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5"/></svg><span>更多曲谱</span>';
 
-  const classify=document.createElement('button');classify.type='button';classify.className='small-button library-classify';classify.setAttribute('aria-label','分类曲谱');classify.title='分类曲谱';classify.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>';navigation.insertBefore(classify,refresh);
-  const categoryStatus=document.createElement('span');categoryStatus.className='library-category-status';categoryStatus.setAttribute('role','status');browser.querySelector('header').append(categoryStatus);
-  const categoryControl=document.createElement('button');categoryControl.type='button';categoryControl.className='small-button library-category-control';categoryControl.textContent='重新分类';browser.querySelector('header').insertBefore(categoryControl,browser.querySelector('input'));
+  const classify=document.createElement('button');classify.type='button';classify.className='small-button library-classify';classify.setAttribute('aria-label','分类曲谱');classify.title='分类曲谱';classify.dataset.libraryAction='categories';classify.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>';navigation.insertBefore(classify,refresh);
+  const categoryStatus=document.createElement('span');categoryStatus.className='library-category-status';categoryStatus.setAttribute('role','status');browser.querySelector('header').after(categoryStatus);
+  const categoryControl=document.createElement('button');categoryControl.type='button';categoryControl.className='small-button library-category-control';categoryControl.setAttribute('aria-label','AI 重新分类');categoryControl.title='AI 重新分类';categoryControl.hidden=true;categoryStatus.hidden=true;categoryControl.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.4 6.6L21 12l-6.6 2.4L12 21l-2.4-6.6L3 12l6.6-2.4Z"/></svg>';const headerActions=document.createElement('div');headerActions.className='library-header-actions';browser.querySelector('header').append(headerActions);headerActions.append(categoryControl,browser.querySelector('.library-close'));
   let categoryTimer=0,categoryRunning=false,categoryKnown=false,categorySignature='';
-  function applyCategoryState(data){const signature=JSON.stringify(data.categories||{});if(signature!==categorySignature){categorySignature=signature;decks.setCategories(data.categories||{});}categoryKnown=Object.keys(data.categories||{}).length>0;categoryRunning=data.state==='running';categoryControl.disabled=categoryRunning;categoryControl.textContent=categoryRunning?'正在分类 '+(data.percent||0)+'%':'重新分类';classify.title=categoryRunning?'查看分类进度 '+(data.percent||0)+'%':'打开分类';classify.setAttribute('aria-label','打开分类');categoryStatus.textContent=categoryRunning?'正在分类 '+(data.detail||'')+'　'+(data.percent||0)+'%':data.warning||'';}
+  function applyCategoryState(data){const signature=JSON.stringify(data.categories||{});if(signature!==categorySignature){categorySignature=signature;decks.setCategories(data.categories||{});}categoryKnown=Object.keys(data.categories||{}).length>0;categoryRunning=data.state==='running';categoryControl.disabled=categoryRunning;categoryControl.setAttribute('aria-busy',String(categoryRunning));classify.title=categoryRunning?'查看分类进度 '+(data.percent||0)+'%':'打开分类';classify.setAttribute('aria-label','打开分类');categoryStatus.textContent=categoryRunning?'正在分类 '+(data.detail||'')+'　'+(data.percent||0)+'%':data.warning||'';}
   async function pollCategories(){clearTimeout(categoryTimer);try{const response=await fetch('/api/scores/classify',{signal:AbortSignal.timeout(10000)});if(!response.ok)throw Error();applyCategoryState(await response.json());if(categoryRunning)categoryTimer=setTimeout(pollCategories,1500);}catch{categoryStatus.textContent='分类进度连接中断，正在重连…';categoryTimer=setTimeout(pollCategories,4000);}}
-  async function classifyLibrary(force=false){
-    if(!browser.open)await expand.onclick();if(!browser.open)return;decks.setCategorized(true);
+  async function classifyLibrary(force=false,instruction=''){
+    if(!browser.open){if(reloading){await new Promise(resolve=>{const check=()=>reloading?setTimeout(check,80):resolve();check();});}await expand.onclick(true);}if(!browser.open)return;browser.classList.add('is-category-browser');categoryControl.hidden=false;categoryStatus.hidden=false;decks.setCategorized(true);
     if(categoryRunning){void pollCategories();return;}if(categoryKnown&&!force)return;
     categoryControl.disabled=true;categoryStatus.textContent='正在提交分类…';
-    try{const scores=[...list.querySelectorAll('.library-score')].map(card=>({id:card.dataset.scoreId,title:card._item?.title||'',ready:card.dataset.ready==='true'}));
-      const response=await fetch('/api/scores/classify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scores,force}),signal:AbortSignal.timeout(15000)});const data=await response.json();if(!response.ok)throw Error(data.error||'分类未完成');applyCategoryState(data);if(categoryRunning)categoryTimer=setTimeout(pollCategories,800);
-    }catch(error){categoryControl.disabled=false;categoryStatus.textContent='分类服务未连接，请点击重新分类重试。';}
+    try{const scores=(window.cloudLibrarySnapshot?.scores||[]).map(({id,title,ready})=>({id,title,ready}));
+      const response=await fetch('/api/scores/classify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scores,force,instruction}),signal:AbortSignal.timeout(15000)});const data=await response.json();if(!response.ok)throw Error(data.error||'分类未完成');applyCategoryState(data);if(categoryRunning)categoryTimer=setTimeout(pollCategories,800);
+    }catch(error){categoryControl.disabled=false;categoryStatus.textContent='分类未完成：'+(error.message||'连接中断')+'，可点击 AI 分类重试。';}
   }
-  classify.onclick=()=>classifyLibrary();categoryControl.onclick=()=>classifyLibrary(true);
+  classify.onclick=()=>classifyLibrary();
+  const categoryPrompt=document.createElement('dialog');categoryPrompt.className='library-category-prompt';categoryPrompt.innerHTML='<form><header><strong>AI 分类</strong><button type="button" aria-label="关闭分类对话">×</button></header><label for="category-instruction">你希望按照什么方式分类？</label><textarea id="category-instruction" rows="3" maxlength="500" placeholder="例如：按作曲者分组，或按适合初学者、进阶、演出分组"></textarea><small role="status"></small><footer><button type="submit">开始分类</button></footer></form>';document.body.append(categoryPrompt);
+  categoryControl.onclick=()=>{if(categoryRunning)return;categoryPrompt.showModal();categoryPrompt.querySelector('textarea').focus();};categoryPrompt.querySelector('[type=button]').onclick=()=>categoryPrompt.close();
+  categoryPrompt.querySelector('form').onsubmit=event=>{event.preventDefault();const instruction=categoryPrompt.querySelector('textarea').value.trim();if(!instruction){categoryPrompt.querySelector('small').textContent='请填写分类方式。';return;}categoryPrompt.close();void classifyLibrary(true,instruction);};
   void pollCategories();
+  let enteredDecks=new WeakSet();
+  const deckEntrance=new IntersectionObserver(entries=>{
+    for(const entry of entries){if(!entry.isIntersecting||!browser.open)continue;deckEntrance.unobserve(entry.target);if(enteredDecks.has(entry.target))continue;enteredDecks.add(entry.target);
+      if(!motionAllowed())continue;
+      entry.target.animate([{opacity:0,transform:'perspective(900px) translateY(20px) rotateX(-7deg)'},{opacity:1,transform:'perspective(900px) translateY(0) rotateX(0deg)'}],{duration:440,easing:'cubic-bezier(.22,.75,.24,1)'});
+    }
+  },{root:browser,threshold:.05});
+  const observeDecks=()=>{deckEntrance.disconnect();if(browser.open)for(const group of list.querySelectorAll('.library-card-stack'))if(!enteredDecks.has(group))deckEntrance.observe(group);};
+  new MutationObserver(observeDecks).observe(list,{childList:true});
   let closing=false,motion=null,expanding=false,dockRect=null;
   let deckScroll=0,transfer=Promise.resolve(),cardMotion=false;
   const intersects=(box,clip)=>box.right>clip.left&&box.left<clip.right&&box.bottom>clip.top&&box.top<clip.bottom;
@@ -143,7 +158,8 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
     if(fall&&document.documentElement.matches('.tour-arrival,.tour-travelling')){for(const card of list.children){card.style.opacity='';card.style.visibility='';}return;}
     const cleanup=[];
     const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const cards=[...list.querySelectorAll('.library-score')].filter(card=>!card.closest('.library-pending-group')&&card.getBoundingClientRect().width>0&&card.getBoundingClientRect().height>0);
+    const viewport={left:0,top:0,right:innerWidth,bottom:innerHeight};
+    const cards=[...list.querySelectorAll('.library-score')].filter(card=>{if(card.hidden)return false;const r=card.getBoundingClientRect(),from=origins.get(card.dataset.scoreId);return r.width>0&&r.height>0&&(intersects(r,viewport)||from?.visible);}).slice(0,lowMemory?8:24);
     // Read layout once before creating flight layers; alternating reads/writes
     // for every cover forces repeated layout on a large library.
     const targetClip=browser.open?{left:0,top:0,right:innerWidth,bottom:innerHeight}:list.getBoundingClientRect();
@@ -172,6 +188,7 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
       // Animate in viewport space, outside the dialog's scaling and scroll clips.
       if(fall&&!targetVisible)return;
       const ghost=card.cloneNode(true);
+      ghost.querySelectorAll('img').forEach(img=>{img.loading='eager';img.decoding='async';});
       // Keep typography, cover crop and surface identical outside the dialog.
       const targets=[ghost,...ghost.querySelectorAll('*')];
       snapshots.get(card).styles?.forEach((styles,i)=>{for(const [key,value] of styles)targets[i].style.setProperty(key,value);});
@@ -214,32 +231,45 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
     const x=box.left+box.width/2-innerWidth/2,y=box.top+box.height/2-innerHeight/2;
     const dock={opacity:0,transform:`translate3d(${x}px,${y}px,0) scale(${Math.max(.15,box.width/innerWidth)},${Math.max(.12,box.height/innerHeight)})`,borderRadius:'28px'};
     const full={opacity:1,transform:'translate3d(0,0,0) scale(1)',borderRadius:'0px'};
-    motion=browser.animate(open?[{opacity:0},{opacity:1}]:[full,dock],{duration:500,easing:'cubic-bezier(.32,0,.18,1)',fill:'both'});
+    motion=browser.animate(open?[dock,full]:[full,dock],{duration:500,easing:'cubic-bezier(.32,0,.18,1)',fill:'both'});
     await motion.finished.catch(()=>{});
   };
   async function closeBrowser(){
     if(!browser.open||closing)return;closing=true;expand.disabled=true;await transfer;
     const origins=cardRects();
-    const surface=document.createElement('div');surface.className='library-closing-surface';
-    const box=browser.getBoundingClientRect();Object.assign(surface.style,{position:'fixed',inset:'0',background:getComputedStyle(browser).backgroundColor,zIndex:24000,pointerEvents:'none'});document.body.append(surface);
-    const target=panel.getBoundingClientRect();
-    const collapse=motionAllowed()?surface.animate([{opacity:1,transform:'translate(0,0) scale(1)',borderRadius:'0px'},{opacity:0,transform:`translate(${target.left+target.width/2-box.width/2}px,${target.top+target.height/2-box.height/2}px) scale(${target.width/box.width},${target.height/box.height})`,borderRadius:'28px'}],{duration:620,easing:'cubic-bezier(.22,.8,.25,1)',fill:'both'}):null;
-    // Keep the collapsing surface until the final card has landed.
-    decks.reset();categoryControl.textContent=categoryRunning?'正在分类…':'重新分类';browser.close();document.dispatchEvent(new Event('library-tour-closed'));motion?.cancel();panel.insertBefore(list,panel.querySelector('.library-settings'));
+    browser.classList.add('is-closing');
+    await animateBrowser(false);
+    decks.reset();categoryControl.setAttribute('aria-busy',String(categoryRunning));browser.close();document.dispatchEvent(new Event('library-tour-closed'));motion?.cancel();panel.insertBefore(list,panel.querySelector('.library-settings'));
     document.body.classList.remove('library-expanded');for(const card of list.children)card.hidden=false;list.scrollLeft=deckScroll;
-    transfer=Promise.all([flyCards(origins),collapse?.finished.catch(()=>{})]);await transfer;surface.remove();
+    transfer=flyCards(origins);await transfer;deckEntrance.disconnect();
     closing=false;expand.disabled=false;expand.focus({preventScroll:true});
   }
-  expand.onclick=async()=>{
+  expand.onclick=async(categoryView=false)=>{
     if(browser.open||closing||expanding||reloading)return;expanding=true;await transfer;dockRect=panel.getBoundingClientRect();deckScroll=list.scrollLeft;
     for(const card of list.children){card._deal?.cancel();card._deal=null;card.style.opacity='';}
     const origins=cardRects();
+    const categorized=categoryView===true;browser.classList.toggle('is-category-browser',categorized);categoryControl.hidden=!categorized;categoryStatus.hidden=!categorized;if(categorized)decks.setCategorized(true);else decks.reset();
     browser.append(list);browser.querySelector('input').value='';document.body.classList.add('library-expanded');
-    browser.showModal();document.dispatchEvent(new CustomEvent('library-tour-opened',{detail:{browser}}));browser.querySelector('.library-close').focus({preventScroll:true});
+    enteredDecks=new WeakSet();browser.classList.remove('is-closing');browser.showModal();observeDecks();document.dispatchEvent(new CustomEvent('library-tour-opened',{detail:{browser}}));browser.querySelector('.library-close').focus({preventScroll:true});
     transfer=(async()=>{try{await Promise.all([flyCards(origins),animateBrowser(true)]);}finally{motion?.cancel();expanding=false;}})();await transfer;
   };
   panel.tourOpen=async()=>{for(let n=0;n<220&&(reloading||closing);n++)await new Promise(r=>setTimeout(r,100));if(reloading||closing)throw Error('曲库仍在加载，请稍后重试');await expand.onclick();await transfer;return browser;};panel.tourClose=closeBrowser;
-  browser.querySelector('.library-close').onclick=closeBrowser;browser.addEventListener('cancel',event=>{event.preventDefault();closeBrowser();});browser.querySelector('input').oninput=event=>{const text=event.target.value.trim().toLowerCase();decks.search(text);};
+  browser.querySelector('.library-close').onclick=closeBrowser;browser.addEventListener('cancel',event=>{event.preventDefault();closeBrowser();});const searchInput=browser.querySelector('input');searchInput.placeholder='搜索曲名，或描述你想找的音乐';
+  const searchStatus=document.createElement('div');searchStatus.className='library-search-status';searchStatus.setAttribute('role','status');browser.querySelector('header').after(searchStatus);
+  let searchTimer,searchRequest,searchRevision=0;
+  searchInput.oninput=()=>{
+    const query=searchInput.value.trim();const revision=++searchRevision;clearTimeout(searchTimer);searchRequest?.abort();decks.search(query.toLowerCase());searchStatus.textContent='';
+    if(lowMemory){mobileQuery=query.toLowerCase();mobileMatches=null;mobileLimit=STREAM_BATCH;void reload(true);}if(!query)return;
+    searchTimer=setTimeout(async()=>{
+      searchRequest=new AbortController();searchStatus.textContent='正在查找相关曲谱…';
+      try{
+        const scores=(window.cloudLibrarySnapshot?.scores||[]).map(({id,title})=>({id,title}));
+        const response=await fetch('/api/scores/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query,scores}),signal:searchRequest.signal});
+        const result=await response.json();if(!response.ok)throw Error(result.error||'搜索暂不可用');if(revision!==searchRevision||!browser.open)return;
+        if(lowMemory){mobileMatches=new Set(result.ids);mobileLimit=STREAM_BATCH;await reload(true);}decks.search(query.toLowerCase(),result.ids);searchStatus.textContent=result.warning|| (result.ids.length?'':'未找到相关曲谱');
+      }catch(error){if(revision===searchRevision&&error.name!=='AbortError')searchStatus.textContent='智能搜索暂不可用，已保留曲名搜索结果';}
+    },550);
+  };browser.addEventListener('close',()=>{++searchRevision;clearTimeout(searchTimer);searchRequest?.abort();searchStatus.textContent='';});
 
   function progressMarkup(button,item){
     let progress=button.querySelector('.library-progress');
@@ -258,6 +288,8 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
   }
   function updateCard(card,item){
     if(!card)return;
+    const stamp=JSON.stringify([item.title,item.status,item.ready,item.progress,item.stage,item.titleSource,item.cover]);
+    if(card._renderStamp===stamp)return false;card._renderStamp=stamp;
     if(card._item)Object.assign(card._item,item);
     card.dataset.status=item.status||'idle';card.dataset.ready=String(!!item.ready);
     const title=card.querySelector('.library-title');if(title)title.textContent=cleanText(item.title)||'正在识别原谱标题';
@@ -265,20 +297,25 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
     const staff=card.querySelector('.recognition-staff');if(staff){staff.classList.toggle('is-writing',item.status==='running');// A finished card keeps its title and status only; the indicator is for work in
 // progress, the way an iOS list row behaves.
 staff.hidden=item.status!=='running';}
-    progressMarkup(card,item);
+    progressMarkup(card,item);return true;
   }
   const coverObserver=new IntersectionObserver(entries=>{for(const entry of entries){entry.target._coverVisible=entry.isIntersecting;if(entry.isIntersecting&&entry.target._pendingCover){const item=entry.target._pendingCover;entry.target._pendingCover=null;void hydrateCover(item,entry.target);}}},{rootMargin:'100px'});
-  let coverQueue=Promise.resolve();
+  document.addEventListener('library-deck-expanded',event=>{for(const card of event.detail.querySelectorAll('.library-score')){coverObserver.unobserve(card);coverObserver.observe(card);}});
+  let coverQueue=Promise.resolve();const coverMatches=new Map();
   function hydrateCover(item,card){
-    if(!card._coverVisible){card._pendingCover=item;return Promise.resolve();}
+    if(!card._coverVisible||(card.closest('.library-card-stack:not(.is-expanded)')&&!card.classList.contains('stack-peek'))){card._pendingCover=item;return Promise.resolve();}
+    if(item.cover&&card._coverApplied===item.cover)return Promise.resolve();
+    if(item.cover)return hydrateCoverNow(item,card);
+    const image=card.querySelector('.library-cover');if(image&&!image.dataset.fallback){image.dataset.fallback='true';image.style.backgroundImage=`url('/api/scores/${item.id}/cover-fallback')`;}
     coverQueue=coverQueue.then(()=>hydrateCoverNow(item,card)).catch(()=>{});
     return coverQueue;
   }
   async function hydrateCoverNow(item,card){
-    if(item.cover){let image=card.querySelector('.library-cover');if(!image){image=document.createElement('span');image.className='library-cover';card.prepend(image);}image.style.backgroundImage=`url("${item.cover.replace(/\/\d+x\d+bb\./,'/480x480bb.').replace(/"/g,'')}"),url("/api/scores/${item.id}/cover-fallback")`;return;}
+    if(!card.isConnected)return;
+    if(item.cover){card._coverApplied=item.cover;let image=card.querySelector('.library-cover');if(!image){image=document.createElement('span');image.className='library-cover';card.prepend(image);}image.style.backgroundImage=`url("${item.cover.replace(/\/\d+x\d+bb\./,lowMemory?'/240x240bb.':'/480x480bb.').replace(/"/g,'')}"),url("/api/scores/${item.id}/cover-fallback")`;return;}
     if(!matchCover||!item.title||item.title==='未命名曲谱')return;
     const title=cleanText(item.title);if(!title)return;
-    try{const cover=await matchCover(title,item.id);if(!cover)return;let image=card.querySelector('.library-cover');if(!image){image=document.createElement('span');image.className='library-cover';card.prepend(image);}image.style.backgroundImage=`url("${cover.replace(/"/g,'')}"),url("/api/scores/${item.id}/cover-fallback")`;image.setAttribute('aria-label',`${title}封面`);}catch{}
+    try{const key=item.id+'|'+title;let pending=coverMatches.get(key);if(!pending){pending=Promise.resolve(matchCover(title,item.id));coverMatches.set(key,pending);if(coverMatches.size>256)coverMatches.delete(coverMatches.keys().next().value);pending.catch(()=>coverMatches.delete(key));}const cover=await pending;if(!cover||!card.isConnected)return;let image=card.querySelector('.library-cover');if(!image){image=document.createElement('span');image.className='library-cover';card.prepend(image);}image.style.backgroundImage=`url("${cover.replace(/"/g,'')}"),url("/api/scores/${item.id}/cover-fallback")`;image.setAttribute('aria-label',`${title}封面`);}catch{}
   }
   function queueTitle(item,card){
     if(!recognizeTitle||!item.hasPdf||item.titleSource==='user'||item.titleVerification==='catalogue'||titlesInFlight.has(item.id))return;titlesInFlight.add(item.id);
@@ -290,9 +327,10 @@ staff.hidden=item.status!=='running';}
   }
   async function pollRecognition(){
     try{
-      const response=await fetch('/api/scores');if(!response.ok)throw Error();const data=await response.json();window.cloudLibrarySnapshot={scores:data.scores,saved:Date.now()};let running=false;
-      for(const item of data.scores){const card=list.querySelector(`[data-score-id="${item.id}"]`);updateCard(card,item);if(card&&card.dataset.coverTitle!==item.title){card.dataset.coverTitle=item.title;void hydrateCover(item,card);}if(item.status==='running')running=true;}
-      regroupPending();pollTimer=setTimeout(pollRecognition,4000);
+      const response=await fetch('/api/scores');if(!response.ok)throw Error();const data=await response.json();invalidateChangedScores(data.scores);window.cloudLibrarySnapshot={scores:data.scores,saved:Date.now()};let running=false;
+      const mounted=new Map([...list.querySelectorAll('.library-score')].map(c=>[c.dataset.scoreId,c]));let changed=false;
+      for(const item of data.scores){const card=mounted.get(item.id);changed=!!updateCard(card,item)||changed;if(card&&card.dataset.coverTitle!==item.title){card.dataset.coverTitle=item.title;void hydrateCover(item,card);}if(item.status==='running')running=true;}
+      if(changed)regroupPending();pollTimer=setTimeout(pollRecognition,document.hidden?30000:running?4000:15000);
     }catch{pollTimer=null;}
   }
   document.addEventListener('ai-open-score',async event=>{
@@ -302,20 +340,30 @@ staff.hidden=item.status!=='running';}
     try{await revealLoader();onProgress(.1);const data=await obtainScore(id);await openScore({...data,id},(percent,label)=>{updateLoader(percent,label);onProgress(percent/100);});await dismissLoader();opening=false;resolve();}
     catch(error){await dismissLoader();opening=false;reject(error);}
   });
-  let reloading=false;
-  async function reload(){
-    if(reloading||opening)return;reloading=true;refresh.disabled=true;await transfer;
-    scoreCache.clear();if(pollTimer)clearTimeout(pollTimer);
-    const leaving=[...list.querySelectorAll('.library-score')];
-    if(!matchMedia('(prefers-reduced-motion: reduce)').matches)await Promise.all(leaving.map((card,index)=>{card._deal?.cancel();card.style.opacity='';return card.animate([{opacity:1,translate:'0px 0px',rotate:'0deg',scale:'1'},{opacity:0,translate:`${-innerWidth-card.getBoundingClientRect().right}px -35px`,rotate:'18deg',scale:'.25'}],{duration:360,delay:Math.min(index*28,350),easing:'cubic-bezier(.55,.05,.9,.4)',fill:'forwards'}).finished.catch(()=>{});}));
+  const STREAM_BATCH=24;let reloading=false,mobileLimit=STREAM_BATCH,mobileQuery='',mobileMatches=null;
+  const streamObserver=new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting)&&!reloading){mobileLimit+=STREAM_BATCH;void reload(true);}},{rootMargin:'240px'});
+  async function reload(local=false){
+    if(reloading||opening)return;reloading=true;streamObserver.disconnect();refresh.disabled=true;await transfer;
+    const previousScroll=browser.open?browser.scrollTop:list.scrollLeft;if(pollTimer)clearTimeout(pollTimer);
+    const leaving=[...list.querySelectorAll('.library-score')].filter(card=>{const box=card.getBoundingClientRect();return box.width>0&&box.bottom>0&&box.top<innerHeight&&box.right>0&&box.left<innerWidth;}).slice(0,24);
+    if(!local&&motionAllowed())await Promise.all(leaving.map((card,index)=>{card._deal?.cancel();card.style.opacity='';return card.animate([{opacity:1,translate:'0px 0px',rotate:'0deg',scale:'1'},{opacity:0,translate:`${-innerWidth-card.getBoundingClientRect().right}px -35px`,rotate:'18deg',scale:'.25'}],{duration:360,delay:Math.min(index*28,350),easing:'cubic-bezier(.55,.05,.9,.4)',fill:'forwards'}).finished.catch(()=>{});}));
     const controller=new AbortController(),requestTimeout=setTimeout(()=>controller.abort(),20000);
     try{
-      const response=await fetch('/api/scores',{signal:controller.signal});if(!response.ok)throw Error();const data=await response.json();window.cloudLibrarySnapshot={scores:data.scores,saved:Date.now()};coverObserver.disconnect();decks.clear();pendingItems.replaceChildren();pendingToggle.setAttribute('aria-expanded','false');pendingGroup.classList.remove('is-expanded');list.replaceChildren();
+      const response=local&&window.cloudLibrarySnapshot?null:await fetch('/api/scores',{signal:controller.signal});if(response&&!response.ok)throw Error();const data=response?await response.json():window.cloudLibrarySnapshot;invalidateChangedScores(data.scores);window.cloudLibrarySnapshot={scores:data.scores,saved:Date.now()};const existing=new Map([...list.querySelectorAll('.library-score')].map(c=>[c.dataset.scoreId,c]));
+      if(!local){coverObserver.disconnect();decks.clear(false);pendingItems.replaceChildren();pendingToggle.setAttribute('aria-expanded','false');pendingGroup.classList.remove('is-expanded');list.replaceChildren();}
+      list.querySelector('.library-stream-more')?.remove();
       const byTitle=new Map();for(const item of data.scores){const key=String(item.title||'').normalize('NFKC').toLowerCase().replace(/[\s《》「」_-]/g,'');if(!item.ready||!key||/未命名|正在识别/.test(key)){byTitle.set(item.id,item);continue;}const current=byTitle.get(key);if(!current||Number(item.ready)>Number(current.ready)||(item.ready===current.ready&&(item.saved||0)>(current.saved||0)))byTitle.set(key,item);}
-      for(const [scoreIndex,item] of [...byTitle.values()].entries()){
+      let visibleItems=[...byTitle.values()];if(lowMemory){visibleItems=visibleItems.filter(item=>!mobileQuery||String(item.title||'').toLowerCase().includes(mobileQuery)||mobileMatches?.has(item.id));}
+      const pageItems=lowMemory?visibleItems.slice(0,mobileLimit):visibleItems;
+      const fragment=document.createDocumentFragment();
+      const wanted=new Set(pageItems.map(item=>item.id));
+      if(local)for(const [id,card]of existing)if(!wanted.has(id)){coverObserver.unobserve(card);card.remove();}
+      for(const [scoreIndex,item] of pageItems.entries()){
+        if(local&&existing.has(item.id)){const card=existing.get(item.id);updateCard(card,item);continue;}
+        if(scoreIndex&&scoreIndex%24===0)await new Promise(resolve=>setTimeout(resolve,0));
         const button=document.createElement('button');button.className='library-score';button.dataset.scoreId=item.id;button.dataset.status=item.status||'idle';button.dataset.ready=String(!!item.ready);
         button._item=item;
-        const fallback=document.createElement('span');fallback.className='library-cover';fallback.style.backgroundImage=`url('/api/scores/${item.id}/cover-fallback')`;button.append(fallback);
+        const fallback=document.createElement('span');fallback.className='library-cover';fallback.style.backgroundImage='linear-gradient(145deg,#785751,#a67e74)';button.append(fallback);
         const title=document.createElement('strong');title.className='library-title';title.textContent=cleanText(item.title)||'正在识别原谱标题';
         const detail=document.createElement('small');detail.className='library-detail';detail.textContent=statusText(item);
         const staff=document.createElement('span');staff.className='recognition-staff';staff.innerHTML='<i></i><i></i><i></i><i></i><i></i>';staff.hidden=item.status!=='running';
@@ -336,17 +384,17 @@ staff.hidden=item.status!=='running';}
             else {document.dispatchEvent(new Event('show-task-center'));detail.textContent='正在后台转录';}
           }catch(e){tourError=e.message;detail.textContent=e.message;}finally{await dismissLoader();button.disabled=false;button.removeAttribute('aria-busy');opening=false;document.dispatchEvent(new CustomEvent('library-tour-selected',{detail:{id:item.id,ready:button.dataset.ready==='true',error:tourError}}));}
         };
-        button.onpointerenter=()=>{if(item.ready&&!lowMemory)void prefetchScore(item.id);};list.append(button);coverObserver.observe(button);void hydrateCover(item,button);
+        button.onpointerenter=()=>{if(item.ready&&!lowMemory)void prefetchScore(item.id);};fragment.append(button);coverObserver.observe(button);void hydrateCover(item,button);
       }
-      regroupPending();if(!data.scores.length)list.textContent='暂无琴谱';
-      else {const mode=browser.open?'full':'deck';stageCards(mode);await animateCards(mode);}
+      list.append(fragment);regroupPending();if(lowMemory&&visibleItems.length>pageItems.length){const more=document.createElement('div');more.className='library-stream-more';more.setAttribute('role','status');more.textContent='正在载入更多曲谱…';list.append(more);requestAnimationFrame(()=>{if(more.isConnected)streamObserver.observe(more);});}if(!data.scores.length)list.textContent='暂无琴谱';
+      else if(!local){const mode=browser.open?'full':'deck';stageCards(mode);await animateCards(mode);}
       pollTimer=setTimeout(pollRecognition,4000);
     }catch{list.textContent='琴谱库暂不可用，点击刷新重试。';}
-    finally{clearTimeout(requestTimeout);reloading=false;refresh.disabled=false;list.setAttribute('aria-busy','false');}
+    finally{if(local){if(browser.open)browser.scrollTop=previousScroll;else list.scrollLeft=previousScroll;}clearTimeout(requestTimeout);reloading=false;refresh.disabled=false;list.setAttribute('aria-busy','false');}
   }
   refresh.onclick=async()=>{refresh.animate([{transform:'rotate(0deg)'},{transform:'rotate(250deg)'},{transform:'rotate(360deg)'}],{duration:520,easing:'cubic-bezier(.22,.8,.25,1)'});await reload();};
   document.addEventListener('score-renamed',event=>{const {id,title}=event.detail||{},card=id&&list.querySelector(`[data-score-id="${id}"]`);if(card){card._item={...card._item,title,titleSource:'user'};updateCard(card,card._item);}});
-  document.addEventListener('open-library-score',async event=>{if(reloading)for(let n=0;n<100&&reloading;n++)await new Promise(r=>setTimeout(r,100));const card=list.querySelector(`[data-score-id="${CSS.escape(event.detail.id)}"]`);if(card)card.click();});
+  document.addEventListener('open-library-score',async event=>{if(reloading)for(let n=0;n<100&&reloading;n++)await new Promise(r=>setTimeout(r,100));let card=list.querySelector(`[data-score-id="${CSS.escape(event.detail.id)}"]`);if(!card&&lowMemory){mobileQuery='';mobileMatches=new Set([event.detail.id]);mobileQuery='\u0000';mobileLimit=STREAM_BATCH;await reload();card=list.querySelector(`[data-score-id="${CSS.escape(event.detail.id)}"]`);}if(card)card.click();});
   reload();return reload;
 }
 

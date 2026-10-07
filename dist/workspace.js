@@ -106,7 +106,7 @@ if(bottomSettings){const actions=document.createElement('div');actions.className
  // 云曲库工具（重新 OCR / 重新匹配封面）先排，把两颗“重新识谱”留到最后成对出现。
  let deep=null;
  if(librarySettings){const buttons=[...librarySettings.querySelectorAll('button')];deep=buttons.find(button=>button.hasAttribute('data-deep'))||null;for(const button of buttons)if(button!==deep)actions.append(button);librarySettings.remove();}
- if(altRecognize){const tools=altRecognize.parentElement;altRecognize.className='small-button';actions.append(altRecognize);if(tools&&tools.classList.contains('recognition-tools')&&!tools.children.length)tools.remove();}
+ if(altRecognize){altRecognize.textContent='替代模型重新识谱';const tools=altRecognize.parentElement;altRecognize.className='small-button';actions.append(altRecognize);if(tools&&tools.classList.contains('recognition-tools')&&!tools.children.length)tools.remove();}
  if(deep)actions.append(deep);
  bottomSettings.append(actions);}
 const tempo=$('#tempo').closest('label');$('.playback-buttons').after(tempo);
@@ -118,11 +118,13 @@ $('.feedback').hidden=false;
 const list=$('.library-list');let deckFrame=0;
 function deck(){deckFrame=0;const center=list.scrollLeft+list.clientWidth/2;
  if(document.body.classList.contains('library-expanded'))return;
- const positions=[...list.querySelectorAll('.library-score')].map(card=>({card,d:Math.max(-1,Math.min(1,(card.offsetLeft+card.offsetWidth/2-center)/Math.max(1,list.clientWidth)))}));
- for(const {card,d} of positions){card.style.setProperty('--deck-turn',(-d*28)+'deg');card.style.setProperty('--deck-depth',(-Math.abs(d)*38)+'px');}
+ const width=list.clientWidth;
+ const positions=[...list.querySelectorAll('.library-score')].filter(card=>!card.hidden&&(!card.closest('.library-card-stack:not(.is-expanded)')||card.classList.contains('stack-peek'))).map(card=>({card,left:card.offsetLeft,w:card.offsetWidth})).filter(p=>p.left+p.w>list.scrollLeft-width&&p.left<list.scrollLeft+width*2).map(p=>({...p,d:Math.max(-1,Math.min(1,(p.left+p.w/2-center)/Math.max(1,width)))}));
+ for(const {card,d} of positions){const turn=(-d*28)+'deg',depth=(-Math.abs(d)*38)+'px';if(card.style.getPropertyValue('--deck-turn')!==turn)card.style.setProperty('--deck-turn',turn);if(card.style.getPropertyValue('--deck-depth')!==depth)card.style.setProperty('--deck-depth',depth);}
+
 }
 list.addEventListener('scroll',()=>{if(!deckFrame)deckFrame=requestAnimationFrame(deck);},{passive:true});
-new MutationObserver(()=>requestAnimationFrame(deck)).observe(list,{childList:true});new ResizeObserver(()=>requestAnimationFrame(deck)).observe(list);
+new MutationObserver(()=>{if(!deckFrame)deckFrame=requestAnimationFrame(deck);}).observe(list,{childList:true});new ResizeObserver(()=>{if(!deckFrame)deckFrame=requestAnimationFrame(deck);}).observe(list);
 // Foreground leases expire after inactivity, even if the browser closes.
 let lastInteraction=Date.now(),lastSent=0,playing=false;
 const touch=()=>{lastInteraction=Date.now();send();};
