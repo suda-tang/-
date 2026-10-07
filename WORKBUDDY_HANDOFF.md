@@ -1009,13 +1009,13 @@ AI 的 `open` 走 `ai-open-score` 事件、不写它）。
 
 ### 第四轮·第八轮：统一回归入口（`check-ai-regression.cjs`）
 
-11 个专项检查 + 56 条长流程的命令散在文档里，改完代码容易漏跑（这一轮就漏过一次）。
+12 个专项检查 + 60 条长流程的命令散在文档里，改完代码容易漏跑（这一轮就漏过一次）。
 新增 **`scripts/check-ai-regression.cjs`**：一条命令按「快 → 慢」串行跑完，
 末尾给汇总表，失败时打印该项输出尾部，退出码非 0。
 
 ```bash
 node scripts/check-ai-regression.cjs            # 12 项快的（约 6 分钟）
-node scripts/check-ai-regression.cjs --long     # 再加 56 条长流程（约 34 分钟）
+node scripts/check-ai-regression.cjs --long     # 再加 60 条长流程（约 30 分钟；第八轮时是 56 条）
 node scripts/check-ai-regression.cjs --only library   # 按名字子串过滤
 node scripts/check-ai-regression.cjs --list     # 只看会跑哪些
 ```
