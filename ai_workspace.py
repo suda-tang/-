@@ -427,6 +427,30 @@ def plan_locate(target,play,text,items,context):
     if code=='no-playback':return {'reply':'《'+str(title)+'》没有逐音符的演奏数据（多半是 PDF 识谱来的谱面），我无法判断'+target+'从哪一小节进来。可以先用「分析曲式」看看它的结构。','actions':[]}
     return {'reply':'《'+str(title)+'》整首里没有找到'+target+'的演奏记录'+(('（我查的是'+str(reason.get('label'))+'）') if reason.get('label') and reason.get('label')!=target else '')+'。','actions':[]}
 
+def _title_core(title):
+    """曲名的「核心」形式：去掉书名号（保留内容）+ 取 · 之前的片段。
+
+    ★ 必须**先去括号、再切 ·**，且结果为空时**绝不能**参与匹配。
+      旧写法 `re.sub(r'[·《》].*','',title)` 会把「《情歌王2024》.mp3」整条削成空串，
+      而 `'' in text` 恒为真 —— 于是**任何**不带书名号的话（「播放」「暂停」
+      「你好」「把速度调到 100」）都会命中曲库里所有带《》的曲名，`matches` 爆满，
+      fast_plan 直接掉进第 597 行 choose_scores，把「播放/调速度/问身份」统统
+      变成「请选择一首」。曲库 1882 首里大量标题形如「《歌名》.mp3」，必现。
+    """
+    t=re.sub(r'[《》【】「」『』]','',str(title or ''))
+    return re.split(r'[·]',t)[0].strip()
+
+
+def _title_in_text(title,text):
+    """用户没打书名号时，曲名（或其核心形式）是否出现在这句话里。"""
+    title=str(title or '')
+    if not title:return False
+    if title in text:return True
+    core=_title_core(title)
+    # ★ len(core)>=2 是硬门槛：空串/单字核心一律不算命中（见 _title_core 的注释）。
+    return len(core)>=2 and core in text
+
+
 def fast_plan(data,progress=lambda x:None):
     """规则快速通道：跑在模型之前，命中就直接返回（省一次模型往返）。
 
@@ -539,7 +563,7 @@ def fast_plan(data,progress=lambda x:None):
                 return {'reply':'曲库里没有《'+str(quoted[0])+'》，但有《'+str(near.get('title'))+'》。要我打开这首吗？','actions':[]}
             return None
     else:
-        matches=[s for s in items if s.get('title') and (s['title'] in text or re.sub(r'[·《》].*','',s['title']) in text)]
+        matches=[s for s in items if _title_in_text(s.get('title'),text)]
     if not matches and '邓丽君' in text:
         matches=[s for s in items if any(t in s.get('title','') for t in ['月亮代表我的心','甜蜜蜜','小城故事','我只在乎你'])]
     if not matches and re.search('和弦|曲式|结构|检查|校对|档案|练习建议|练习计划|怎么练|如何练|教学建议|演奏处理|配器建议',text):
