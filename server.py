@@ -102,6 +102,70 @@ def read_cached_score(digest, repair=True):
         value['parts']=omr_normalize.REVISION
     return value
 
+def read_score_list_entry(digest):
+    """列表专用轻量读取：只解析 metadata 子对象，不整读 XML、不做 OMR 修复（2026-10-07 优化上线）。
+
+    原来列表用 read_cached_score 逐首 json.loads 整份（含几 MB 的 XML）+ omr_normalize
+    改写文件，80 首就要数秒且偶发把请求线程弄崩（客户端收到空回复）。列表根本不需要
+    XML，这里用字节级括号匹配只切出 metadata 对象（正确跳过字符串里的括号），ready 用
+    字节子串判定。返回 (ready, metadata_dict, saved)。
+    """
+    big = CACHE_DIR/(digest+'.json')
+    meta={}; ready=False; saved=None
+    if big.exists():
+        try:
+            data = big.read_bytes()
+        except OSError:
+            data=None
+        if data is not None:
+            ready = (b'"xml":"<?xml' in data) or (b'"xml": "<?xml' in data)
+            i = data.find(b'"metadata":')
+            if i != -1:
+                # 用 C 层 JSONDecoder 只解析 metadata 对象：先定位 metadata 值的 '{' 真实字节位置，
+                # 以它当 raw_decode 起点（对冒号前后空格鲁棒），远快于纯 Python 逐字节扫描
+                j = data.find(b'{', i)
+                if j != -1:
+                    window = data[i:i+4*1024*1024].decode('utf-8', errors='replace')
+                    try:
+                        val, end = json.JSONDecoder().raw_decode(window, j-i)
+                        if isinstance(val, dict): meta = val
+                        meta_end_byte = i + len(window[:end].encode('utf-8', errors='replace'))
+                        m = re.compile(rb'"saved"\s*:\s*([0-9]+(?:\.[0-9]+)?)').search(data, meta_end_byte)
+                        if m:
+                            try: saved = float(m.group(1))
+                            except ValueError: saved = None
+                    except (ValueError, StopIteration):
+                        pass
+    # 没有大文件（只有 sidecar 的曲子）也照常合并 sidecar，否则会丢掉封面/曲名等
+    sidecar = CACHE_DIR/(digest+'.metadata.json')
+    if sidecar.exists():
+        try:
+            sm = json.loads(sidecar.read_text(encoding='utf-8'))
+            if isinstance(sm, dict): meta = {**meta, **sm}
+        except (OSError, ValueError):
+            pass
+    return ready, meta, saved
+
+def _score_list_item(digest, background_active):
+    """构建单首曲库列表项；任一异常由调用方捕获，绝不让整列表崩。"""
+    item_ready, meta, saved = read_score_list_entry(digest)
+    if meta.get('hiddenFromLibrary'):
+        return None
+    label = CACHE_DIR / (digest+'.name')
+    name = label.read_text(encoding='utf-8') if label.exists() else ''
+    active=None
+    with LOCK:
+        for candidate in JOBS.values():
+            if candidate.get('digest')==digest and (active is None or candidate.get('created',0)>active.get('created',0)):
+                active=job_progress(candidate.copy())
+    if background_active and (active is None or active.get('status')=='complete'):
+        active=background_active
+    cloud_title=ocr_title(meta);user_title=str(meta.get('userTitle') or '').strip() if meta.get('titleSource')=='user' else ''
+    from title_validation import filename_title, resolved_import_title
+    title=resolved_import_title(user_title or cloud_title or meta.get('title'),name,meta)
+    state=active.get('status') if active else ('complete' if item_ready else 'queued');progress=100 if state=='complete' else (active.get('progress',0) if active else 0)
+    return {'id':digest,'title':title,'cover':meta.get('cover',''),'titleVersion':str(meta.get('titleVersion','')),'titleVerification':meta.get('titleVerification',''),'titleSource':'ocr' if cloud_title else ('user' if user_title else 'pending'),'jobId':active.get('id') if active else None,'ready':item_ready, 'hasPdf':(CACHE_DIR/(digest+'.pdf')).exists(), 'status':state, 'progress':progress, 'stage':active.get('stage',active.get('detail','')) if active else '', 'error':active.get('error','') if active else ('任务已停止，请在任务中心重新处理' if state=='failed' else ''), 'saved':saved if saved is not None else (label.stat().st_mtime if label.exists() else 0)}
+
 def looks_like_filename(value):
     text=str(value or '').strip()
     return (not text or '\ufffd' in text or text.lower().endswith('.pdf') or
@@ -422,10 +486,29 @@ _GZIP_CACHE = {}
 # 否则层叠结果会变。这里写死而不从 index.html 动态读：改过之后页面里
 # 只剩 bundle.css 自己一条，动态提取会把自己也读进去，成死循环。
 # 以后在 index.html 里增删样式表，记得同步改这里。
-BUNDLE_CSS = ['style.css', 'player.css', 'progress.css', 'library.css', 'desktop.css',
+BUNDLE_CSS = ['tour-presentation.css', 'language.css', 'narration-avatar.css',
+              'style.css', 'player.css', 'progress.css', 'library.css', 'desktop.css',
               'campus.css', 'refinement.css', 'editing.css', 'mobile.css', 'workspace.css',
-              'glass.css', 'media-import.css', 'polish.css']
+              'glass.css', 'media-import.css', 'polish.css',
+              'daw.css', 'ios26-controls.css', 'mentor-lecture.css', 'motion-continuity.css',
+              'adaptive-controls.css', 'liquid-language.css', 'header-layout.css',
+              'library-mobile-controls.css', 'workspace-ai.css', 'library-pending.css']
 _BUNDLE_CACHE = {}
+
+def audit_bundle():
+    """dist 下出现清单外的 CSS 时，在启动日志里点出来。
+
+    漏合并不会立刻报错，只会让那份样式迟到生效，页面看着像「样式没加载全」，
+    极难排查。这里直接说，省得下次再从头找。
+    """
+    try:
+        on_disk = {p.name for p in PUBLIC.glob('*.css')}
+    except OSError:
+        return
+    missing = sorted(on_disk - set(BUNDLE_CSS) - {'bundle.css'})
+    if missing:
+        print('BUNDLE 警告：以下 CSS 未纳入合并，若页面引用了它们会拖慢首屏：'
+              + ', '.join(missing), flush=True)
 
 def gzip_cached(path):
     """压缩后按 mtime 缓存一份，免得每个请求都重压一遍大文件。"""
@@ -453,6 +536,9 @@ class Handler(SimpleHTTPRequestHandler):
     protocol_version = 'HTTP/1.1'
     # 连接复用会占住线程，给个读超时，免得空闲连接一直挂着不释放。
     timeout = 30
+    # 关掉 Nagle：响应是「响应头 + 响应体」分几次写出的，攒着不发会在延迟
+    # ACK 的配合下把首字节拖到几百毫秒甚至秒级 —— 对首屏都是实打实的损失。
+    disable_nagle_algorithm = True
     def __init__(self, *args, **kwargs): super().__init__(*args, directory=str(PUBLIC), **kwargs)
     def send_head(self):
         """文本资源走 gzip；音频 / PDF / 位图等照原样交给父类。"""
@@ -618,32 +704,19 @@ class Handler(SimpleHTTPRequestHandler):
         if path == '/api/scores':
             CACHE_DIR.mkdir(parents=True, exist_ok=True)
             ids = {p.stem for p in CACHE_DIR.glob('*.json')} | {p.stem for p in CACHE_DIR.glob('*.pdf')} | {p.stem for p in CACHE_DIR.glob('*.source')} | {p.name.removesuffix('.photo-book.json') for p in CACHE_DIR.glob('*.photo-book.json')}
+            # 一次性取出所有 digest 的后台任务（避免逐首重开 SQLite 连接，原来 80 首要 2~3s）
+            import background_jobs
+            job_by_digest = background_jobs.latest_jobs_by_digest()
             items = []
             for digest in ids:
                 if not re.fullmatch(r'[a-f0-9]{64}', digest): continue
-                item = read_cached_score(digest) or {}
-                meta = item.get('metadata', {})
-                sidecar=CACHE_DIR/(digest+'.metadata.json')
-                if sidecar.exists():meta={**meta,**json.loads(sidecar.read_text(encoding='utf-8'))}
-                if meta.get('hiddenFromLibrary'): continue
-                label = CACHE_DIR / (digest+'.name')
-                name = label.read_text(encoding='utf-8') if label.exists() else ''
-                active=None
-                with LOCK:
-                    for candidate in JOBS.values():
-                        if candidate.get('digest')==digest and (active is None or candidate.get('created',0)>active.get('created',0)):
-                            active=job_progress(candidate.copy())
-                import background_jobs
-                background_active=background_jobs.latest_for_digest(digest)
-                # Recognition stays in memory as a completed record.  A newer
-                # persistent analysis failure must still be visible on its card.
-                if background_active and (active is None or active.get('status')=='complete'):
-                    active=background_active
-                cloud_title=ocr_title(meta);user_title=str(meta.get('userTitle') or '').strip() if meta.get('titleSource')=='user' else ''
-                from title_validation import filename_title,resolved_import_title
-                title=resolved_import_title(user_title or cloud_title or meta.get('title'),name,meta)
-                state=active.get('status') if active else ('complete' if item.get('xml') else 'queued');progress=100 if state=='complete' else (active.get('progress',0) if active else 0)
-                items.append({'id':digest,'title':title,'cover':meta.get('cover',''),'titleVersion':str(meta.get('titleVersion','')),'titleVerification':meta.get('titleVerification',''),'titleSource':'ocr' if cloud_title else ('user' if user_title else 'pending'),'jobId':active.get('id') if active else None,'ready':bool(item.get('xml')), 'hasPdf':(CACHE_DIR/(digest+'.pdf')).exists(), 'status':state, 'progress':progress, 'stage':active.get('stage',active.get('detail','')) if active else '', 'error':active.get('error','') if active else ('任务已停止，请在任务中心重新处理' if state=='failed' else ''), 'saved':item.get('saved',label.stat().st_mtime if label.exists() else 0)})
+                try:
+                    it = _score_list_item(digest, job_by_digest.get(digest))
+                except Exception:
+                    # 单首损坏绝不让整个曲库列表崩（之前会令 /api/scores 空回复）
+                    continue
+                if it is not None:
+                    items.append(it)
             return self.json_response({'scores':sorted(items,key=lambda x:x['saved'],reverse=True)})
         if path.startswith('/api/scores/'):
             parts = path.split('/')
@@ -753,6 +826,9 @@ class Handler(SimpleHTTPRequestHandler):
         if urlparse(self.path).path=='/api/ai-tasks':
             import ai_task_store
             return ai_task_store.handle(self)
+        if urlparse(self.path).path=='/api/scores/classify':
+            import library_classification
+            return library_classification.handle(self,sys.modules[__name__])
         if urlparse(self.path).path=='/api/workspace-ai/web':
             import ai_web_import
             return ai_web_import.handle(self,sys.modules[__name__])
@@ -1033,6 +1109,7 @@ def sources_busy():
 if __name__ == '__main__':
     print(f'Piano Lab: http://127.0.0.1:{PORT}', flush=True)
     print('Audiveris: '+('ready' if audiveris_path() else 'not configured; PDF preview and sample practice remain available'), flush=True)
+    audit_bundle()
     # Listen on the local network so classmates can test from another device.
     # "::" + IPV6_V6ONLY=0 → 同一端口同时接受 IPv4 与 IPv6（含外网 IPv6 直连）。
     class DualStackServer(ThreadingHTTPServer):

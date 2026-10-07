@@ -1160,7 +1160,7 @@ bash 超时；子进程各自设超时，被 kill 时会提示「检查是不是
 - `parse_model_json` 里 `content[:200000]`：模型**原始输出**解析前的上限，远高于实际（MODEL_TOKENS 才 8000），不会触发。
 - `action_value` 里 `value[:2000]`：动作 value 本就很小（id / BPM / 声部名）。
 - `friendly_error` 里 `str(error)[:250]`：仅用于给用户看的报错文案，截断无害。
-- 曲式分析那条 `max_tokens=1600`（649 行）**仍保留**；若唐老师要更长的分析，再放开。
+- 曲式分析那条 `max_tokens` 已随唐老师「按最优调整」的指令从 1600 提到 **8000**（与 `MODEL_TOKENS` 对齐），详细分析不再被砍。
 
 ### 验证
 
@@ -1168,6 +1168,34 @@ bash 超时；子进程各自设超时，被 kill 时会提示「检查是不是
 - 离线探针 `scripts/_probe-fastplan.py` 全绿：`#45` 仍转模型、`#47` 走规则通道、
   「第 70 小节里的 70 不当速度」「速度合适吗 → 转模型」等反向用例均正确。
 - 真机全量回归（60 条）**待跑**——当时苏大上游在限频（429），留到限频解除后补。
+
+## 第七轮：云曲库加载变慢（2026-10-07）
+
+唐老师反馈「云曲库加载特别慢，之前没有这么慢」。
+
+### 根因
+`/api/scores` 列表接口对 80 首逐首用 `read_cached_score(digest)`：
+1. **整份 json.loads 大文件**：曲库有 ~590 个带整份 XML 的大 `.json`（总计 ~89.5MB，最大单首 10MB），列表根本不需要 XML 却全量解析 → ~6.4s。
+2. **OMR 修复副作用**：`read_cached_score(repair=True)` 对每首做 `omr_normalize` 并**改写文件**，既慢又在请求线程里写盘，偶发把请求线程弄崩（客户端收到空回复 HTTP 000）。
+3. **逐首开 SQLite**：`background_jobs.latest_for_digest(digest)` ×80，每个都重开一次 DB 连接 → ~2.7s。
+
+合计 ~9–11s，且不稳定（偶发空回复，正是唐老师之前看到的「报错」）。
+
+### 修复（server.py + background_jobs.py）
+- 新增 `read_score_list_entry(digest)`：列表专用轻量读取。**只解析 metadata 子对象**（字节级定位 metadata 值的 `{` 真实字节位置 + `json.JSONDecoder.raw_decode`，对冒号前后空格鲁棒），`ready` 用字节子串判定，**不整读 XML、不做 OMR 改写**。只有 sidecar 的曲子照常合并 sidecar，不丢封面/曲名。
+- 新增 `_score_list_item(digest, background_active)`：构建单首列表项；调用方对每首包 try/except，**任一坏曲绝不让整列表崩**（根治空回复）。
+- `background_jobs.latest_jobs_by_digest()`：一次查询拿全部 digest 的后台任务，替代逐首开 DB。
+- `/api/scores` handler 改用以上轻量路径；`saved` 排序、hidden 过滤、title 解析、`cover`/sidecar 合并逻辑全部保留。
+
+### 验证
+- **正确性**：新逻辑 vs 旧 `read_cached_score` 全量 80 首字段级对比，**0 差异**（含 10 首 only-sidecar 曲、`hiddenFromLibrary` 过滤、cover/titleVersion/titleVerification/saved 全部一致）。
+- **速度**：独立进程冷 1.06s / 热 1.02s（之前 >6.4s 整读+OMR）。
+- **线上实测**：`restart-server.py` 干净重启加载新代码后，`/api/scores` 稳定 ~1s（0.9–1.8s，高的是并发/GC 抖动）；**连续 6 次全部 200、无空回复**；返回 80 曲、70 ready、重名曲正确。
+- 顺带确认：唐老师之前报的「500」实际是列表线程偶发崩导致的**空回复（HTTP 000）**，非 5xx 状态码；现已根治。
+
+### 两个待确认点（唐老师让按最优调）
+- 第 1 点（`WEB_*_LIMIT` 环境变量）：是唐老师本机配置，无项目代码可改；项目侧已去掉所有内部截断，能吃到抬后的上限。
+- 第 2 点（曲式分析 `max_tokens=1600`）：已提到 **8000**（与 `MODEL_TOKENS` 对齐），详细分析不再被砍。
 
 
 

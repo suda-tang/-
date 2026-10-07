@@ -84,6 +84,24 @@ def latest_for_digest(digest):
  if item and item['status']=='failed' and ('inspect-score' in (item.get('detail') or '') or 'Command [' in (item.get('detail') or '')):
   item['detail']=friendly_error(item['kind'],item['detail'])
  return item
+def latest_jobs_by_digest():
+ """一次性返回每个 digest 的最新后台任务，供曲库列表批量使用。
+
+ 曲库列表原来对每首都调一次 latest_for_digest（每次重开 SQLite 连接），80 首就要
+ 2~3s。这里只开一次连接、一次查询，再在内存里按 (状态优先级, updated) 取每 digest 最新。
+ """
+ with connection() as db:
+  rows=db.execute("SELECT * FROM jobs WHERE status IN ('running','queued','failed','needs_review')").fetchall()
+ def prio(s):return 0 if s=='running' else (1 if s=='queued' else 2)
+ result={}
+ for row in rows:
+  item=dict(row);d=item['digest'];cur=result.get(d)
+  if cur is None or (prio(item['status']),item['updated'])>(prio(cur['status']),cur['updated']):
+   result[d]=item
+ for item in result.values():
+  if item['status']=='failed' and ('inspect-score' in (item.get('detail') or '') or 'Command [' in (item.get('detail') or '')):
+   item['detail']=friendly_error(item['kind'],item['detail'])
+ return result
 def inspect(digest,xml='',ocr=False):
  ARTIFACTS.mkdir(exist_ok=True);request=ARTIFACTS/(digest+'.inspect-input.json');output=ARTIFACTS/(digest+'.inspect.json');write_json(request,{'digest':digest,'xml':xml,'ocr':ocr})
  node=shutil.which('node') or str(Path.home()/'.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node.exe')

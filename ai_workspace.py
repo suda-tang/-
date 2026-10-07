@@ -646,7 +646,7 @@ def stream_result(handler,data):
         if plan and plan.get('analysis'):
             emit({'type':'status','text':'已读取实际乐谱，正在分析小节、动机和段落…'})
             prompt='根据提供的实际乐谱摘要，用中文回答曲式结构问题。先说明只有音高、小节和少量文字信息，缺少完整听觉与和声验证；区分可观测证据与推断。若证据不足不要硬划段落或断言曲式；只有出现同一个调号不能推断发生转调或回归。拍号必须结合 beats 和 beatType，不能只凭分子判断。提出具体小节范围供核对，不确定就明确说不确定。不能把文学题名当成音乐结构，不编造确定曲式。问题：'+plan['question']+'\n标题：'+plan['score']['title']+'\n乐谱证据：'+json.dumps(plan['evidence'],ensure_ascii=False)
-            with requests.post('http://127.0.0.1:8765/v1/chat/completions',headers={'Authorization':'Bearer suda-local'},json={'model':'suda-deepseek','messages':[{'role':'user','content':prompt}],'stream':True,'temperature':0.3,'max_tokens':1600},stream=True,timeout=(5,120)) as r:
+            with requests.post('http://127.0.0.1:8765/v1/chat/completions',headers={'Authorization':'Bearer suda-local'},json={'model':'suda-deepseek','messages':[{'role':'user','content':prompt}],'stream':True,'temperature':0.3,'max_tokens':8000},stream=True,timeout=(5,120)) as r:
                 r.raise_for_status();reply=''
                 for line in r.iter_lines():
                     if not line.startswith(b'data:'):continue
