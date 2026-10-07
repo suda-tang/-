@@ -16,7 +16,7 @@ WorkBuddy 里有这么一段（app.asar → WorkbuddyProductManager）：
 `~/.workbuddy/logs/<日期>/workbuddyMainThread__*.log`，形如：
 
     [Merge] Step 4 (availableModels filter): finalModels=36, cli.models=[...]
-    [buildResolvedProductConfig] resolved ids: auto, fast-model, ... 
+    [buildResolvedProductConfig] resolved ids: auto, fast-model, ...
 
 这份清单是**服务端下发、会随版本变**（实测 44 → 54 → 55，陆续多了 glm-5.3 / kimi-k3-1 /
 space-bunny 等）。所以 availableModels 不能写死，必须跟着日志刷新 —— 本脚本就是干这个的。

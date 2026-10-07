@@ -1,0 +1,20 @@
+{
+  "verified_at_utc": "2026-10-07T19:38:34.828116+00:00",
+  "releases": [
+    {
+      "group": "core",
+      "url": "https://github.com/suda-tang/-/releases/tag/runtime-2026-10-08",
+      "archives": 7,
+      "bytes": 3089449863,
+      "github_sha256_verified": true
+    },
+    {
+      "group": "cosy",
+      "url": "https://github.com/suda-tang/-/releases/tag/runtime-cosy-2026-10-08",
+      "archives": 11,
+      "bytes": 8830265063,
+      "github_sha256_verified": true
+    }
+  ],
+  "restore_smoke_test": "Actual GitHub download, SHA-256 verification and extraction passed on public-cosy-09.zip"
+}
