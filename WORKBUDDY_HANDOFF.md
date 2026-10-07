@@ -1079,14 +1079,48 @@ bash 超时；子进程各自设超时，被 kill 时会提示「检查是不是
 - ★ `dup_hint` 顺手点出「另一份演奏数据更全」，用户才知道有得换。
 
 验证：离线探针（秒级）确认「当前是《月亮》→ 打开《知足》」挑的是 **37d1f663…**（有
-逐音符演奏数据那份）；真机 `--only 3` + `--from 52 --to 54` **4/4 PASS**。
+逐音符演奏数据那份）；真机 `--only 3` + `--from 52 --to 54` **4/4 PASS**；
+改动后全量 60 条 **59/60**（31 分 41 秒）。
+
+★ 唯一失败 **#47**（打开《月亮》→ 简谱 → 速度 70 → 播放）是**模型偶发漏做「打开」那步**
+（停在《知足》、只发了 `set_tempo 70`），与本次改动无关 —— 《月亮代表我的心》是唯一匹配，
+不走新的挑选分支；单独重跑两次均 PASS（40s / 44s）。记为**已知波动**。
+（同类现象第一轮就有：一句话里事越多，模型越容易只做一半。）
 
 ⚠ **未解决：唐老师说「现在项目报错 500」，我复现不出来。**
-已排查（全部正常）：`/`、`/api/scores`、`/api/ai-tasks`、`/api/health`、`/api/cover` 全 200；
-浏览器加载首页 + 打开两份《知足》+ 切四个面板 → **零 5xx**（只有两个正常的 ERR_ABORTED）；
-POST `/api/workspace-ai` 200；上游 8765 `/v1/models` 与 `/v1/chat/completions` 都 200；
-后端 30+ 个 `*.py` 全部 `py_compile` 通过；前端 67 个文件语法 PASS。
-**需要唐老师给个具体位置**（哪个页面 / 点了什么 / 报错原文或截图）才能继续定位。
+
+已排查（全部正常）：
+
+- `/`、`/api/scores`、`/api/ai-tasks`、`/api/health`、`/api/cover` 全 200；
+  另外 16 个只读接口（activity / arrangement-capabilities / institution-logo /
+  lecture-music / media / performance / photos / portrait-reference / tasks /
+  tour-voice / voice-reference / workspace-ai/web …）全是 **200 / 400 / 401 / 404**（缺参数
+  或需要登录），**一个 500 都没有**。
+- 浏览器加载首页 + 切四个面板 → 零 5xx；**遍历打开全部 69 首 ready 曲谱** → 零异常。
+- POST `/api/workspace-ai` 200；上游 8765 的 `/v1/models`、`/v1/chat/completions`、`/health`
+  都 200（`status=ok`、`logged_in`、`page_ready`）。
+- 后端 30+ 个 `*.py` 全部 `py_compile` 通过；前端 67 个文件语法 PASS。
+
+★★ **最关键的结论：500 不是钢琴项目发的。**
+
+- `grep -n "500\|send_error\|INTERNAL_SERVER_ERROR\|HTTPStatus\." server.py` → **全空**，
+  服务端代码里**根本没有产生 500 的路径**（Python `http.server` 遇到未捕获异常是
+  **直接断连**，不会返回 500）。
+- 后端其它模块也搜不到 `send_error(500)`；`ai_workspace.handle` 有 `friendly_error()` 兜底，
+  异常会被翻成人话返回，**不会是 500**。
+- 前端 `dist/` 里也搜不到任何 `status===500` / `status>=500` 的处理，没有硬编码的 500 提示。
+- 上游 8765：`requests.log` 里 `\b(400|401|403|429|500|502|503|504)\b` 计数 = **0**；
+  `launcher.log` 只有「客户端断开连接（ConnectionResetError）」—— 那是跑回归时中断流式
+  请求造成的（`client_aborts=18`），不是 500。`/health` 的 `errors=2` 是流式静默分支
+  （`suda_api.py` 4610 行只计数不写日志，HTTP 仍 200）。
+
+→ **所以要定位，得看浏览器 F12 → 网络(Network)面板里那条红色的请求**：它打到哪个 URL、
+  状态码是什么。500 大概率来自**代理（Clash 7897）/ 浏览器的某个外链请求 / 别的端口**，
+  而不是 5173。
+  ★ 本机 4000~9999 上在监听的有：5173（本项目）、8765/8766（服务）、8767（守护）、
+  7897（Clash）、8443 / 5555 / 8307 / 9125 / 9333 / 8588 / 6646（不明，可能是别的程序）。
+  ★ 排查辅助脚本留在 `scripts/_probe-500.cjs`（遍历打开全部 ready 曲谱并抓所有 4xx/5xx +
+  JS 报错），改指向或加操作即可复用到别的路径。
 
 
 
