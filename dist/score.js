@@ -1,4 +1,4 @@
-import { renderEngraved } from './engraving.js';
+import { renderEngraved } from './engraving.js?v=chunk-plan4';
 const semitones={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
 export const noteName=n=>['C','C♯','D','E♭','E','F','F♯','G','A♭','A','B♭','B'][((n%12)+12)%12]+(Math.floor(n/12)-1);
 const child=(el,name)=>Array.from(el?.children||[]).find(n=>n.localName===name);

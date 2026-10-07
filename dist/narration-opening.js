@@ -1,5 +1,5 @@
 import {attachLectureMusic} from './lecture-music.js?v=5';
-import {attachNarrationAvatar} from './narration-avatar.js?v=logo-match4';
+import {attachNarrationAvatar} from './narration-avatar.js?v=auto-discovery6';
 import {narrationMedia} from './narration-media.js';
 const boards={
  'mentor-preface':{title:'异地合奏',points:['时间码同步','网络延迟补偿','演奏者的体验']},
@@ -34,6 +34,7 @@ export async function openingNarration(scene){
  position.className='mentor-segment';subtitle.className='mentor-subtitle';subtitle.setAttribute('aria-live','off');actions.className='mentor-caption-actions';skip.type=exit.type='button';position.hidden=subtitle.hidden=actions.hidden=true;actions.append(skip,exit);captionPanel.append(position,subtitle,actions);
  const disposeAvatar=attachNarrationAvatar(host,audio,{embedded:true,cinematic:true});
  const loaded=await new Promise(resolve=>{const timeout=setTimeout(()=>{observer.disconnect();resolve(false);},20000);const observer=new MutationObserver(()=>{const avatar=host.querySelector('.narration-avatar');if(avatar?.dataset.ready||avatar?.dataset.error){clearTimeout(timeout);observer.disconnect();resolve(!!avatar.dataset.ready);}});observer.observe(host,{subtree:true,attributes:true});});
+ window.dispatchEvent(new CustomEvent('mentor-stage-ready',{detail:{loaded}}));
  if(!loaded){endArrival();audio.pause();disposeAvatar();return;}
  loading.hidden=true;scene.dataset.phase='arrival';await wait(matchMedia('(prefers-reduced-motion:reduce)').matches?400:5600);endArrival();const greeting=await Promise.race([greetingReady,continueReady]);continueButton.hidden=true;if(greetingName&&!greeting){continueButton.hidden=false;endArrival();audio.pause();sound.hidden=false;sound.textContent='前言生成失败，轻触重新载入';sound.onclick=async()=>{await fetch('/api/mentor-greeting?retry=1&name='+encodeURIComponent(greetingName));location.reload();};await continueReady;sound.hidden=true;continueButton.hidden=true;}if(greeting&&!greeting.useExisting){tracks[0]={...tracks[0],url:greeting.url,text:greeting.text};}scene.dataset.phase='lecture';
  return new Promise(resolve=>{

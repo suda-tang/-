@@ -6,7 +6,8 @@ import {readMidi,saveMidi,readLocalMidi} from './midi-loader.js';
 import {layoutDrums} from './drum-layout.js';
 import {chooseDuplicate} from './duplicate-score.js';
 import {writtenExpression} from './written-expression.js';
-import {DawView,scoreTracks} from './daw.js?v=responsive-render2';
+import {DawView,scoreTracks} from './daw.js?v=visible-window4';
+window.reportStartupActivity?.({id:'app',label:'初始化播放控件、乐谱视图与云曲库'});
 // The drum staff lives in its own card under the score. It used to be
 // prepended into #notation, where it shared the piano sheet's container and
 // scroll position and so read as one score with two extra staves.
@@ -65,15 +66,15 @@ import {enqueueUploads,reportTask,showTasks} from './task-center.js?v=folded-gro
 import {INSTRUMENTS} from './instruments.js';
 import {preloadPianoSamples} from './piano-samples.js';
 import {analyzeHarmony,detectChord} from './harmony.js';
-import { parseMusicXML, parseMusicXMLAsync, sampleScore, renderNotation, noteName } from './score.js';
+import { parseMusicXML, parseMusicXMLAsync, sampleScore, renderNotation, noteName } from './score.js?v=chunk-plan4';
 import {parseMidi} from './midi.js';
-import { renderSimpleNotation, renderSimpleNotationAsync, simplePlaybackTarget } from './simple-notation.js?v=responsive-render2';
-import { sheetWidth,activateLazyEngraving } from './engraving.js?v=responsive-render2';
+import { renderSimpleNotation, renderSimpleNotationAsync, simplePlaybackTarget,activateSimpleNotation } from './simple-notation.js?v=lazy-systems4';
+import { sheetWidth,activateLazyEngraving } from './engraving.js?v=chunk-plan4';
 import './vendor/typedarray-compat.mjs';
 import { PitchListener, Follower, summarize } from './engine.js';
-import { ScorePlayer } from './player.js';
+import { ScorePlayer } from './player.js?v=bounded-cache2';
 import { setupScoreEditing } from './score-editing.js';
-import { initLibrary, cleanText } from './library.js?v=progress-complete14';
+import { initLibrary, cleanText } from './library.js?v=stream-search22';
 import { initMediaImport } from './media-import.js';
 
 // PDF.js 5.x uses newer Web APIs that are absent in some embedded Chromium
@@ -123,14 +124,14 @@ const refreshLibrary=initLibrary({openPending:openPendingScore,recognizeTitle:re
  const pendingKey=data.id||data.xml;let prepared=parsedScoreCache.get(pendingKey);
  const contentSignature=scoreFingerprintFallback(new TextEncoder().encode(data.xml+JSON.stringify(data.metadata||{})+'|canonical-midi-v1'));
  if(prepared?.contentSignature!==contentSignature){prepared=null;for(const key of notationCache.keys())if(key.startsWith(`${pendingKey}:`))notationCache.delete(key);}
- onProgress(38,'解析节奏与声部');setImportProgress(38,'正在解析节奏与声部');if(!prepared){await new Promise(r=>setTimeout(r,0));const parsedXml=await parseMusicXMLAsync(data.xml,'导入的琴谱',ratio=>{const percent=Math.round(ratio*100);onProgress(38+ratio*12,`解析节奏与声部 ${percent}%`);setImportProgress(38+ratio*12,`解析节奏与声部 ${percent}%`);});prepared=hydrateMidiScore(applyScoreMetadata(parsedXml,data.metadata),data.metadata);prepared.serverId=data.id;parsedScoreCache.set(pendingKey,prepared);while(parsedScoreCache.size>2)parsedScoreCache.delete(parsedScoreCache.keys().next().value);}
+ onProgress(38,'解析节奏与声部');setImportProgress(38,'正在解析节奏与声部');if(!prepared){await new Promise(r=>setTimeout(r,0));const parsedXml=await parseMusicXMLAsync(data.xml,'导入的琴谱',ratio=>{const percent=Math.round(ratio*100);onProgress(38+ratio*12,`解析节奏与声部 ${percent}%`);setImportProgress(38+ratio*12,`解析节奏与声部 ${percent}%`);});prepared=hydrateMidiScore(applyScoreMetadata(parsedXml,data.metadata),data.metadata);prepared.serverId=data.id;parsedScoreCache.set(pendingKey,prepared);while(parsedScoreCache.size>(matchMedia('(pointer:coarse)').matches||innerWidth<800?1:2))parsedScoreCache.delete(parsedScoreCache.keys().next().value);}
  prepared.contentSignature=contentSignature;prepared.variants=data.variants||null;
  prepared.onRenderProgress=ratio=>{const value=52+Math.round(ratio*32);onProgress(value,'正在排版五线谱');setImportProgress(value,'正在排版五线谱');};
  const width=sheetWidth($('notation')),renderKey=`${pendingKey}${prepared.variants?.active?'@'+prepared.variants.active:''}:engraved:${width}:layout-v17`;
  if(!notationCache.has(renderKey)){const storedMarkup=await Promise.race([readNotationCache(renderKey),new Promise(resolve=>setTimeout(()=>resolve(''),1200))]);if(storedMarkup&&storedMarkup.includes('data-part=')){const restored=document.createElement('div');restored.innerHTML=storedMarkup;notationCache.set(renderKey,restored);onProgress(86,'载入设备排版缓存');setImportProgress(86,'正在载入设备排版缓存');}}
  if(!notationCache.has(renderKey)){onProgress(52,'排版完整五线谱');setImportProgress(52,'正在排版完整五线谱');const staging=document.createElement('div');staging.style.cssText=`position:fixed;left:-20000px;top:0;width:${width}px;opacity:0;pointer-events:none`;const inner=document.createElement('div');staging.append(inner);document.body.append(staging);try{await renderNotation(inner,prepared);notationCache.set(renderKey,inner.cloneNode(true));while(notationCache.size>((matchMedia('(pointer:coarse)').matches||innerWidth<800)?1:4))notationCache.delete(notationCache.keys().next().value);void writeNotationCache(renderKey,inner.innerHTML);}finally{staging.remove();}}else{onProgress(86,'载入已缓存排版');setImportProgress(86,'正在载入缓存排版');}
  selectedJob=null;uploadVersion++;cancelPdfLoading();stop();player.stop();sourceFile=null;pdfDocument?.destroy();pdfDocument=null;pdfPageEls=[];storedPdfId=null;storedPdfPages=0;if(nativePdfUrl){URL.revokeObjectURL(nativePdfUrl);nativePdfUrl=null;}$('pdf-pages').replaceChildren();$('original-button').disabled=!data.hasPdf;$('retry-import').hidden=true;importing=false;
- const parsed=prepared;onProgress(91,'装入演奏位置与控件');await setScore(parsed);$('file-info').textContent=parsed.title;onProgress(100,'载入完成');setImportProgress(100,'已从 SUPERTANG CLOUD云服务进行载入','done');message('已从 SUPERTANG CLOUD云服务进行载入');
+ const parsed=prepared;onProgress(91,'装入演奏位置与控件');await setScore(parsed);if(matchMedia('(pointer:coarse)').matches||innerWidth<800)notationCache.clear();$('file-info').textContent=parsed.title;onProgress(100,'载入完成');setImportProgress(100,'已从 SUPERTANG CLOUD云服务进行载入','done');message('已从 SUPERTANG CLOUD云服务进行载入');
  if(data.hasPdf) void loadStoredPdf(data.id);void loadCachedExpression(parsed);
 }});
 let paintedIndex=-1,paintedScore=null,followUntil=0;
@@ -174,7 +175,7 @@ function syncScoreMix(){syncVocalMix();const pane=$('notation'),stamp=JSON.strin
 const daw=new DawView($('daw-view'),player,index=>void playFromNote(index),()=>{syncScoreMix();for(const input of $('part-mix').querySelectorAll('input'))input.checked=!player.disabledParts?.has(input.dataset.part);$('part-solo-select').value=player.soloPart;});
 $('daw-button').onclick=()=>{view('daw');daw.show();};
 $('expressive').onchange=event=>{player.expressive=event.target.checked;};
-function setNoteState(el,state){el.classList.remove('played','current','pending','correct','wrong');el.classList.add('note-event',state);}
+function setNoteState(el,state){if(el.dataset.playState===state||(!el.dataset.playState&&el.classList.contains(state)))return;el.dataset.playState=state;el.classList.remove('played','current','pending','correct','wrong');el.classList.add('note-event',state);}
 function fitVisibleScore(){if(player.playing)return;const target=$('notation').querySelector('.simple-system,.note-event');if(target&&['notation','simple'].includes(currentView))scoreSystemBounds(target);}
 function scoreSystemBounds(target){
  const simple=target.closest('.simple-system');
@@ -205,7 +206,7 @@ function paintPlayback({beat,index,totalBeats}){
  const positionLabel=`示范播放　第 ${score?.events[index]?.measure??1} 小节`;if($('position').textContent!==positionLabel)$('position').textContent=positionLabel;
  const playLabel=`${player.playing?'正在播放':'已暂停'}　${tempo()} BPM　第 ${Math.floor(beat)+1} 拍`;if($('play-status').textContent!==playLabel)$('play-status').textContent=playLabel;
  if($('chord-toggle')?.checked){const event=score?.events[index];const chord=event&&score.harmony?.get(event.measure);$('chord-display').textContent=chord?.name||'—';}
- if(paintedIndex!==index||paintedScore!==score){
+ if(['notation','simple'].includes(currentView)&&(paintedIndex!==index||paintedScore!==score)){
   if(playbackElementScore!==score)rebuildPlaybackElements();
   if(paintedScore!==score||index<paintedIndex){for(const [i,elements]of playbackElements)for(const el of elements)setNoteState(el,i<index?'played':i===index?'current':'pending');}
   else{for(const el of playbackElements.get(paintedIndex)||[])setNoteState(el,'played');for(const el of playbackElements.get(index)||[])setNoteState(el,'current');}
@@ -540,7 +541,7 @@ function decoratePdfCoordinates(score){
 const warmPiano=()=>void preloadPianoSamples();
 if('requestIdleCallback' in window)requestIdleCallback(warmPiano,{timeout:1800});else setTimeout(warmPiano,1200);
 function controls(){ $('start-button').disabled=!score||running||starting||importing; $('start-button').hidden=running; $('stop-button').hidden=!running; $('reset-button').disabled=!score; $('tempo').disabled=running; $('tempo-up').disabled=running; $('tempo-down').disabled=running; $('demo-button').disabled=(running&&!demo)||starting||importing;$('demo-button').textContent=(player.playing||running&&demo)?'暂停':'试听';$('demo-button').setAttribute('aria-pressed',String(player.playing||running&&demo)); $('export-button').disabled=!records.length;$('play-button').disabled=!score||starting||importing;$('play-button').textContent=player.playing?'暂停播放':player.beat>0&&player.beat<player.totalBeats?'继续播放':'自动演奏';$('play-reset').disabled=!score||importing; }
-function view(type){if(!['notation','simple'].includes(type))$('notation').lazyEngravingObserver?.disconnect();currentView=type;$('daw-view').hidden=type!=='daw';$('daw-button').disabled=!score; $('notation').hidden=!['notation','simple'].includes(type)||!score; $('pdf-pages').hidden=type!=='pdf'; $('empty-score').hidden=!!score||type==='pdf'; $('simple-button').disabled=!score||importing; for(const [id,on] of [['notation-button',type==='notation'],['simple-button',type==='simple'],['original-button',type==='pdf'],['daw-button',type==='daw']]){$(id).classList.toggle('active',on);$(id).setAttribute('aria-pressed',String(on));}}
+function view(type){if(type!==currentView&&['notation','simple'].includes(type)){$('sheet-scroll').style.overflowAnchor='none';}if(!['notation','simple'].includes(type)){$('notation').lazyEngravingObserver?.disconnect();$('notation').lazySimpleObserver?.disconnect();}currentView=type;$('daw-view').hidden=type!=='daw';$('daw-button').disabled=!score; $('notation').hidden=!['notation','simple'].includes(type)||!score; $('pdf-pages').hidden=type!=='pdf'; $('empty-score').hidden=!!score||type==='pdf'; $('simple-button').disabled=!score||importing; for(const [id,on] of [['notation-button',type==='notation'],['simple-button',type==='simple'],['original-button',type==='pdf'],['daw-button',type==='daw']]){$(id).classList.toggle('active',on);$(id).setAttribute('aria-pressed',String(on));}}
 function recognizedTempo(next){const parsed=Number(next?.tempo);if(Number.isFinite(parsed)&&parsed>=30&&parsed<=240)return Math.round(parsed);const raw=String(next?.meta?.tempo||'');const match=raw.match(/(?:[Jj♩]|每分钟)?\s*[=:：]?\s*(\d{2,3})\s*(?:BPM|拍)?/i);const value=Number(match?.[1]);return value>=30&&value<=240?Math.round(value):null;}
 function updateScoreSubtitle(current=score){
  if(!current)return;
@@ -566,7 +567,7 @@ async function setScore(next,isSample=false){
  $('score-title').textContent=next.title;updateScoreSubtitle(next);paintedIndex=-1;paintedScore=null;
  const renderKey=`${next.serverId||next.arrangementKey||next.title}${next.variants?.active?'@'+next.variants.active:''}:${notationMode}:${sheetWidth($('notation'))}:layout-v17`;const cachedNotation=notationCache.get(renderKey);
  if(cachedNotation){$('notation').replaceChildren(...[...cachedNotation.childNodes].map(node=>node.cloneNode(true)));notationCache.delete(renderKey);notationCache.set(renderKey,cachedNotation);}
- else{const modeAtStart=notationMode,staging=document.createElement('div');if(modeAtStart==='simple')await renderSimpleNotationAsync(staging,next,{cancelled:()=>generation!==scoreRenderGeneration});else await renderNotation(staging,next);if(generation!==scoreRenderGeneration||score!==next||modeAtStart!==notationMode)return;$('notation').replaceChildren(...[...staging.childNodes].map(node=>node.cloneNode(true)));notationCache.set(renderKey,staging.cloneNode(true));while(notationCache.size>((matchMedia('(pointer:coarse)').matches||innerWidth<800)?1:4))notationCache.delete(notationCache.keys().next().value);}
+ else{const modeAtStart=notationMode,staging=document.createElement('div');if(modeAtStart==='simple')await renderSimpleNotationAsync(staging,next,{cancelled:()=>generation!==scoreRenderGeneration});else await renderNotation(staging,next);if(generation!==scoreRenderGeneration||score!==next||modeAtStart!==notationMode)return;if(modeAtStart==='simple')$('notation').replaceChildren(...staging.childNodes);else{$('notation').replaceChildren(...[...staging.childNodes].map(node=>node.cloneNode(true)));notationCache.set(renderKey,staging.cloneNode(true));}while(notationCache.size>((matchMedia('(pointer:coarse)').matches||innerWidth<800)?1:4))notationCache.delete(notationCache.keys().next().value);}
  // Arrangements are often opened while the workspace transition is still
  // settling. If OSMD returned only its temporary caption, give it one laid
  // out frame and render once more so the first open never requires a manual
@@ -575,7 +576,7 @@ async function setScore(next,isSample=false){
   await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
   if(generation===scoreRenderGeneration&&score===next){$('notation').replaceChildren();await renderNotation($('notation'),next);}
  }
- if(generation!==scoreRenderGeneration||score!==next)return;$('tempo-detail').textContent=detectedTempo?`原谱标记速度　${detectedTempo} BPM`:`目标 ${tempo()} BPM`;$('play-status').textContent='琴谱已就绪';view(notationMode==='simple'?'simple':'notation');if(notationMode==='engraved')activateLazyEngraving($('notation'),score);syncScoreMix();refreshDrumLane();syncExpressionControls({applied:false});refresh();controls();
+ if(generation!==scoreRenderGeneration||score!==next)return;$('tempo-detail').textContent=detectedTempo?`原谱标记速度　${detectedTempo} BPM`:`目标 ${tempo()} BPM`;$('play-status').textContent='琴谱已就绪';view(notationMode==='simple'?'simple':'notation');if(notationMode==='engraved')activateLazyEngraving($('notation'),score);else activateSimpleNotation($('notation'));syncScoreMix();refreshDrumLane();syncExpressionControls({applied:false});refresh();controls();
 }
 function refresh(){ const summary=summarize(records,tempo()); $('accuracy').textContent=summary.accuracy??'—';$('rhythm').textContent=summary.rhythm??'—';$('current-tempo').textContent=summary.bpm??'—';$('accuracy-detail').textContent=records.length?`匹配 ${summary.matched}　漏音 ${summary.missed}　额外音 ${summary.extra}`:'等待演奏数据';$('rhythm-detail').textContent=summary.rhythm===null?'至少需要 3 个起音':`相对速度归一化后的起音一致性`; $('tempo-detail').textContent=summary.bpm===null?`目标 ${tempo()} BPM`:`目标 ${tempo()} BPM　${summary.bpm-tempo()>=0?'+':''}${summary.bpm-tempo()} BPM`; if(playbackView&&score){paintPlayback({beat:player.beat,index:player.displayIndex(player.beat),totalBeats:player.totalBeats});return;}const done=follower?.index||0;const percent=score?Math.round(done/score.events.length*100):0;if($('progress-label').textContent!==`${percent}%`)$('progress-label').textContent=`${percent}%`;$('progress-bar').style.width=`${percent}%`;$('progress-bar').parentElement.setAttribute('aria-valuenow',String(percent));$('position').textContent=score?(done>=score.events.length?'本段练习完成':`第 ${score.events[done].measure} 小节　${done} / ${score.events.length} 组`):'尚未开始';$('export-button').disabled=!records.length;
  $('events').replaceChildren();if(!records.length){const p=document.createElement('p');p.className='empty-events';p.textContent='暂无记录';$('events').append(p);}for(const row of records.slice(-40).reverse()){const div=document.createElement('div');div.className='event-row'; const cols=[row.type==='extra'?'额外起音':`第 ${row.measure} 小节`,`${row.expected.map(noteName).join('　')||'—'} → ${row.heard.map(noteName).join('　')||'未检测到'}`,row.type==='correct'?'音符匹配':row.type==='missed'?'疑似漏弹':row.type==='extra'?'额外起音':'音符有误',row.offsetMs==null?'—':`${row.offsetMs>0?'+':''}${Math.round(row.offsetMs)} ms`];cols.forEach((text,i)=>{const el=document.createElement('span');el.textContent=text;if(i===2)el.className=`badge ${row.type==='correct'?'':'wrong'}`;if(i===3)el.className='time';div.append(el);});$('events').append(div);}
@@ -594,7 +595,7 @@ $('start-button').addEventListener('click',()=>{player.pause();playbackView=fals
 let notationRenderQueue=Promise.resolve();
 let notationSwitchRequest=0,liveNotationScore=null,liveNotationKey='',liveNotationViews=new Map();
 function activateNotationPane(pane,key){
- const current=$('notation');current.lazyEngravingObserver?.disconnect();
+ const current=$('notation');current.lazyEngravingObserver?.disconnect();current.lazySimpleObserver?.disconnect();
  if(liveNotationKey){current.removeAttribute('id');current.hidden=true;liveNotationViews.set(liveNotationKey,current);}else current.remove();
  liveNotationViews.delete(key);pane.id='notation';pane.hidden=false;if(!pane.isConnected)$('sheet-scroll').prepend(pane);
  liveNotationKey=key;playbackElementScore=null;followSystem=null;
@@ -610,7 +611,7 @@ async function setNotationMode(mode,{preserveTransport=true}={}){
  const width=sheetWidth($('notation'));if(liveNotationScore!==target){liveNotationScore=target;for(const pane of liveNotationViews.values())pane.remove();liveNotationViews.clear();liveNotationKey=(currentView==='simple'?'simple':'engraved')+':'+width;}const liveKey=mode+':'+width,key=`${target.serverId||target.title}:${mode}:${width}:layout-v17`;
  view(mode==='simple'?'simple':'notation');
  if(liveNotationKey===liveKey&&$('notation').querySelector('svg,.simple-system')){fitVisibleScore();refresh();return;}
- const live=liveNotationViews.get(liveKey);if(live){activateNotationPane(live,liveKey);if(mode==='engraved')activateLazyEngraving($('notation'),score);paintedIndex=-1;paintedScore=null;lastPlaybackIndex=-1;syncScoreMix();fitVisibleScore();refresh();return;}
+ const live=liveNotationViews.get(liveKey);if(live){activateNotationPane(live,liveKey);if(mode==='engraved')activateLazyEngraving($('notation'),score);else activateSimpleNotation($('notation'));paintedIndex=-1;paintedScore=null;lastPlaybackIndex=-1;syncScoreMix();fitVisibleScore();refresh();return;}
  const cached=notationCache.get(key);
  if(cached&&cached.querySelector('svg,.simple-system'))installNotation([...cached.childNodes].map(n=>n.cloneNode(true)),liveKey);
  else{
@@ -625,7 +626,7 @@ async function setNotationMode(mode,{preserveTransport=true}={}){
  }
  if(request!==notationSwitchRequest||score!==target)return;
  paintedIndex=-1;paintedScore=null;lastPlaybackIndex=-1;
- if(mode==='engraved')activateLazyEngraving($('notation'),score);syncScoreMix();fitVisibleScore();refresh();
+ if(mode==='engraved')activateLazyEngraving($('notation'),score);else activateSimpleNotation($('notation'));syncScoreMix();fitVisibleScore();refresh();
 }
 $('notation-button').onclick=()=>void setNotationMode('engraved');$('simple-button').onclick=()=>void setNotationMode('simple');$('original-button').onclick=()=>{pdfLastScrollPage=0;view('pdf');syncPdfPlayback(player.displayIndex(player.beat));};$('empty-upload').onclick=()=>$('pdf-input').click();$('drop-zone').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('pdf-input').click();}};
 async function health(){
@@ -826,7 +827,7 @@ $('xml-input').onchange=async e=>{
   if(midi){$('file-info').textContent=`正在读取 MIDI：${file.name}`;setImportProgress(2,'读取 MIDI 文件');await new Promise(resolve=>requestAnimationFrame(resolve));const buffer=await readLocalMidi(file,ratio=>setImportProgress(2+ratio*6,'读取 MIDI 文件 '+Math.round(ratio*100)+'%'));setImportProgress(8,'解析 MIDI');const parsedMidi=await readMidi(buffer,file.name,(progress,label)=>{if(version===uploadVersion)setImportProgress(8+progress*42,label);});setImportProgress(52,'检查云曲库重名作品');if(version!==uploadVersion)return;const duplicate=await chooseDuplicate(parsedMidi.title);if(version!==uploadVersion)return;if(duplicate){importing=false;document.dispatchEvent(new CustomEvent('open-library-score',{detail:{id:duplicate.id}}));message('使用云曲库已有版本');controls();return;}setImportProgress(58,'保存到云曲库');let saveError=null;const saved=await saveMidi('/api/scores/midi',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:file.name,xml:parsedMidi.xml,metadata:{title:parsedMidi.title,tempo:parsedMidi.tempo,timeSignature:parsedMidi.timeSignature,midiParts:parsedMidi.midiParts,midiPlayback:{events:parsedMidi.events,totalBeats:parsedMidi.totalBeats,tempoMap:parsedMidi.tempoMap},midiVelocities:parsedMidi.events.flatMap(event=>event.notes.map(note=>({measure:event.measure,offset:event.offset,part:note.part,midi:note.midi,velocity:note.velocity})))}})},progress=>{if(version===uploadVersion)setImportProgress(58+progress*17,progress===1?'云端保存中':'上传 MIDI 乐谱');}).catch(error=>{saveError=error;return {};});if(version!==uploadVersion)return;parsedMidi.serverId=saved.id;setImportProgress(80,'排版电子谱');await new Promise(resolve=>requestAnimationFrame(resolve));importing=false;await setScore(parsedMidi);setImportProgress(100,saveError?'MIDI 已载入，云端保存失败':'MIDI 已载入','done');void refreshLibrary();$('file-info').textContent=`MIDI 已载入：${parsedMidi.title}`;$('retry-import').hidden=true;message(saveError?`MIDI 已在本机载入，可以播放；云曲库保存失败：${saveError.message}。请重新导入以重试保存。`:`已载入 MIDI：${parsedMidi.midiParts?.length||1} 个乐器声部，已保存到云曲库。`,saveError?'warning':'');await autoplayImported();return;}
   if(/\.mxl$/i.test(file.name)){const data=await requestJSON('/api/unpack',{method:'POST',body:file});xml=data.xml;}else xml=await file.text();
   if(version!==uploadVersion)return;
-  const parsed=parseMusicXML(xml,file.name);const duplicate=await chooseDuplicate(parsed.title);if(version!==uploadVersion)return;if(duplicate){importing=false;document.dispatchEvent(new CustomEvent('open-library-score',{detail:{id:duplicate.id}}));controls();return;}importing=false;await setScore(parsed);$('file-info').textContent=`MusicXML 已载入：${parsed.title}`;
+  const parsed=parseMusicXML(xml,file.name);const duplicate=await chooseDuplicate(parsed.title);if(version!==uploadVersion)return;if(duplicate){importing=false;document.dispatchEvent(new CustomEvent('open-library-score',{detail:{id:duplicate.id}}));controls();return;}importing=false;await setScore(parsed);if(matchMedia('(pointer:coarse)').matches||innerWidth<800)notationCache.clear();$('file-info').textContent=`MusicXML 已载入：${parsed.title}`;
   $('retry-import').hidden=true;message('已载入 MusicXML，可自动演奏和调速。');await autoplayImported();
  }catch(error){if(version===uploadVersion){$('file-info').textContent=`导入失败：${file.name}`;setImportProgress(0,error.message,'failed');message(`${midi?'MIDI':'MusicXML'} 无法读取：${error.message}`,'error');}}
  finally{if(version===uploadVersion){importing=false;controls();}}
@@ -1041,11 +1042,12 @@ $("sheet-scroll").addEventListener("pointerdown",event=>{
 $("sheet-scroll").addEventListener("keydown",event=>{if(['ArrowUp','ArrowDown','PageUp','PageDown','Home','End'].includes(event.key)&&!event.target.closest('input,textarea,button,select'))releaseScoreFollow();});
 void (async()=>{
  for(let attempt=0;attempt<2;attempt++){
-  try{await import('./workspace.js?v=resize-safe12'+(attempt?'&retry='+Date.now():''));return;}
+  try{window.reportStartupActivity?.({id:'workspace',label:'加载工作区布局与交互'});await import('./workspace.js?v=activity-details15'+(attempt?'&retry='+Date.now():''));return;}
   catch(error){if(attempt===0&&error instanceof TypeError){const label=document.querySelector('#boot-label');if(label)label.textContent='工作区连接中断，正在重新连接';await new Promise(resolve=>setTimeout(resolve,1000));continue;}window.dispatchEvent(new CustomEvent('workspace-error',{detail:error.message}));console.error(error);}
  }
 })();
 
+document.addEventListener('simple-system-ready',()=>{if(score){$('notation')._playbackElements=null;playbackElementScore=null;lastPlaybackIndex=-1;}});
 document.addEventListener('engraving-chunk-ready',()=>{if(score){$('notation')._playbackElements=null;$('notation')._mixStamp=null;playbackElementScore=null;lastPlaybackIndex=-1;syncScoreMix();if(playbackView)paintPlayback({beat:player.beat,index:player.displayIndex(player.beat),totalBeats:player.totalBeats});}});
 
 let drumResizeTimer;new ResizeObserver(()=>{clearTimeout(drumResizeTimer);drumResizeTimer=setTimeout(()=>{if(score&&!$('drum-card').hidden)refreshDrumLane();},180);}).observe($('drum-card'));

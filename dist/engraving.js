@@ -1,3 +1,4 @@
+import {engravingPlan,engravingChunk} from './engraving-plan.js?v=1';
 import { consolidateMidiStaves } from './midi-notation-layout.js';
 import { cleanText } from './library.js';
 // OSMD 是 1.1 MB 的脚本，而首屏根本用不到它 —— 只有真正要排版谱面时才需要。
@@ -250,24 +251,19 @@ function xmlWithMetadata(xml, metadata = {}, width = 900) {
 }
 
 export async function renderEngraved(container,score){
- const documentXML=new DOMParser().parseFromString(score.xml,'application/xml');
+ let documentXML=new DOMParser().parseFromString(score.xml,'application/xml');
  const measures=documentXML.querySelector('score-partwise > part')?.querySelectorAll(':scope > measure').length||0;
  if(measures<=16)return renderSingleEngraved(container,score);
+ await engravingPlan(score,documentXML);documentXML=null;
  container.replaceChildren();const generation={};container.renderGeneration=generation;
  const mobile=matchMedia('(pointer:coarse)').matches||innerWidth<800;
  for(let start=0;start<measures;start+=16){
   if(start>=16){const placeholder=document.createElement('div');placeholder.className='notation-chunk';placeholder.dataset.lazyMeasure=String(start);placeholder.style.minHeight='850px';placeholder.textContent='正在准备后续谱面…';container.append(placeholder);continue;}
   if(container.renderGeneration!==generation||!container.isConnected)return;
-  const doc=documentXML.cloneNode(true);
-  for(const part of doc.querySelectorAll('score-partwise > part')){
-   const all=[...part.children].filter(n=>n.localName==='measure');const inherited=new Map();
-   for(const m of all.slice(0,start))for(const attr of m.querySelectorAll(':scope > attributes > *'))inherited.set(attr.localName+':'+(attr.getAttribute('number')||''),attr.cloneNode(true));
-   all.forEach((m,i)=>{if(i<start||i>=start+16)m.remove();});const first=part.querySelector('measure');
-   if(first&&start){let attrs=first.querySelector('attributes');if(!attrs){attrs=doc.createElement('attributes');first.prepend(attrs);}for(const [key,attr] of inherited)if(![...attrs.children].some(n=>n.localName+':'+(n.getAttribute('number')||'')===key))attrs.append(attr);}
-  }
+  const xml=await engravingChunk(score,start,16);
   const chunk=document.createElement('div');chunk.className='notation-chunk';container.append(chunk);
   await new Promise(r=>requestAnimationFrame(()=>setTimeout(r,0)));
-  await renderSingleEngraved(chunk,{...score,xml:new XMLSerializer().serializeToString(doc),measureOffset:(score.measureOffset||0)+start});
+  await renderSingleEngraved(chunk,{...score,xml,measureOffset:(score.measureOffset||0)+start});
   score.onRenderProgress?.(Math.min(1,(start+16)/measures));
  }
 }
@@ -278,8 +274,7 @@ export function activateLazyEngraving(container,score){
  const observer=new IntersectionObserver(entries=>{for(const entry of entries){const chunk=entry.target;if(!entry.isIntersecting||chunk.dataset.loading)continue;observer.unobserve(chunk);chunk.dataset.loading='true';const start=Number(chunk.dataset.lazyMeasure);
  const work=lazyRenderQueue.catch(()=>{}).then(async()=>{
  if(!chunk.isConnected||container.hidden){delete chunk.dataset.loading;return;}
- const doc=new DOMParser().parseFromString(score.xml,'application/xml');
- for(const part of doc.querySelectorAll('score-partwise > part')){const all=[...part.children].filter(n=>n.localName==='measure'),inherited=new Map();for(const m of all.slice(0,start))for(const attr of m.querySelectorAll(':scope > attributes > *'))inherited.set(attr.localName+':'+(attr.getAttribute('number')||''),attr.cloneNode(true));all.forEach((m,i)=>{if(i<start||i>=start+16)m.remove();});const first=part.querySelector('measure');if(first){let attrs=first.querySelector('attributes');if(!attrs){attrs=doc.createElement('attributes');first.prepend(attrs);}for(const [key,attr] of inherited)if(![...attrs.children].some(n=>n.localName+':'+(n.getAttribute('number')||'')===key))attrs.append(attr);}}
- await renderSingleEngraved(chunk,{...score,xml:new XMLSerializer().serializeToString(doc),measureOffset:(score.measureOffset||0)+start});if(!chunk.isConnected)return;chunk.style.minHeight='';delete chunk.dataset.lazyMeasure;delete chunk.dataset.loading;document.dispatchEvent(new Event('engraving-chunk-ready'));});lazyRenderQueue=work;void work.catch(()=>{delete chunk.dataset.loading;if(chunk.isConnected)chunk.textContent='此段排版失败，请重新打开曲谱';});
+ const xml=await engravingChunk(score,start,16);if(!chunk.isConnected||container.hidden){delete chunk.dataset.loading;return;}
+ await renderSingleEngraved(chunk,{...score,xml,measureOffset:(score.measureOffset||0)+start});if(!chunk.isConnected)return;chunk.style.minHeight='';delete chunk.dataset.lazyMeasure;delete chunk.dataset.loading;document.dispatchEvent(new Event('engraving-chunk-ready'));});lazyRenderQueue=work;void work.catch(()=>{delete chunk.dataset.loading;if(chunk.isConnected)chunk.textContent='此段排版失败，请重新打开曲谱';});
  }},{root:container.closest('.sheet-scroll'),rootMargin:'500px'});container.lazyEngravingObserver=observer;container.querySelectorAll('[data-lazy-measure]').forEach(chunk=>observer.observe(chunk));
 }

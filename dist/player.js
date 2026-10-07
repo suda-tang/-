@@ -1,8 +1,8 @@
 import {writtenExpression} from './written-expression.js';
-import {loadInstrument,rootFor} from './instruments.js';
+import {loadInstrument,rootFor,retainInstrumentSamples} from './instruments.js?v=bounded-cache2';
 import {arrangeScore} from './harmony.js';
 import {preparePerformance} from './performance.js';
-import {loadPianoSamples,sampleRoot,selectLayer} from './piano-samples.js';
+import {loadPianoSamples,sampleRoot,selectLayer,releasePianoSamples} from './piano-samples.js?v=bounded-cache2';
 // Recorded loudness differs wildly between the shipped sources: the Salamander
 // layers peak around 0.70 while the sustained GM bank (violin, cello, flute,
 // clarinet, horn, harp, ensemble) sits near 0.11. Without compensation a string
@@ -37,7 +37,7 @@ export class ScorePlayer {
     if(this.context.state!=='running')throw Error('请点击“自动演奏”以允许浏览器播放声音');
   }
   load(score) {
-    this.stop();if(this.originalScore!==score){this.disabledParts=new Set();this.partVolumes=new Map();}this.originalScore=score;this.updatePartMix();this.performanceCache??=new WeakMap();let versions=this.performanceCache.get(score);if(!versions){versions=new Map();this.performanceCache.set(score,versions);}const key=this.arrangement+':'+this.instrument;if(!versions.has(key)){versions.set(key,preparePerformance(score.generated?score:arrangeScore(score,this.arrangement,this.instrument)));if(versions.size>4)versions.delete(versions.keys().next().value);}const prepared=versions.get(key);this.score=prepared;this.hasWrittenExpression=!!writtenExpression(score);const partCount=score.midiSource&&this.soloPart==='all'?new Set(this.score.events.flatMap(event=>event.notes.map(note=>note.part))).size:1;this.mixGain=partCount>1?Math.max(.16,1/Math.sqrt(partCount)):1;this.samples=null;this.samplePromise=null;
+    this.stop();if(this.originalScore!==score){this.modelPerformance=null;this.disabledParts=new Set();this.partVolumes=new Map();}this.originalScore=score;this.updatePartMix();this.performanceCache??=new WeakMap();let versions=this.performanceCache.get(score);if(!versions){versions=new Map();this.performanceCache.set(score,versions);}const key=this.arrangement+':'+this.instrument;if(!versions.has(key)){versions.set(key,preparePerformance(score.generated?score:arrangeScore(score,this.arrangement,this.instrument)));if(versions.size>4)versions.delete(versions.keys().next().value);}const prepared=versions.get(key);this.score=prepared;this.hasWrittenExpression=!!writtenExpression(score);const partCount=score.midiSource&&this.soloPart==='all'?new Set(this.score.events.flatMap(event=>event.notes.map(note=>note.part))).size:1;this.mixGain=partCount>1?Math.max(.16,1/Math.sqrt(partCount)):1;this.samples=null;this.samplePromise=null;
     this.totalBeats=Math.max(score.totalBeats||0,...score.events.flatMap(e=>e.notes.map(n=>e.beat+n.duration)));
   }
   displayIndex(beat){const events=this.originalScore.events;let low=0,high=events.length;while(low<high){const mid=(low+high)>>1;if(events[mid].beat<=beat+.005)low=mid+1;else high=mid;}return Math.max(0,low-1);}
@@ -74,6 +74,7 @@ export class ScorePlayer {
   advance(){const now=this.context.currentTime;this.beat=this.beatAtTime(this.timeAtBeat(this.clockBeat)+Math.max(0,now-this.clockTime));this.lastTime=now;}
   async loadSamples(){
     const needed=new Map();for(const e of this.score.events)for(const n of e.notes){const name=n.instrument||this.instrument;if(!needed.has(name))needed.set(name,[]);needed.get(name).push(n.midi);}
+    retainInstrumentSamples(this.context,needed);for(const name of this.instrumentBanks.keys())if(!needed.has(name))this.instrumentBanks.delete(name);if(!needed.has('salamander'))releasePianoSamples(this.context);
     let completed=0;for(const [name,notes] of needed){if(name!=='salamander'){this.instrumentBanks.set(name,await loadInstrument(this.context,name,notes,(done,total)=>this.onLoad(completed+done/total,needed.size)));}completed++;}
     if(!needed.has('salamander')){this.onLoad(1,1);return;}
     if(this.samples)return;

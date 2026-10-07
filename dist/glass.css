@@ -89,3 +89,9 @@
 /* Playback scrolls the score, never its toolbar or the surrounding document. */
 .studio .sheet-scroll{overscroll-behavior:contain;overflow-anchor:none}
 .studio .score-card>.score-toolbar{position:sticky;top:0;z-index:12;background:var(--score-toolbar-surface,#f8f5faef);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+
+/* Keep complete notation in the DOM but lay out and rasterise nearby systems only. */
+@supports(content-visibility:auto){
+ .studio #notation .simple-system{content-visibility:auto;contain-intrinsic-size:auto 600px}
+ .studio #notation .notation-chunk{content-visibility:auto;contain-intrinsic-size:auto 850px}
+}

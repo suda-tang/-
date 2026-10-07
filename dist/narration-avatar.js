@@ -1,5 +1,5 @@
 import {boardFocus} from './mentor-camera-cues.js?v=1';
-import {createMentorClassroom} from './mentor-classroom.js?v=logo-match26';
+import {createMentorClassroom} from './mentor-classroom.js?v=auto-discovery28';
 import {createPortraitMentor} from './mentor-portrait-model.js?v=cinematic16';
 import * as THREE from './vendor/three/three.module.js';
 import {OrbitControls} from './vendor/three/OrbitControls.js';
@@ -96,6 +96,6 @@ export function attachNarrationAvatar(host,audio,{embedded=false,cinematic=false
   character=new THREE.Group();character.position.x=cinematic?-1.8:-.32;arrivalStart=performance.now();character.add(model);scene.add(character);model.updateMatrixWorld(true);section.dataset.ready='true';status.textContent='拖动旋转';
  }catch(e){if(!disposed){status.textContent='全身模型加载失败，请刷新重试';section.dataset.error=e.message;}}}
  void init();
- return ()=>{disposed=true;abort.abort();cancelAnimationFrame(frame);observer?.disconnect();listeners.forEach(f=>f());controls?.dispose();if(model){disposeTree(model);}faceTexture?.dispose();renderer?.dispose();classroom?.dispose();if(context){source?.disconnect();analyser?.disconnect();void context.close();}section.remove();placeholder.remove();};
+ return ()=>{disposed=true;abort.abort();cancelAnimationFrame(frame);observer?.disconnect();listeners.forEach(f=>f());controls?.dispose();if(model){disposeTree(model);}faceTexture?.dispose();renderer?.dispose();renderer?.forceContextLoss();classroom?.dispose();if(context){source?.disconnect();analyser?.disconnect();void context.close();}section.remove();placeholder.remove();};
 }
 

@@ -13,3 +13,9 @@ export async function loadInstrument(context,name,notes,progress=()=>{}){
  await Promise.all(Array.from({length:Math.min(3,roots.length)},()=>worker()));
  return result;
 }
+
+export function retainInstrumentSamples(context,needed){
+ const cache=cachesByContext.get(context);if(!cache)return;
+ const keep=new Set();for(const [name,notes]of needed)for(const midi of notes)keep.add(name+':'+rootFor(midi,name));
+ for(const key of cache.keys())if(!keep.has(key))cache.delete(key);
+}

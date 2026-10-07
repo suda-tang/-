@@ -78,3 +78,5 @@ html,body{touch-action:pan-x pan-y}
 @keyframes library-backdrop-in{from{opacity:0}to{opacity:1}}
 @keyframes library-backdrop-out{from{opacity:1}to{opacity:0}}
 @media(prefers-reduced-motion:reduce){.studio .library-browser::backdrop{animation:none}}
+
+.library-search-state{display:flex;align-items:center;gap:10px}.library-search-state>span{flex:1;min-width:0;overflow-wrap:anywhere}.library-search-state small{white-space:nowrap;font-variant-numeric:tabular-nums}.library-search-state button{flex:0 0 28px!important;width:28px!important;height:28px!important;min-height:28px!important;padding:0!important;border-radius:50%!important;background:#ffffff60!important;color:inherit!important}.library-search-meter{height:4px;margin-top:8px;overflow:hidden;border-radius:999px;background:#bca7bb25}.library-search-meter i{display:block;width:0;height:100%;border-radius:inherit;background:linear-gradient(90deg,#79baf3,#ac8ddd,#df94b8,#edb696);transition:width .25s ease}

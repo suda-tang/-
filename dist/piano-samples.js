@@ -24,6 +24,7 @@ export async function loadPianoSamples(context,score,progress=()=>{}){
  const jobs=roots.flatMap(root=>LAYERS.map(layer=>({root,layer})));
  const samples=[];let completed=0;const total=jobs.length;
  let cache=contextSampleCache.get(context);if(!cache){cache=new Map();contextSampleCache.set(context,cache);}
+ const keep=new Set(roots.flatMap(root=>LAYERS.map(layer=>`${root}:${layer}`)));for(const key of cache.keys())if(!keep.has(key))cache.delete(key);
  async function getSample(root,layer){
    const key=`${root}:${layer}`;const existing=cache.get(key);if(existing)return existing;
    const promise=(async()=>{
@@ -42,3 +43,5 @@ export async function loadPianoSamples(context,score,progress=()=>{}){
  }}
  await Promise.all([worker(),worker()]);return samples;
 }
+
+export function releasePianoSamples(context){contextSampleCache.delete(context);}

@@ -1,5 +1,6 @@
-import {openingNarration} from './narration-opening.js?v=board-camera2';
+import {openingNarration} from './narration-opening.js?v=auto-discovery5';
 export function pinTourHeader(){
+ if(window.earlyTourUnpin)return window.earlyTourUnpin;
  const header=document.querySelector('.top');if(!header)return()=>{};
  const spacer=document.createElement('div');spacer.className='tour-header-space';header.before(spacer);
  header.classList.add('tour-pinned-header');header.setAttribute('popover','manual');
@@ -19,7 +20,8 @@ export async function glideTo(element,{cancelled=()=>false,duration=1500}={}){
  if(reduce){scrollTo({top:end,behavior:'instant'});return;}
  await new Promise(resolve=>{let startTime;function frame(now){if(cancelled()){resolve();return;}startTime??=now;const t=Math.min(1,(now-startTime)/duration),e=t*t*t*(t*(t*6-15)+10);scrollTo({top:start+(end-start)*e,behavior:'instant'});if(t<1)requestAnimationFrame(frame);else resolve();}requestAnimationFrame(frame);});
 }
-export async function presentWelcome({mentor,visit,focus}) {
+export function presentWelcome(options){if(window.earlyTourWelcome)return window.earlyTourWelcome;return runWelcome(options);}
+export async function runWelcome({mentor,visit,focus}) {
  const root=document.documentElement;root.classList.add('tour-arrival');
  const wait=ms=>new Promise(r=>setTimeout(r,ms));
  const scene=document.createElement('section');scene.className='tour-home-intro';scene.dataset.mentor=mentor||'';scene.dataset.focus=focus||'';scene.dataset.institution=visit?.institution||new URLSearchParams(location.search).get('institution')||'';scene.dataset.institutionLogo=visit?.logo||new URLSearchParams(location.search).get('institutionLogo')||'';scene.setAttribute('aria-label','唐秋鸣课题介绍');
@@ -29,11 +31,12 @@ export async function presentWelcome({mentor,visit,focus}) {
  (document.querySelector('.tour-header-space')||document.querySelector('.top')).after(scene);
  const previousRestoration=history.scrollRestoration;history.scrollRestoration='manual';
  scrollTo({top:0,behavior:'instant'});
- while(root.classList.contains('booting'))await wait(80);
+ if(!window.earlyTourBoot)while(root.classList.contains('booting'))await wait(80);
  scrollTo({top:0,behavior:'instant'});scene.classList.add('is-visible');
  await openingNarration(scene);
  scene.remove();
  root.classList.remove('tour-arrival');root.classList.add('tour-travelling');
+ if(root.dataset.workspaceReady!=='true')await new Promise(resolve=>{const done=()=>{clearTimeout(timer);resolve();};const timer=setTimeout(done,15000);window.addEventListener('workspace-ready',done,{once:true});});
  await glideTo(document.querySelector('.score-library'),{duration:1900});
  root.classList.remove('tour-travelling');history.scrollRestoration=previousRestoration;
 }

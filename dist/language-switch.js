@@ -34,7 +34,15 @@ function translateTree(root){
 }
 function paint(full=true){
  scheduled=false;observer?.disconnect();
- if(full)translateTree(document.documentElement);else for(const root of pending)if(root.isConnected)translateTree(root);
+ if(full)translateTree(document.documentElement);
+ else if(currentLocale==='zh'){
+  // Chinese is the source language; thousands of added score nodes need no translation.
+  for(const root of pending)if(root.isConnected){if(root.nodeType===Node.TEXT_NODE&&root.parentElement?.matches('title,#startup strong'))textNode(root);else if(root.nodeType===Node.ELEMENT_NODE&&root.matches('title,#startup strong'))translateTree(root);}
+ }else{
+  const roots=[...pending].filter(node=>node.isConnected);
+  const set=new Set(roots);
+  for(const root of roots){let parent=root.parentNode,covered=false;while(parent){if(set.has(parent)){covered=true;break;}parent=parent.parentNode;}if(!covered)translateTree(root);}
+ }
  pending.clear();
  observer?.observe(document.documentElement,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['aria-label','title','placeholder','alt']});
 }

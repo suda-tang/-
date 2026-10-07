@@ -22,7 +22,7 @@ const systemIndexes=new WeakMap();
 export function simplePlaybackTarget(container,measure){
  const sheet=container.querySelector('.simple-sheet');if(!sheet)return null;
  let rows=systemIndexes.get(sheet);if(!rows){rows=[...sheet.querySelectorAll('.simple-system')].map(node=>({node,start:Number(node.dataset.startMeasure),end:Number(node.dataset.endMeasure)}));systemIndexes.set(sheet,rows);}
- let low=0,high=rows.length-1;while(low<=high){const mid=(low+high)>>1,row=rows[mid];if(measure<row.start)high=mid-1;else if(measure>row.end)low=mid+1;else return row.node;}return null;
+ let low=0,high=rows.length-1;while(low<=high){const mid=(low+high)>>1,row=rows[mid];if(measure<row.start)high=mid-1;else if(measure>row.end)low=mid+1;else{materializeSimpleSystem(row.node);return row.node;}}return null;
 }
 
 function* renderSimpleSteps(container,score){
@@ -48,10 +48,10 @@ function* renderSimpleSteps(container,score){
  for(const part of score.midiParts||[])partNames.set(part.id,part.name);
  const byMeasure=new Map(),byLaneMeasure=new Map();
  score.events.forEach((event,index)=>{if(!byMeasure.has(event.measure))byMeasure.set(event.measure,[]);byMeasure.get(event.measure).push(event);const voices=new Map();for(const note of event.notes){if(note.percussion)continue;const key=(note.part||'P1')+':'+(Number(note.staff)||1);if(!voices.has(key))voices.set(key,[]);voices.get(key).push(note);}for(const [key,notes]of voices){const bucket=key+':'+event.measure;if(!byLaneMeasure.has(bucket))byLaneMeasure.set(bucket,[]);byLaneMeasure.get(bucket).push({event,index,notes});}});
- const lanes=new Map();score.events.forEach((event,index)=>event.notes.forEach(note=>{if(note.percussion)return;const part=note.part||'P1',staff=Number(note.staff)||1,key=`${part}:${staff}`;if(!lanes.has(key)){const staves=partStaves.get(part)||1,name=partLabel(partNames.get(part)||part);lanes.set(key,{key,part,staff,label:name,hand:staves>1?(staff===1?'右手':'左手'):'',events:[]});}lanes.get(key).events.push({event,index,note});}));
+ const lanes=new Map();score.events.forEach((event,index)=>event.notes.forEach(note=>{if(note.percussion)return;const part=note.part||'P1',staff=Number(note.staff)||1,key=`${part}:${staff}`;if(!lanes.has(key)){const staves=partStaves.get(part)||1,name=partLabel(partNames.get(part)||part);lanes.set(key,{key,part,staff,label:name,hand:staves>1?(staff===1?'右手':'左手'):'',events:[]});}}));
  for(const lane of lanes.values())partStaves.set(lane.part,Math.max(partStaves.get(lane.part)||1,lane.staff));for(const lane of lanes.values())lane.hand=(partStaves.get(lane.part)||1)>1?(lane.staff===1?'右手':'左手'):'';
  const ordered=[...lanes.values()].sort((a,b)=>a.part.localeCompare(b.part)||a.staff-b.staff);const available=sheetWidth(container),perSystem=available<480?1:available<634?2:4,measureCount=Math.max(1,score.measures||1);
- for(let start=1;start<=measureCount;start+=perSystem){const end=Math.min(measureCount,start+perSystem-1),system=document.createElement('section');system.className='simple-system';system.dataset.startMeasure=String(start);system.dataset.endMeasure=String(end);system.style.setProperty('--measures',String(end-start+1));
+ const buildSystem=start=>{const end=Math.min(measureCount,start+perSystem-1),system=document.createElement('section');system.className='simple-system';system.dataset.startMeasure=String(start);system.dataset.endMeasure=String(end);system.style.setProperty('--measures',String(end-start+1));
   const numbers=document.createElement('div');numbers.className='simple-measure-numbers';numbers.append(document.createElement('span'));for(let m=start;m<=end;m++){const n=document.createElement('span');n.textContent=String(m);numbers.append(n);}system.append(numbers);
   for(const lane of ordered){const row=document.createElement('div');row.className='simple-part-row';const label=document.createElement('strong');label.className='simple-part-label';label.innerHTML=`${lane.label}${lane.hand?`<small>${lane.hand}</small>`:''}`;row.append(label);
    for(let measure=start;measure<=end;measure++){const cell=document.createElement('div');cell.className='simple-measure';cell.dataset.measure=String(measure);const measureBeats=Number(String(score.timeSignature||'4/4').split('/')[0])||4,measureEvents=byMeasure.get(measure)||[],measureStart=measureEvents.length?Math.min(...measureEvents.map(event=>event.beat-(Number(event.offset)||0))):(measure-1)*measureBeats,entries=byLaneMeasure.get(lane.key+':'+measure)||[];let cursor=0;
@@ -59,7 +59,12 @@ function* renderSimpleSteps(container,score){
      const duration=Math.max(.125,...notes.map(note=>Number(note.duration)||event.duration||1)),button=document.createElement('button');button.type='button';button.className=`simple-event note-event pending ${durationClass(duration)}`;button.dataset.index=String(index);button.setAttribute('aria-label',`第 ${measure} 小节第 ${round(offset+1)} 拍，${durationText(duration)}`);button.title=button.getAttribute('aria-label');const pitches=notes.sort((a,b)=>b.midi-a.midi).map(note=>`<span>${degree(note.midi)}</span>`).join('');const extensions=Math.max(0,Math.round(duration)-1);button.innerHTML=`<span class="simple-pitches ${notes.length>1?'simple-chord':''}">${pitches}</span>${extensions?`<b class="simple-prolong">${'—'.repeat(Math.min(3,extensions))}</b>`:''}`;cell.append(button);cursor=Math.max(cursor,offset+duration);}const tail=measureBeats-cursor;if(tail>.18){const rest=document.createElement('span');rest.className=`simple-rest ${durationClass(tail)}`;rest.textContent=tail>1.5?`0 ${'—'.repeat(Math.max(0,Math.round(tail)-1))}`:'0';rest.title=`休止 ${round(tail)} 拍`;cell.append(rest);}
     row.append(cell);
    }system.append(row);
-  }wrap.append(system);yield system;
+  }return system;
+ };
+ for(let start=1;start<=measureCount;start+=perSystem){
+  if(start<=perSystem*2){wrap.append(buildSystem(start));}
+  else{const placeholder=document.createElement('section');placeholder.className='simple-system';placeholder.dataset.startMeasure=String(start);placeholder.dataset.endMeasure=String(Math.min(measureCount,start+perSystem-1));placeholder.style.setProperty('--measures',String(Math.min(perSystem,measureCount-start+1)));placeholder.style.minHeight=(ordered.length*82+30)+'px';placeholder._renderSimple=()=>buildSystem(start);wrap.append(placeholder);}
+  yield start;
  }
  const legend=document.createElement('div');legend.className='simple-legend';legend.textContent='下划线表示八分、十六分时值　横线表示延长　音符上下点表示音区　0 表示休止';wrap.append(legend);
  container.renderGeneration={};
@@ -70,4 +75,15 @@ export function renderSimpleNotation(container,score){for(const _ of renderSimpl
 export async function renderSimpleNotationAsync(container,score,{cancelled=()=>false}={}){
  const iterator=renderSimpleSteps(container,score);let deadline=performance.now()+8;
  for(const _ of iterator){if(cancelled())return;if(performance.now()>deadline){await new Promise(resolve=>setTimeout(resolve,0));deadline=performance.now()+8;}}
+}
+
+export function materializeSimpleSystem(system){
+ if(!system?._renderSimple)return;const build=system._renderSimple;system._renderSimple=null;
+ const content=build();system.replaceChildren(...content.childNodes);system.style.minHeight='';
+ queueMicrotask(()=>{if(system.isConnected)document.dispatchEvent(new Event('simple-system-ready'));});
+}
+export function activateSimpleNotation(container){
+ container.lazySimpleObserver?.disconnect();
+ const observer=new IntersectionObserver(entries=>{for(const entry of entries){if(!entry.isIntersecting||container.hidden)continue;observer.unobserve(entry.target);materializeSimpleSystem(entry.target);}},{root:container.closest('.sheet-scroll'),rootMargin:'350px'});
+ container.lazySimpleObserver=observer;for(const system of container.querySelectorAll('.simple-system'))if(system._renderSimple)observer.observe(system);
 }

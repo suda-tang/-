@@ -1,4 +1,5 @@
 import {updateRangeFill} from './range-fill.js';
+window.reportStartupActivity?.({id:'workspace',label:'整理曲库、演奏、改编和任务面板'});
 // Navigation owns grouping; the existing controls keep their ids and handlers.
 // The 3D classroom is not a startup dependency of the music workspace.
 const $=selector=>document.querySelector(selector);
@@ -135,6 +136,7 @@ new MutationObserver(()=>{if(document.body.dataset.workspace==='library'&&!$('#p
 document.addEventListener('show-task-center',()=>select('tasks'));
 select('library');
 // 导览是附加功能，出错也不能影响工作区初始化，所以单独兜住异常。
-if(new URLSearchParams(location.search).get('tour')==='1')void import('./guided-tour.js?v=autonarration2').then(({initTour})=>initTour()).catch(error=>console.error('导览加载失败',error));
+if(new URLSearchParams(location.search).get('tour')==='1')void import('./guided-tour.js?v=presenter-first3').then(({initTour})=>initTour()).catch(error=>{console.error('导览加载失败',error);document.documentElement.classList.remove('tour-arrival','tour-travelling');const notice=document.createElement('aside');notice.className='guided-tour';notice.setAttribute('role','alert');const text=document.createElement('p');text.textContent='导览未能启动：'+(error.message||'连接中断');const retry=document.createElement('button');retry.textContent='重新打开导览';retry.onclick=()=>location.reload();notice.append(text,retry);document.body.append(notice);});
+window.reportStartupActivity?.({id:'workspace',label:'工作区布局与交互已就绪',state:'complete'});
 document.documentElement.dataset.workspaceReady='true';window.dispatchEvent(new Event('workspace-ready'));
 new MutationObserver(()=>{document.body.dataset.training=String(!$('#stop-button').hidden);}).observe($('#stop-button'),{attributes:true,attributeFilter:['hidden']});

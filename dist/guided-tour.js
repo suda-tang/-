@@ -1,5 +1,5 @@
 import {createTourCopy} from './tour-copy.js?v=1';
-import {presentWelcome,researchFor,glideTo,pinTourHeader} from './tour-presentation.js?v=board-camera2';
+import {presentWelcome,researchFor,glideTo,pinTourHeader} from './tour-presentation.js?v=auto-discovery5';
 import {registerTourEnglish} from './tour-english.js';
 import {narrationMedia} from './narration-media.js';
 // 项目导览：缓缓移到目标 → 按目标圆角画高亮框 → 文字与人声同步 → 箭头指向目标。

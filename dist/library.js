@@ -97,7 +97,8 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
   const stageCards=mode=>{
     if(document.documentElement.matches('.tour-arrival,.tour-travelling'))return;
     if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
-    for(const [index,card] of [...list.querySelectorAll('.library-score')].filter(c=>!c.closest('.library-pending-group')).slice(0,lowMemory?8:24).entries()){
+    const clip=browser.open?{left:0,top:0,right:innerWidth,bottom:innerHeight}:list.getBoundingClientRect();
+    for(const card of [...list.querySelectorAll('.library-score')].filter(c=>!c.hidden&&!c.closest('.library-pending-group')&&intersects(c.getBoundingClientRect(),clip)).slice(0,lowMemory?8:24)){
       card._deal?.cancel();
       card.style.opacity='0';
     }
@@ -214,7 +215,7 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
       return flight.finished.catch(()=>{}).finally(finish);
     }));
 
-    }finally{cleanup.forEach(finish=>finish());layer.remove();list.classList.remove('cards-transferring');cardMotion=false;document.dispatchEvent(new Event('library-flight-finished'));}
+    }finally{cleanup.forEach(finish=>finish());for(const card of list.querySelectorAll('.library-score')){card.style.opacity='';card.style.visibility='';}layer.remove();list.classList.remove('cards-transferring');cardMotion=false;document.dispatchEvent(new Event('library-flight-finished'));}
   };
   let tiltFrame=0;
   list.addEventListener('pointermove',event=>{
@@ -256,20 +257,34 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
   panel.tourOpen=async()=>{for(let n=0;n<220&&(reloading||closing);n++)await new Promise(r=>setTimeout(r,100));if(reloading||closing)throw Error('曲库仍在加载，请稍后重试');await expand.onclick();await transfer;return browser;};panel.tourClose=closeBrowser;
   browser.querySelector('.library-close').onclick=closeBrowser;browser.addEventListener('cancel',event=>{event.preventDefault();closeBrowser();});const searchInput=browser.querySelector('input');searchInput.placeholder='搜索曲名，或描述你想找的音乐';
   const searchStatus=document.createElement('div');searchStatus.className='library-search-status';searchStatus.setAttribute('role','status');browser.querySelector('header').after(searchStatus);
-  let searchTimer,searchRequest,searchRevision=0;
+  let searchTimer,searchRequest,searchRevision=0,searchClock=0;
   searchInput.oninput=()=>{
-    const query=searchInput.value.trim();const revision=++searchRevision;clearTimeout(searchTimer);searchRequest?.abort();decks.search(query.toLowerCase());searchStatus.textContent='';
+    const query=searchInput.value.trim();const revision=++searchRevision;clearTimeout(searchTimer);clearInterval(searchClock);searchRequest?.abort();decks.search(query.toLowerCase());searchStatus.replaceChildren();
     if(lowMemory){mobileQuery=query.toLowerCase();mobileMatches=null;mobileLimit=STREAM_BATCH;void reload(true);}if(!query)return;
     searchTimer=setTimeout(async()=>{
-      searchRequest=new AbortController();searchStatus.textContent='正在查找相关曲谱…';
+      const controller=new AbortController();searchRequest=controller;let timedOut=false,stopped=false,progress=5,stage='正在核对曲名',started=Date.now();
+      searchStatus.innerHTML='<div class="library-search-state"><span></span><small></small><button type="button" aria-label="停止搜索">×</button></div><div class="library-search-meter" role="progressbar" aria-label="曲库搜索进度" aria-valuemin="0" aria-valuemax="100"><i></i></div>';
+      const label=searchStatus.querySelector('span'),clock=searchStatus.querySelector('small'),meter=searchStatus.querySelector('[role=progressbar]'),fill=meter.firstElementChild;
+      const paint=()=>{if(revision!==searchRevision)return;label.textContent=stage;clock.textContent=Math.round(progress)+'%'+(Date.now()-started>=2000?' · '+Math.floor((Date.now()-started)/1000)+' 秒':'');fill.style.width=progress+'%';meter.setAttribute('aria-valuenow',String(Math.round(progress)));};
+      searchStatus.querySelector('button').onclick=()=>{stopped=true;controller.abort();};paint();searchClock=setInterval(paint,1000);
+      const timeout=setTimeout(()=>{timedOut=true;controller.abort();},75000);
       try{
         const scores=(window.cloudLibrarySnapshot?.scores||[]).map(({id,title})=>({id,title}));
-        const response=await fetch('/api/scores/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query,scores}),signal:searchRequest.signal});
-        const result=await response.json();if(!response.ok)throw Error(result.error||'搜索暂不可用');if(revision!==searchRevision||!browser.open)return;
-        if(lowMemory){mobileMatches=new Set(result.ids);mobileLimit=STREAM_BATCH;await reload(true);}decks.search(query.toLowerCase(),result.ids);searchStatus.textContent=result.warning|| (result.ids.length?'':'未找到相关曲谱');
-      }catch(error){if(revision===searchRevision&&error.name!=='AbortError')searchStatus.textContent='智能搜索暂不可用，已保留曲名搜索结果';}
-    },550);
-  };browser.addEventListener('close',()=>{++searchRevision;clearTimeout(searchTimer);searchRequest?.abort();searchStatus.textContent='';});
+        const response=await fetch('/api/scores/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query,scores,stream:true}),signal:controller.signal});
+        if(!response.ok){const data=await response.json();throw Error(data.error||'搜索服务返回 HTTP '+response.status);}
+        let result=null;
+        const receive=event=>{if(revision!==searchRevision)return;if(event.type==='progress'){stage=event.text||'正在检索';progress=Math.max(progress,10+85*(event.total?event.completed/event.total:0));paint();}else if(event.type==='result')result=event;else if(event.type==='error')throw Error(event.text||'搜索未完成');};
+        if(response.headers.get('Content-Type')?.includes('ndjson')&&response.body?.getReader){
+          const reader=response.body.getReader(),decoder=new TextDecoder();let buffer='';
+          const consume=line=>{if(line.trim())receive(JSON.parse(line));};
+          for(;;){const {value,done}=await reader.read();buffer+=decoder.decode(value||new Uint8Array(),{stream:!done});const lines=buffer.split('\n');buffer=lines.pop();for(const line of lines)consume(line);if(done){consume(buffer);break;}}
+        }else result=await response.json();
+        if(!result)throw Error('搜索连接已结束，但结果未接收完整');if(revision!==searchRevision||!browser.open)return;
+        const ids=result.ids||[];if(lowMemory){mobileMatches=new Set(ids);mobileLimit=STREAM_BATCH;await reload(true);}decks.search(query.toLowerCase(),ids);progress=100;stage=result.warning|| (ids.length?'找到 '+ids.length+' 首曲谱':'未找到相关曲谱');paint();searchStatus.querySelector('button')?.remove();
+      }catch(error){if(revision===searchRevision){searchStatus.textContent=timedOut?'搜索超过 75 秒未完成，已保留曲名匹配结果。':stopped?'已停止搜索，保留曲名匹配结果。':error.name==='AbortError'?'搜索已中止。':'搜索未完成：'+error.message+'。已保留曲名匹配结果。';}}
+      finally{clearTimeout(timeout);if(revision===searchRevision){clearInterval(searchClock);searchRequest=null;}}
+    },400);
+  };browser.addEventListener('close',()=>{++searchRevision;clearTimeout(searchTimer);clearInterval(searchClock);searchRequest?.abort();searchStatus.replaceChildren();});
 
   function progressMarkup(button,item){
     let progress=button.querySelector('.library-progress');
@@ -341,7 +356,8 @@ staff.hidden=item.status!=='running';}
     catch(error){await dismissLoader();opening=false;reject(error);}
   });
   const STREAM_BATCH=24;let reloading=false,mobileLimit=STREAM_BATCH,mobileQuery='',mobileMatches=null;
-  const streamObserver=new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting)&&!reloading){mobileLimit+=STREAM_BATCH;void reload(true);}},{rootMargin:'240px'});
+  const streamObserver=new IntersectionObserver(entries=>{if(browser.open&&!document.querySelector('.tour-home-intro')&&entries.some(e=>e.isIntersecting)&&!reloading){mobileLimit+=STREAM_BATCH;void reload(true);}},{root:browser,rootMargin:'240px'});
+  list.addEventListener('scroll',()=>{if(!lowMemory||browser.open||reloading||document.documentElement.classList.contains('tour-arrival')||!list.querySelector('.library-stream-more'))return;if(list.scrollWidth>list.clientWidth+100&&list.scrollLeft+list.clientWidth>=list.scrollWidth-100){mobileLimit+=STREAM_BATCH;void reload(true);}},{passive:true});
   async function reload(local=false){
     if(reloading||opening)return;reloading=true;streamObserver.disconnect();refresh.disabled=true;await transfer;
     const previousScroll=browser.open?browser.scrollTop:list.scrollLeft;if(pollTimer)clearTimeout(pollTimer);
@@ -349,12 +365,14 @@ staff.hidden=item.status!=='running';}
     if(!local&&motionAllowed())await Promise.all(leaving.map((card,index)=>{card._deal?.cancel();card.style.opacity='';return card.animate([{opacity:1,translate:'0px 0px',rotate:'0deg',scale:'1'},{opacity:0,translate:`${-innerWidth-card.getBoundingClientRect().right}px -35px`,rotate:'18deg',scale:'.25'}],{duration:360,delay:Math.min(index*28,350),easing:'cubic-bezier(.55,.05,.9,.4)',fill:'forwards'}).finished.catch(()=>{});}));
     const controller=new AbortController(),requestTimeout=setTimeout(()=>controller.abort(),20000);
     try{
+      window.reportStartupActivity?.({id:'catalog',label:'读取云曲库列表'});
       const response=local&&window.cloudLibrarySnapshot?null:await fetch('/api/scores',{signal:controller.signal});if(response&&!response.ok)throw Error();const data=response?await response.json():window.cloudLibrarySnapshot;invalidateChangedScores(data.scores);window.cloudLibrarySnapshot={scores:data.scores,saved:Date.now()};const existing=new Map([...list.querySelectorAll('.library-score')].map(c=>[c.dataset.scoreId,c]));
       if(!local){coverObserver.disconnect();decks.clear(false);pendingItems.replaceChildren();pendingToggle.setAttribute('aria-expanded','false');pendingGroup.classList.remove('is-expanded');list.replaceChildren();}
       list.querySelector('.library-stream-more')?.remove();
       const byTitle=new Map();for(const item of data.scores){const key=String(item.title||'').normalize('NFKC').toLowerCase().replace(/[\s《》「」_-]/g,'');if(!item.ready||!key||/未命名|正在识别/.test(key)){byTitle.set(item.id,item);continue;}const current=byTitle.get(key);if(!current||Number(item.ready)>Number(current.ready)||(item.ready===current.ready&&(item.saved||0)>(current.saved||0)))byTitle.set(key,item);}
       let visibleItems=[...byTitle.values()];if(lowMemory){visibleItems=visibleItems.filter(item=>!mobileQuery||String(item.title||'').toLowerCase().includes(mobileQuery)||mobileMatches?.has(item.id));}
       const pageItems=lowMemory?visibleItems.slice(0,mobileLimit):visibleItems;
+      window.reportStartupActivity?.({id:'catalog',label:'准备云曲库封面卡片',detail:'本次显示 '+pageItems.length+' 首'});
       const fragment=document.createDocumentFragment();
       const wanted=new Set(pageItems.map(item=>item.id));
       if(local)for(const [id,card]of existing)if(!wanted.has(id)){coverObserver.unobserve(card);card.remove();}
@@ -377,7 +395,7 @@ staff.hidden=item.status!=='running';}
             shownProgress=0;targetProgress=0;progressTime=0;progressStarted=performance.now();barMotion?.cancel();barMotion=null;if(progressFrame)cancelAnimationFrame(progressFrame);progressFrame=0;updateLoader(4,cleanText(item.title)||'正在读取琴谱');
             const recordFlight=liftRecord(button),loaderEntry=revealLoader();document.querySelector('.record-flight')?.showPopover?.();if(item.ready)void prefetchScore(item.id);await Promise.race([Promise.all([recordFlight,loaderEntry]),new Promise(resolve=>setTimeout(resolve,1100))]);
             if(button.dataset.ready==='true'){
-              const data=await obtainScore(item.id);updateLoader(34,'解析音符与声部');await openScore({...data,id:item.id,hasPdf:item.hasPdf},updateLoader);
+              const data=await obtainScore(item.id);updateLoader(34,'解析音符与声部');await openScore({...data,id:item.id,hasPdf:item.hasPdf},updateLoader);if(lowMemory)scoreCache.delete(item.id);
             }
             else if(item.hasPdf&&openPending){await openPending(item);}
             else if(item.hasPdf){const pdf=await fetch(`/api/scores/${item.id}/pdf`);if(!pdf.ok)throw Error('原谱读取失败');await openPdf(new File([await pdf.blob()],`${cleanText(item.title)||'云曲谱'}.pdf`,{type:'application/pdf'}));}
@@ -386,10 +404,11 @@ staff.hidden=item.status!=='running';}
         };
         button.onpointerenter=()=>{if(item.ready&&!lowMemory)void prefetchScore(item.id);};fragment.append(button);coverObserver.observe(button);void hydrateCover(item,button);
       }
+      window.reportStartupActivity?.({id:'catalog',label:'云曲库列表已准备',state:'complete',detail:pageItems.length+' 首'});
       list.append(fragment);regroupPending();if(lowMemory&&visibleItems.length>pageItems.length){const more=document.createElement('div');more.className='library-stream-more';more.setAttribute('role','status');more.textContent='正在载入更多曲谱…';list.append(more);requestAnimationFrame(()=>{if(more.isConnected)streamObserver.observe(more);});}if(!data.scores.length)list.textContent='暂无琴谱';
       else if(!local){const mode=browser.open?'full':'deck';stageCards(mode);await animateCards(mode);}
       pollTimer=setTimeout(pollRecognition,4000);
-    }catch{list.textContent='琴谱库暂不可用，点击刷新重试。';}
+    }catch{window.reportStartupActivity?.({id:'catalog',label:'云曲库连接未完成',state:'failed',detail:controller.signal.aborted?'请求超过 20 秒':'服务器未返回可用列表'});list.textContent='琴谱库暂不可用，点击刷新重试。';}
     finally{if(local){if(browser.open)browser.scrollTop=previousScroll;else list.scrollLeft=previousScroll;}clearTimeout(requestTimeout);reloading=false;refresh.disabled=false;list.setAttribute('aria-busy','false');}
   }
   refresh.onclick=async()=>{refresh.animate([{transform:'rotate(0deg)'},{transform:'rotate(250deg)'},{transform:'rotate(360deg)'}],{duration:520,easing:'cubic-bezier(.22,.8,.25,1)'});await reload();};

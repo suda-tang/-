@@ -13,4 +13,6 @@ function mount(el){if(el.hasAttribute('data-optical-glass'))return;el.dataset.op
  el.addEventListener('pointermove',move,{passive:true});el.addEventListener('pointerdown',e=>{move(e);el.classList.add('glass-pressed');},{passive:true});const release=()=>el.classList.remove('glass-pressed');el.addEventListener('pointerup',release,{passive:true});el.addEventListener('pointercancel',release,{passive:true});el.addEventListener('pointerleave',release,{passive:true});
  if(reduced.matches)glass.setAttribute('effect-mode','blur');
 }
-function scan(){document.querySelectorAll(selector).forEach(mount);}scan();let pending=false;new MutationObserver(records=>{if(!records.some(r=>r.addedNodes.length)||pending)return;pending=true;requestAnimationFrame(()=>{pending=false;scan();});}).observe(document.body,{childList:true,subtree:true});
+function scan(){document.querySelectorAll(selector).forEach(mount);}scan();
+const candidates=new Set();let pending=false;
+new MutationObserver(records=>{for(const record of records)for(const node of record.addedNodes){if(node.nodeType!==1)continue;if(node.matches(selector))candidates.add(node);if(node.tagName!=='svg'&&node.tagName!=='BUTTON')node.querySelectorAll(selector).forEach(el=>candidates.add(el));}if(!candidates.size||pending)return;pending=true;requestAnimationFrame(()=>{pending=false;for(const el of candidates)if(el.isConnected)mount(el);candidates.clear();});}).observe(document.body,{childList:true,subtree:true});

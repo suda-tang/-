@@ -126,3 +126,10 @@ body.studio .ai-conversation .ai-messages .user::after{content:"";position:absol
 .ai-settle-pill.is-visible{opacity:1;transform:translate(-50%,0)}
 .ios-low-memory .ai-settle-pill{backdrop-filter:none;-webkit-backdrop-filter:none;background:#f7f4f0f0}
 @media(prefers-reduced-motion:reduce){.ai-settle-pill{transition:none}}
+
+/* Transition-only top-layer elements must never intercept the composer. */
+.ai-morph-surface::backdrop{pointer-events:none!important}
+.ai-conversation form>button{pointer-events:auto;touch-action:manipulation;position:relative;z-index:1}
+
+.ai-operation-layer>span{isolation:isolate;overflow:hidden}
+.ai-operation-layer>span::before{content:"";position:absolute;inset:0;right:auto;width:var(--ai-operation-progress,0%);border-radius:inherit;z-index:-1;background:linear-gradient(110deg,#70caff99,#aa8bff99,#ed91c299,#ffbb8d99);transition:width .3s ease}
