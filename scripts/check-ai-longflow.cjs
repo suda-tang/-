@@ -273,20 +273,32 @@ function checkReply(rule,reply){
         const before=await readState(page);
         rec.before=before;
 
-        // 发指令
+        // 发指令。`say` 可以是字符串（单轮），也可以是字符串数组（**多轮**）——
+        // 真实用户是一句一句说的，多轮里第二句常常省略主语（「只听鼓组」「跳到最后一小节」），
+        // 依赖的正是 context.currentId 和对话历史 —— 单轮用例测不到这一层。
         if(!await page.evaluate(()=>!!document.querySelector('.ai-conversation')?.open)){
           await page.locator('#workspace-ai').click();
           await sleep(900);
         }
-        await page.locator('.ai-conversation input').fill(c.say);
-        await page.locator('.ai-conversation input').press('Enter');
-        await page.waitForFunction(
-          ()=>document.querySelector('.ai-conversation')?.classList.contains('is-thinking'),
-          null,{timeout:20000}).catch(()=>{});
-        await page.waitForFunction(
-          ()=>!document.querySelector('.ai-conversation')?.classList.contains('is-thinking'),
-          null,{timeout:CASE_TIMEOUT_MS});
-        await sleep(1500);
+        const turns=Array.isArray(c.say)?c.say:[c.say];
+        for(const turn of turns){
+          // ★★ 多轮专属坑（单轮用例永远踩不到）：AI 执行完某些动作后**会自动收起面板**。
+          //    实测「只听鼓组」就会（dialog.open 变 false，输入框还在 DOM 里但不可见），
+          //    于是下一轮 fill 必然 30 秒超时。→ 每轮发送前都重新确认面板是打开的。
+          if(!await page.evaluate(()=>!!document.querySelector('.ai-conversation')?.open)){
+            await page.locator('#workspace-ai').click();
+            await sleep(900);
+          }
+          await page.locator('.ai-conversation input').fill(turn);
+          await page.locator('.ai-conversation input').press('Enter');
+          await page.waitForFunction(
+            ()=>document.querySelector('.ai-conversation')?.classList.contains('is-thinking'),
+            null,{timeout:20000}).catch(()=>{});
+          await page.waitForFunction(
+            ()=>!document.querySelector('.ai-conversation')?.classList.contains('is-thinking'),
+            null,{timeout:CASE_TIMEOUT_MS});
+          await sleep(1500);
+        }
 
         const after=await readState(page);
         rec.after=after;

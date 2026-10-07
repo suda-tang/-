@@ -1,13 +1,15 @@
-// 56 个「长流程」验收用例。
+// 60 个「长流程」验收用例。
 //
 // 「长流程」的判定：**至少 2 步、步骤之间有依赖、需要多个动作协作**。
 // 单步指令（「打开曲库」）不算长流程，但作为对照组保留了几条。
 //
 // 字段说明：
-//   id      用例号（1~56）
+//   id      用例号（1~60）
 //   name    给人看的名字
 //   base    基线曲谱标题（先打开这首，页面因此处于干净状态）
-//   say     发给 AI 的原话
+//   say     发给 AI 的原话；**也可以是字符串数组**（多轮：一句一句说，
+//           后面几句常常省略主语，靠 context.currentId + 对话历史接上）
+//           见 N 组（57~60）
 //   expect  期望的**最终界面状态**（只写关心的字段，其余不检查）
 //   reply   {must:[], mustNot:[]} 可选，对 AI 回复文本的要求
 //   tier    'core' 应该能做到 / 'guard' 应该被拒绝或诚实说明 / 'probe' 探索性（只记录）
@@ -201,4 +203,20 @@ module.exports = [
    reply:{must:[/月亮代表我的心/],mustNot:[/已(经)?打开/]}},
   {id:56,name:'「再快一点」（相对指令，连说）',base:S,say:'再快一点。',tier:'core',
    expect:{tempoAtLeast:81},reply:{must:[/BPM|速度/]}},
+
+  // ── N. 多轮对话（4）★ 2026-10-07 加：真实用户是一句一句说的 ──────────────────
+  // `say` 写成数组 = 多轮。第二句往往**省略主语**（「只听鼓组」「跳到最后一小节」），
+  // 靠的正是 context.currentId 和对话历史 —— 单轮用例完全测不到这一层。
+  {id:57,name:'两轮：打开《知足》→ 只听鼓组（省略主语）',base:M,
+   say:['打开《知足》。','只听鼓组。'],tier:'core',
+   expect:{baseTitle:S,onlyPart:'@鼓组'}},
+  {id:58,name:'三轮：打开《知足》→ 切简谱 → 跳到第 50 小节并播放',base:M,
+   say:['打开《知足》。','切到简谱。','跳到第 50 小节，然后播放。'],tier:'core',
+   expect:{baseTitle:S,view:'simple',measureRange:[50,53],playing:true}},
+  {id:59,name:'两轮：打开《知足》→ 跳到最后一小节（指代当前曲谱）',base:M,
+   say:['打开《知足》。','跳到最后一小节。'],tier:'core',
+   expect:{baseTitle:S,measureRange:[86,86]}},
+  {id:60,name:'两轮：打开《知足》→ 静音钢琴+开节拍器+播放（走模型）',base:M,
+   say:['打开《知足》。','把钢琴静音，打开节拍器，然后播放。'],tier:'core',
+   expect:{baseTitle:S,muted:['@钢琴'],metronome:true,playing:true}},
 ];

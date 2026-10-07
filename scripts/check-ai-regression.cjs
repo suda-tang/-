@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 // 一条命令跑完 AI 工作区的全部回归。
 //
-// 为什么需要它：AI 工作区现在有 11 个专项检查 + 56 条长流程用例，命令散在
+// 为什么需要它：AI 工作区现在有 12 个专项检查 + 60 条长流程用例，命令散在
 //   skills 文档里，改完代码很容易漏跑某一项（长流程验收这一轮就漏过一次）。
 //   这个脚本按「快 → 慢」串行跑完，最后给一张汇总表；退出码非 0 = 有失败。
 //
 // 用法：
 //   node scripts/check-ai-regression.cjs                   # 快的 12 项（约 6 分钟）
-//   node scripts/check-ai-regression.cjs --long            # 再加 56 条长流程（约 34 分钟）
+//   node scripts/check-ai-regression.cjs --long            # 再加 60 条长流程（约 30 分钟）
 //   node scripts/check-ai-regression.cjs --only library    # 只跑名字里含 library 的
 //   node scripts/check-ai-regression.cjs --list            # 只列出会跑哪些，不执行
 //
@@ -46,8 +46,8 @@ const CHECKS = [
 // --long 才跑（真打模型，很慢）
 const LONG = {
   name: 'longflow', file: 'scripts/check-ai-longflow.cjs', run: 'node',
-  about: '★真打模型★ 56 条长流程（约 26 分钟，必须串行）', timeout: 2400,
-  args: ['--from', '1', '--to', '56'],
+  about: '★真打模型★ 60 条长流程（约 30 分钟，必须串行）', timeout: 3000,
+  args: ['--from', '1', '--to', '60'],
 };
 
 const argv = process.argv.slice(2);
