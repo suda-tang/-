@@ -1,0 +1,14 @@
+.*profile*/
+.browser-profile/
+.wvpn-profile/
+.wvpn-*.json
+.wvpn-*.json.*
+*.log*
+*.jsonl
+guard.*
+*.state
+*.heartbeat
+embedded_credentials.py
+__pycache__/
+*.pid
+*.json

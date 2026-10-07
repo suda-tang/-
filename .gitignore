@@ -73,3 +73,10 @@ dist/narration/background/
 dist/narration/tour-male/
 dist/fonts/
 dist/assets/piano/salamander/
+
+# Local deployment settings and authenticated browser sessions
+/deploy/local.json
+/deploy/private/
+/services/suda-ds/.browser-profile*/
+/services/suda-ds/.wvpn*/
+/services/suda-ds/embedded_credentials.py

@@ -1,0 +1,9 @@
+{
+  "SUDA_DEEPSEEK_BROWSER_CHANNEL": "msedge",
+  "SUDA_DEEPSEEK_LOGIN_URL": "https://wvpn.suda.edu.cn/https/webvpn88376f646abb70594867e29f7e6f15ac/copilot-center/airobotsuda?showSource=true&id=01JMP3EFD6EV6Q8QEXNHEH0FC4",
+  "PIANO_PORT": "5173",
+  "SUDA_DEEPSEEK_WS_URL": "wss://wvpn.suda.edu.cn/https/webvpn88376f646abb70594867e29f7e6f15ac/copilot-api/internal-graphql",
+  "SUDA_DEEPSEEK_WS_ORIGIN": "https://wvpn.suda.edu.cn",
+  "SUDA_DEEPSEEK_WS_COOKIE_FILE": "{service_dir}/.wvpn-cookie.txt",
+  "SUDA_DEEPSEEK_BROWSER_PROFILE": "{service_dir}/.wvpn-profile"
+}

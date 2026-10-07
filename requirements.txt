@@ -1,1 +1,1 @@
-PyMuPDF==1.27.2.3
+-r deploy/requirements-lock.txt

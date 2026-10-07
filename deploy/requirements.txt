@@ -1,0 +1,11 @@
+requests>=2.32,<3
+numpy>=1.26,<3
+Pillow>=10,<13
+beautifulsoup4>=4.12,<5
+PyMuPDF==1.27.2.3
+music21>=9,<10
+soundfile>=0.12,<1
+imageio-ffmpeg>=0.5,<1
+PyYAML>=6,<7
+rapidocr-onnxruntime>=1.4,<2
+edge-tts>=7,<8
