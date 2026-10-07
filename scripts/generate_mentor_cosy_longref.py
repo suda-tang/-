@@ -1,5 +1,9 @@
 """Create a higher-fidelity private CosyVoice mentor preview from a longer reference."""
 from pathlib import Path
+try:
+    from .runtime_location import cosyvoice_runtime
+except ImportError:
+    from runtime_location import cosyvoice_runtime
 import sys
 import traceback
 
@@ -7,7 +11,7 @@ import soundfile as sf
 import torch
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNTIME = Path(r"C:\PianoCoachRuntime\cosyvoice")
+RUNTIME = cosyvoice_runtime()
 sys.path.insert(0, str(RUNTIME / "CosyVoice-main"))
 from cosyvoice.cli.cosyvoice import CosyVoice3
 

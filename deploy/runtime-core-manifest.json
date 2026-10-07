@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "release": "runtime-2026-10-08",
+  "assets": [
+    {
+      "name": "public-runtime-01.zip",
+      "size": 513435373,
+      "sha256": "9b8e90f595bded33669af1518e57db29bb44fd9d50d571624192361d2d94c635",
+      "files": 386,
+      "url": "https://github.com/suda-tang/-/releases/download/runtime-2026-10-08/public-runtime-01.zip"
+    },
+    {
+      "name": "public-runtime-02.zip",
+      "size": 518697236,
+      "sha256": "17749f9b6df9b9accc03c460a87387cb24e2951463b346c60a92dd75e4356d79",
+      "files": 6019,
+      "url": "https://github.com/suda-tang/-/releases/download/runtime-2026-10-08/public-runtime-02.zip"
+    },
+    {
+      "name": "public-runtime-03.zip",
+      "size": 144089625,
+      "sha256": "2a9515b2241b7f09cda4e5478a9e28d47459059a7dd272c43206b31e83d68d0b",
+      "files": 2,
+      "url": "https://github.com/suda-tang/-/releases/download/runtime-2026-10-08/public-runtime-03.zip"
+    },
+    {
+      "name": "public-runtime-04.zip",
+      "size": 680030216,
+      "sha256": "0f6eba7e62a0f10c54ca777ba63932e03b97d2994c7968604ee0e694a12a210a",
+      "files": 9,
+      "url": "https://github.com/suda-tang/-/releases/download/runtime-2026-10-08/public-runtime-04.zip"
+    },
+    {
+      "name": "public-runtime-05.zip",
+      "size": 486016806,
+      "sha256": "ee3fc29efd22b8a23fd530bc966b1ac0cef4a22e5455e94bb2a0b4ee9c65e4bb",
+      "files": 556,
+      "url": "https://github.com/suda-tang/-/releases/download/runtime-2026-10-08/public-runtime-05.zip"
+    },
+    {
+      "name": "public-runtime-06.zip",
+      "size": 441110712,
+      "sha256": "3ce31ce68279abd514232d2bbdfd921058cac778132739599a48bdcfe788512d",
+      "files": 2,
+      "url": "https://github.com/suda-tang/-/releases/download/runtime-2026-10-08/public-runtime-06.zip"
+    },
+    {
+      "name": "public-runtime-07.zip",
+      "size": 306069895,
+      "sha256": "fe855232c7ee848ff80712d7730102b437cd61138026e90eeac790b7dc735877",
+      "files": 2319,
+      "url": "https://github.com/suda-tang/-/releases/download/runtime-2026-10-08/public-runtime-07.zip"
+    }
+  ],
+  "excluded": [
+    "University credentials and sessions",
+    "Original uploads and score library",
+    "Personal voice datasets and fine-tuned voice weights",
+    "Portrait references and identity models",
+    "Application materials",
+    "Virtual environments, logs, duplicate downloads and Git history"
+  ]
+}

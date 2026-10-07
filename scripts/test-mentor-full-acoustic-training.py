@@ -1,11 +1,15 @@
 """One real all-parameter acoustic training step, separate from production."""
 import json,sys,time,os
 from pathlib import Path
+try:
+    from .runtime_location import cosyvoice_runtime
+except ImportError:
+    from runtime_location import cosyvoice_runtime
 os.environ['HF_HUB_OFFLINE']='1';os.environ['TRANSFORMERS_OFFLINE']='1'
 import torch
 import onnxruntime as ort
 ROOT=Path(__file__).resolve().parents[1]
-RUNTIME=Path('C:/PianoCoachRuntime/cosyvoice');sys.path.insert(0,str(RUNTIME/'CosyVoice-main'))
+RUNTIME=cosyvoice_runtime();sys.path.insert(0,str(RUNTIME/'CosyVoice-main'))
 from hyperpyyaml import load_hyperpyyaml
 from cosyvoice.cli.frontend import CosyVoiceFrontEnd
 MODEL=RUNTIME/'pretrained_models/Fun-CosyVoice3-0.5B'

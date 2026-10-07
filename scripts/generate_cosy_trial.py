@@ -4,6 +4,10 @@ The script deliberately treats the output as a comparison file. Existing
 approved ZipVoice previews are never overwritten.
 """
 from pathlib import Path
+try:
+    from .runtime_location import cosyvoice_runtime
+except ImportError:
+    from runtime_location import cosyvoice_runtime
 import sys
 import time
 import traceback
@@ -12,7 +16,7 @@ import torch
 import torchaudio
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNTIME = Path(r"C:\PianoCoachRuntime\cosyvoice")
+RUNTIME = cosyvoice_runtime()
 sys.path.insert(0, str(RUNTIME / "CosyVoice-main"))
 
 from cosyvoice.cli.cosyvoice import CosyVoice3

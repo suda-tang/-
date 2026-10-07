@@ -6,9 +6,13 @@ random state and order; original model files are never written.
 """
 import os,json,sys,time,random,argparse,gc
 from pathlib import Path
+try:
+    from .runtime_location import cosyvoice_runtime
+except ImportError:
+    from runtime_location import cosyvoice_runtime
 os.environ['HF_HUB_OFFLINE']='1';os.environ['TRANSFORMERS_OFFLINE']='1'
 import torch,numpy as np,onnxruntime as ort
-ROOT=Path(__file__).resolve().parents[1];RUNTIME=Path('C:/PianoCoachRuntime/cosyvoice')
+ROOT=Path(__file__).resolve().parents[1];RUNTIME=cosyvoice_runtime()
 sys.path.insert(0,str(RUNTIME/'CosyVoice-main'))
 from hyperpyyaml import load_hyperpyyaml
 from cosyvoice.cli.frontend import CosyVoiceFrontEnd

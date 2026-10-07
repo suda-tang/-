@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "release": "runtime-cosy-2026-10-08",
+  "assets": [
+    {
+      "name": "public-cosy-01.zip",
+      "size": 28952963,
+      "sha256": "101cde3aa01cb855e2d744cffcb1fb7671ba214462812a7ed254a7692247eed2",
+      "files": 285,
+      "url": "https://github.com/suda-tang/-/releases/download/runtime-cosy-2026-10-08/public-cosy-01.zip"
+    },
+    {
+      "name": "public-cosy-02.zip",
+      "size": 791621684,
+      "sha256": "870ee443efa812cf3baa9a4ad0613441d01dc801975fd0add8ea98e548794e17",
+      "files": 1,
+      "url": "https://github.com/suda-tang/-/releases/download/runtime-cosy-2026-10-08/public-cosy-02.zip"
+    },
+    {
+      "name": "public-cosy-03.zip",
+      "size": 1238187,
+      "sha256": "19c1362f104c53127a1654478dcb012db5d3d2425670b4f1864704d4fe2663aa",
+      "files": 3,
+      "url": "https://github.com/suda-tang/-/releases/download/runtime-cosy-2026-10-08/public-cosy-03.zip"
+    },
+    {
+      "name": "public-cosy-04.zip",
+      "size": 1235775250,
+      "sha256": "4d89444e7b11ef9545615899d80c102574949c27267e5d3ef463045441c42757",
+      "files": 1,
+      "url": "https://github.com/suda-tang/-/releases/download/runtime-cosy-2026-10-08/public-cosy-04.zip"
+    },
+    {
+      "name": "public-cosy-05.zip",
+      "size": 1239620259,
+      "sha256": "df333203441a4e5e6c1f9e0316b7c4875a8a31e82c19836b133b5b711a813fdc",
+      "files": 1,
+      "url": "https://github.com/suda-tang/-/releases/download/runtime-cosy-2026-10-08/public-cosy-05.zip"
+    },
+    {
+      "name": "public-cosy-06.zip",
+      "size": 77842497,
+      "sha256": "e6ce253ec0b51497e4de746f5638fb5a4d304eaf366a909da65eb5de4917ed18",
+      "files": 1,
+      "url": "https://github.com/suda-tang/-/releases/download/runtime-cosy-2026-10-08/public-cosy-06.zip"
+    },
+    {
+      "name": "public-cosy-07.zip",
+      "size": 1831824875,
+      "sha256": "d728a2b7c2d4faf9861a7fa5121fb03b5f1930583c42c66f2a986aed36b0352f",
+      "files": 1,
+      "url": "https://github.com/suda-tang/-/releases/download/runtime-cosy-2026-10-08/public-cosy-07.zip"
+    },
+    {
+      "name": "public-cosy-08.zip",
+      "size": 1830827048,
+      "sha256": "076f4ca5b5296d9441bf7ac637b7e3d4c0f06ea3efbe243a4693e042426ec061",
+      "files": 1,
+      "url": "https://github.com/suda-tang/-/releases/download/runtime-cosy-2026-10-08/public-cosy-08.zip"
+    },
+    {
+      "name": "public-cosy-09.zip",
+      "size": 5056,
+      "sha256": "1823387f6e851cba2b95cca335fb056e1483bde87dfc81746fd512382c46c67c",
+      "files": 1,
+      "url": "https://github.com/suda-tang/-/releases/download/runtime-cosy-2026-10-08/public-cosy-09.zip"
+    },
+    {
+      "name": "public-cosy-10.zip",
+      "size": 896278319,
+      "sha256": "6905c347c93519bf93a1cb15822115fd1df54f1a2e8c83b6535a34f780e183cc",
+      "files": 1,
+      "url": "https://github.com/suda-tang/-/releases/download/runtime-cosy-2026-10-08/public-cosy-10.zip"
+    },
+    {
+      "name": "public-cosy-11.zip",
+      "size": 896278925,
+      "sha256": "f0285fda8d69c12067b8b081f7ec2edbcb7398d987ba3810fe82085075d15119",
+      "files": 1,
+      "url": "https://github.com/suda-tang/-/releases/download/runtime-cosy-2026-10-08/public-cosy-11.zip"
+    }
+  ],
+  "excluded": [
+    "University credentials and sessions",
+    "Original uploads and score library",
+    "Personal voice datasets and fine-tuned voice weights",
+    "Portrait references and identity models",
+    "Application materials",
+    "Virtual environments, logs, duplicate downloads and Git history"
+  ]
+}

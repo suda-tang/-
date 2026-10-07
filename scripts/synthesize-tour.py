@@ -4,12 +4,16 @@ os.environ['HF_HUB_OFFLINE']='1'
 os.environ['TRANSFORMERS_OFFLINE']='1'
 import json, sys, time, hashlib, subprocess
 from pathlib import Path
+try:
+    from .runtime_location import cosyvoice_runtime
+except ImportError:
+    from runtime_location import cosyvoice_runtime
 import numpy as np
 import soundfile as sf
 import torch
 
 ROOT=Path(__file__).resolve().parents[1]
-RUNTIME=Path('C:/PianoCoachRuntime/cosyvoice')
+RUNTIME=cosyvoice_runtime()
 sys.path.insert(0,str(RUNTIME/'CosyVoice-main'))
 from cosyvoice.cli.cosyvoice import CosyVoice3
 OUT=ROOT/'dist/narration'

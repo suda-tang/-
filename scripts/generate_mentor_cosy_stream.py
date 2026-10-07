@@ -4,6 +4,10 @@ Chunks are committed as soon as the model emits them, so a successful first
 chunk survives a later long CPU inference rather than being discarded.
 """
 from pathlib import Path
+try:
+    from .runtime_location import cosyvoice_runtime
+except ImportError:
+    from runtime_location import cosyvoice_runtime
 import sys
 import traceback
 
@@ -11,7 +15,7 @@ import soundfile as sf
 import torch
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNTIME = Path(r"C:\PianoCoachRuntime\cosyvoice")
+RUNTIME = cosyvoice_runtime()
 sys.path.insert(0, str(RUNTIME / "CosyVoice-main"))
 from cosyvoice.cli.cosyvoice import CosyVoice3
 

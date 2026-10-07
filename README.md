@@ -12,4 +12,13 @@ py -3.12 deploy/manage.py doctor
 
 浏览器打开 http://127.0.0.1:5173/ 。以后可双击 `start-local.cmd`。
 
-苏大账号、WebVPN 登录态、上传作品库和训练素材不在公开仓库中。大型识别、演奏和语音模型按部署指南另外安装。
+苏大账号、WebVPN 登录态、上传作品库和训练素材不在公开仓库中。可公开的大型模型和运行资源保存在本仓库 Releases，可按部署指南一键下载校验并恢复；私人训练素材及身份数据除外。
+
+完整公开资源恢复：
+
+```powershell
+py -3.12 deploy/restore_runtime.py --group all
+py -3.12 deploy/setup_models.py --group all
+```
+
+大型模型依赖还需 Python 3.10，详见部署指南。
