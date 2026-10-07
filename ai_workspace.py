@@ -171,6 +171,41 @@ def saved_label(value):
     try:return time.strftime('%m-%d %H:%M',time.localtime(stamp))
     except (OSError,ValueError,OverflowError):return ''
 
+_RICH_CACHE={}
+
+def score_richness(item):
+    """曲谱的「内容多少」，重名时用它自动挑一份。返回 (声部数, 演奏事件数, 上传时间)，越大越好。
+
+    ★ 为什么光比声部数不够：实测**重名曲谱的声部数几乎都一样** —— 《知足》两份都是 7、
+      《明明就》两份都是 7、《星海欢迎你》三份都是 7，因为它们出自同一条识别流水线。
+      真正差得远的是**演奏数据**：两份《知足》里一份有逐音符演奏数据
+      （`<id>.metadata.json` 909KB），另一份只有 928 字节（没有 midiPlayback）。
+      所以「音轨多的」落到实际数据上就是：声部多 → 音符多 → 新上传的优先。
+
+    ★ 只读 `<id>.metadata.json`（**不含 xml**，几百 KB 级，和 `score_data()` 那个几 MB
+      的整包不是一回事），按 (mtime,size) 缓存；读不到就退回 (0,0,saved)，不拖累调用方。
+    """
+    ident=str(item.get('id','') or '')
+    try:saved=float(item.get('saved') or 0)
+    except (TypeError,ValueError):saved=0.0
+    if not re.fullmatch('[a-f0-9]{64}',ident):return (0,0,saved)
+    p=ROOT/'.sites-runtime/score-cache'/(ident+'.metadata.json')
+    try:stat=p.stat()
+    except OSError:return (0,0,saved)
+    stamp=(stat.st_mtime_ns,stat.st_size)
+    hit=_RICH_CACHE.get(ident)
+    if hit and hit[0]==stamp:return hit[1]
+    parts=0;events=0
+    try:
+        meta=json.loads(p.read_text(encoding='utf8'))
+        parts=len(meta.get('midiParts') or [])
+        events=len((meta.get('midiPlayback') or {}).get('events') or [])
+    except (OSError,ValueError,TypeError,AttributeError):
+        parts=0;events=0
+    value=(parts,events,saved)
+    _RICH_CACHE[ident]=(stamp,value)
+    return value
+
 def choose_payload(items):
     """choose_scores 的载荷。
 
@@ -476,7 +511,12 @@ def fast_plan(data,progress=lambda x:None):
     #   （报告 #3）。只有**纯粹找歌**（没有任何执行动词）时才把选择权交回用户。
     if selected is None and len({x.get('title') for x in matches})==1 \
        and re.search('打开|播放|试听|听|换|切换|来一首|分析|和弦|曲式|结构',text):
-        selected=([x for x in matches if x.get('ready')] or matches)[0]
+        pool=[x for x in matches if x.get('ready')] or matches
+        # ★ 重名多份时自动挑**内容最全的那份**（声部多 → 演奏数据多 → 新上传的），
+        #   不要再「取列表第一份」—— 实测列表第一份常常是**没有演奏数据**的那一份
+        #   （两份《知足》就是：37d1f663 有逐音符数据，e0f0ebe0 没有），
+        #   一打开就只剩谱面、播放不了。见 score_richness() 的注释。
+        selected=max(pool,key=score_richness)
     if selected is None:return {'reply':'本地曲库找到了这些作品，请选择一首。','actions':[{'type':'choose_scores','value':choose_payload(matches)}]}
     # ★ 重名时把「我挑的是哪一份、怎么换」说清楚 —— 以前默默挑一份，用户看到
     #   「准备《知足》。」会以为曲库里只有一首（长流程报告第九节第 1 条）。
