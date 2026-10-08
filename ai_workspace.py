@@ -878,7 +878,11 @@ def fast_plan(data,progress=lambda x:None):
 
 def stream_result(handler,data):
     handler.send_response(200);handler.send_header('Content-Type','application/x-ndjson; charset=utf-8');handler.send_header('Cache-Control','no-cache');handler.send_header('Connection','close');handler.end_headers();handler.close_connection=True
-    def emit(event):handler.wfile.write((json.dumps(event,ensure_ascii=False)+'\n').encode());handler.wfile.flush()
+    # ★ 2026-10-08：等待心跳线程会和主线程同时 emit，必须加锁，否则两条 ndjson 会交错。
+    _emit_lock=threading.Lock()
+    def emit(event):
+        with _emit_lock:
+            handler.wfile.write((json.dumps(event,ensure_ascii=False)+'\n').encode());handler.wfile.flush()
     try:
         emit({'type':'status','text':'已取得曲库列表，核对当前曲谱的小节编号、声部名称和播放状态…'})
         plan=fast_plan(data,lambda text:emit({'type':'status','text':text}))
@@ -925,7 +929,29 @@ def stream_result(handler,data):
                     if self.streamed:emit({'type':'reset'})
                     emit({'type':'delta','text':reply})
                 emit({'type':'result',**result})
-        plan_data(data,Capture(),on_delta=lambda text:emit({'type':'delta','text':text}),on_reset=lambda:emit({'type':'reset'}),on_action=lambda label:emit({'type':'action','label':label}))
+        # ★★ 2026-10-08：模型生成期（首字前实测 3~6 秒）以前完全静止 —— 只有一句
+        #   「正在安排操作…」然后干等。加一个**心跳**：每 1.6 秒推一条「正在…」状态，
+        #   首字 / 首个动作一到就停，用户能持续看到「它在动」。
+        _stop_ticks=threading.Event()
+        _score_count=len(context.get('scores') or [])
+        _tick_texts=['正在理解你的请求…',
+                     '正在核对曲库 '+str(_score_count)+' 首、当前曲谱的声部与小节…',
+                     '正在生成操作方案…',
+                     '正在整理动作顺序…',
+                     '内容较多，仍在生成…']
+        def _ticker():
+            index=0
+            while not _stop_ticks.wait(1.6):
+                emit({'type':'status','text':_tick_texts[min(index,len(_tick_texts)-1)]});index+=1
+        threading.Thread(target=_ticker,daemon=True,name='ai-wait-ticker').start()
+        def _on_delta(text):
+            _stop_ticks.set();emit({'type':'delta','text':text})
+        def _on_action(label):
+            _stop_ticks.set();emit({'type':'action','label':label})
+        try:
+            plan_data(data,Capture(),on_delta=_on_delta,on_reset=lambda:emit({'type':'reset'}),on_action=_on_action)
+        finally:
+            _stop_ticks.set()
     except (BrokenPipeError,ConnectionResetError):return
     except Exception as e:emit({'type':'error','text':'未能完成：'+friendly_error(e)})
 
