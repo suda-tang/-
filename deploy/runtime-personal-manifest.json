@@ -1,0 +1,172 @@
+{
+  "version": 2,
+  "release": "authorised-project-data-2026-10-08",
+  "assets": [
+    {
+      "name": "project-data-01.zip",
+      "size": 124466110,
+      "sha256": "4407ed6cef9705d84bad61842c38de5b68b37d092cc7f2325dd65a04bd89abb6",
+      "url": "https://github.com/suda-tang/-/releases/download/authorised-project-data-2026-10-08/project-data-01.zip"
+    },
+    {
+      "name": "project-data-02.zip",
+      "size": 635303394,
+      "sha256": "69917d78588ee6875d1218bc6dce0bef30b54f8024f8c926d5080639807c9d89",
+      "url": "https://github.com/suda-tang/-/releases/download/authorised-project-data-2026-10-08/project-data-02.zip"
+    },
+    {
+      "name": "project-data-03.zip",
+      "size": 604323158,
+      "sha256": "652455ed1594eb619eadb81f6974cccf8f526f5051e1b0daa1ee5a3c8548f80c",
+      "url": "https://github.com/suda-tang/-/releases/download/authorised-project-data-2026-10-08/project-data-03.zip"
+    },
+    {
+      "name": "project-data-04.zip",
+      "size": 635304128,
+      "sha256": "b391e220e9f40a55245ec9f82b33ec36b3f152a363b141dac4f1ad2ede847ef4",
+      "url": "https://github.com/suda-tang/-/releases/download/authorised-project-data-2026-10-08/project-data-04.zip"
+    },
+    {
+      "name": "project-data-05.zip",
+      "size": 604327599,
+      "sha256": "a894eed65f5fa5f17709b53884a960a8fde3508a08d20b0f380ea7eba224dd54",
+      "url": "https://github.com/suda-tang/-/releases/download/authorised-project-data-2026-10-08/project-data-05.zip"
+    },
+    {
+      "name": "project-data-06.zip",
+      "size": 491,
+      "sha256": "e18412ae39238870bf246a91dc974cbc3c0437763f20bc3556a8b50882300172",
+      "url": "https://github.com/suda-tang/-/releases/download/authorised-project-data-2026-10-08/project-data-06.zip"
+    },
+    {
+      "name": "project-data-07.zip",
+      "size": 634972267,
+      "sha256": "b79d88bbfefc5c2d59d7ec1c6c4aaf1c80f6b03ea86df62a80c4ad5643f88ada",
+      "url": "https://github.com/suda-tang/-/releases/download/authorised-project-data-2026-10-08/project-data-07.zip"
+    },
+    {
+      "name": "project-data-08.zip",
+      "size": 635496748,
+      "sha256": "84f1784105ba269c5e1b0b996dcf128a1d0d03a251fa2f316f70f3b80e7696c1",
+      "url": "https://github.com/suda-tang/-/releases/download/authorised-project-data-2026-10-08/project-data-08.zip"
+    },
+    {
+      "name": "project-data-09.zip",
+      "size": 634508551,
+      "sha256": "4a4228dc2a40dfa0e88fdc34f0779cdafde13b67e1d97581b17ac1086d29ead5",
+      "url": "https://github.com/suda-tang/-/releases/download/authorised-project-data-2026-10-08/project-data-09.zip"
+    },
+    {
+      "name": "project-data-10.zip",
+      "size": 635997213,
+      "sha256": "f03282e9c04545f7fd346a51d98e39244e1ea1f253d1d9237369b5f8dbb412cd",
+      "url": "https://github.com/suda-tang/-/releases/download/authorised-project-data-2026-10-08/project-data-10.zip"
+    },
+    {
+      "name": "project-data-11.zip",
+      "size": 635551133,
+      "sha256": "424baf2fc0f593dd5f9758de5bfb951743345b82f1e3449f2f5595636fdc5301",
+      "url": "https://github.com/suda-tang/-/releases/download/authorised-project-data-2026-10-08/project-data-11.zip"
+    },
+    {
+      "name": "project-data-12.zip",
+      "size": 539095653,
+      "sha256": "41434bf05fc1dad883659e8ce8b225d33f991851805789bd56e0a8d5d5b42fd7",
+      "url": "https://github.com/suda-tang/-/releases/download/authorised-project-data-2026-10-08/project-data-12.zip"
+    },
+    {
+      "name": "project-data-13.zip",
+      "size": 178624393,
+      "sha256": "317dc5a1deeca5a27791c46085d6ed2d4e53130c249dd6c2e918dbf21766c6c0",
+      "url": "https://github.com/suda-tang/-/releases/download/authorised-project-data-2026-10-08/project-data-13.zip"
+    },
+    {
+      "name": "project-data-14.zip",
+      "size": 101274435,
+      "sha256": "a20fc51da01b09b71cd8b27c70a848ff612d1c9a2a5a92f0589b61e581b6d486",
+      "url": "https://github.com/suda-tang/-/releases/download/authorised-project-data-2026-10-08/project-data-14.zip"
+    },
+    {
+      "name": "project-data-15.zip",
+      "size": 72383066,
+      "sha256": "ded5134c14ea4f777e7143b642b214cd0070ee5d5c9cf33f9afb6af9162c2e85",
+      "url": "https://github.com/suda-tang/-/releases/download/authorised-project-data-2026-10-08/project-data-15.zip"
+    },
+    {
+      "name": "project-data-16.zip",
+      "size": 136384432,
+      "sha256": "cdaf6d2ed557b09ccd7026e3830e434841620adb08acfc928d6cd8ca182ef906",
+      "url": "https://github.com/suda-tang/-/releases/download/authorised-project-data-2026-10-08/project-data-16.zip"
+    },
+    {
+      "name": "project-data-17.zip",
+      "size": 72602020,
+      "sha256": "a45e006cfab9e5c330e657e8906aac04069b40a90cf62d21aa0760d69313bb43",
+      "url": "https://github.com/suda-tang/-/releases/download/authorised-project-data-2026-10-08/project-data-17.zip"
+    },
+    {
+      "name": "project-data-18.zip",
+      "size": 112239517,
+      "sha256": "575e615ad3e07a9d4051eabf650abbdd1b170dd69b7eb43c954ece8af4e23edc",
+      "url": "https://github.com/suda-tang/-/releases/download/authorised-project-data-2026-10-08/project-data-18.zip"
+    },
+    {
+      "name": "project-data-19.zip",
+      "size": 91131243,
+      "sha256": "6debbfe2702ff4d3e006e597171800600079b65a04e24935a87db7e57c8b12a3",
+      "url": "https://github.com/suda-tang/-/releases/download/authorised-project-data-2026-10-08/project-data-19.zip"
+    },
+    {
+      "name": "project-data-20.zip",
+      "size": 248621841,
+      "sha256": "1e607140659f818e101d7b9ab3bfa09aed7a6f6f12559053e32777b2198fd5a3",
+      "url": "https://github.com/suda-tang/-/releases/download/authorised-project-data-2026-10-08/project-data-20.zip"
+    },
+    {
+      "name": "project-data-21.zip",
+      "size": 90059044,
+      "sha256": "e027f5695f178bcbe1c1893faf830f8f8fa7a9e1f2c41b4a029e0d897c636905",
+      "url": "https://github.com/suda-tang/-/releases/download/authorised-project-data-2026-10-08/project-data-21.zip"
+    },
+    {
+      "name": "project-data-22.zip",
+      "size": 42612781,
+      "sha256": "418a3678e837190acfdfe2d7d8de96815c010ba42febca6b9810626c13df1a40",
+      "url": "https://github.com/suda-tang/-/releases/download/authorised-project-data-2026-10-08/project-data-22.zip"
+    }
+  ],
+  "fragments": [
+    {
+      "path": ".sites-runtime/voice-reference/training/mentor-full-v1/flow-candidate.pt",
+      "sha256": "ab41761ca4165c37db2b54b9ca6403b43685326cc9e2467f5ea500c4c3867d62",
+      "parts": [
+        ".sites-runtime/voice-reference/training/mentor-full-v1/flow-candidate.pt.restore-parts/0000",
+        ".sites-runtime/voice-reference/training/mentor-full-v1/flow-candidate.pt.restore-parts/0001"
+      ],
+      "size": 1329171358
+    },
+    {
+      "path": ".sites-runtime/voice-reference/training/mentor-full-v1/flow-smoke.pt",
+      "sha256": "e5da40ee1324003fc0a1f409ca6229109e929c8c67d2c7c6e5d05d8769d6e2fd",
+      "parts": [
+        ".sites-runtime/voice-reference/training/mentor-full-v1/flow-smoke.pt.restore-parts/0000",
+        ".sites-runtime/voice-reference/training/mentor-full-v1/flow-smoke.pt.restore-parts/0001"
+      ],
+      "size": 1329171294
+    },
+    {
+      "path": ".sites-runtime/voice-reference/training/mentor-full-v1/resume.pt",
+      "sha256": "38cf512ae5fecd2aea7bb503ed7cf029c98dba56fcc1bc56b01d4ec93e79a7cc",
+      "parts": [
+        ".sites-runtime/voice-reference/training/mentor-full-v1/resume.pt.restore-parts/0000",
+        ".sites-runtime/voice-reference/training/mentor-full-v1/resume.pt.restore-parts/0001",
+        ".sites-runtime/voice-reference/training/mentor-full-v1/resume.pt.restore-parts/0002",
+        ".sites-runtime/voice-reference/training/mentor-full-v1/resume.pt.restore-parts/0003",
+        ".sites-runtime/voice-reference/training/mentor-full-v1/resume.pt.restore-parts/0004",
+        ".sites-runtime/voice-reference/training/mentor-full-v1/resume.pt.restore-parts/0005"
+      ],
+      "size": 3987505444
+    }
+  ],
+  "notice": "Personal project assets explicitly authorised for publication. University credentials, access keys, cookies and browser sessions are excluded."
+}

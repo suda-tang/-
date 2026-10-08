@@ -1,0 +1,13 @@
+{
+  "verified_at_utc": "2026-10-08T15:06:40.600993+00:00",
+  "releases": [
+    {
+      "group": "personal",
+      "url": "https://github.com/suda-tang/-/releases/tag/authorised-project-data-2026-10-08",
+      "archives": 22,
+      "bytes": 7465279217,
+      "github_sha256_verified": true
+    }
+  ],
+  "restore_smoke_test": "Local fragmented checkpoint reconstruction and traversal rejection tests passed"
+}
