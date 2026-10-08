@@ -19,10 +19,23 @@ export async function openingNarration(scene){
  const spinner=document.createElement('span');spinner.className='mentor-loading-spinner';spinner.setAttribute('aria-hidden','true');
  const loadingText=document.createElement('span');loadingText.textContent='唐秋鸣导师数字人正在加载中';loading.append(spinner,loadingText);captionPanel.append(loading);content.append(captionPanel);
  const voiceLoading=document.createElement('div');voiceLoading.className='mentor-voice-loading';voiceLoading.hidden=true;const voiceLabel=document.createElement('span'),voicePercent=document.createElement('span');voiceLabel.textContent='TangQiuMingVision数字人物引擎加载中';voicePercent.textContent='0%';voiceLoading.append(voiceLabel,voicePercent);captionPanel.append(voiceLoading);
- const engineProgress=document.createElement('progress');engineProgress.max=100;engineProgress.value=0;engineProgress.hidden=true;engineProgress.className='mentor-engine-progress';engineProgress.setAttribute('aria-label','专属语音生成进度');captionPanel.append(engineProgress);let voiceProgress=0;function showEngineProgress(){voiceLoading.hidden=false;engineProgress.hidden=false;const percent=Math.round(voiceProgress*100);voicePercent.textContent=percent+'%';engineProgress.value=percent;}
+ const engineProgress=document.createElement('progress');engineProgress.max=100;engineProgress.value=0;engineProgress.hidden=true;engineProgress.className='mentor-engine-progress';engineProgress.setAttribute('aria-label','专属语音生成进度');captionPanel.append(engineProgress);let voiceProgress=0,voiceTarget=0,voiceDisplayed=0,voiceAnimTimer=null;
+function ensureVoiceAnim(){if(voiceAnimTimer)return;voiceAnimTimer=setInterval(()=>{
+  // 朝后端真实进度缓动，避免数字直接跳变
+  const k=voiceTarget>=1?0.3:0.14;
+  let next=voiceDisplayed+(voiceTarget-voiceDisplayed)*k;
+  // 未完成时缓慢爬升，防止长时间停在 60% 不动；上限 90% 直到后端真正完成
+  if(voiceTarget<1)next=Math.min(Math.max(next,voiceDisplayed+0.006),0.9);
+  voiceDisplayed=next;
+  const percent=Math.max(0,Math.min(100,Math.round(voiceDisplayed*100)));
+  voicePercent.textContent=percent+'%';engineProgress.value=percent;
+  if(voiceTarget>=1&&voiceDisplayed>=0.995){clearInterval(voiceAnimTimer);voiceAnimTimer=null;voiceLoading.hidden=true;engineProgress.hidden=true;}
+},120);
+}
+function showEngineProgress(){voiceLoading.hidden=false;engineProgress.hidden=false;voiceTarget=voiceProgress;ensureVoiceAnim();}
  let generated=[];try{const response=await fetch('/narration/tour.json');if(response.ok)generated=await response.json();}catch{}
  const continueButton=document.createElement('button');continueButton.type='button';continueButton.className='mentor-greeting-continue';continueButton.textContent='先听项目介绍';continueButton.hidden=true;captionPanel.append(continueButton);let continueIntro,greetingDetached=false;const continueReady=new Promise(resolve=>{continueIntro=()=>resolve({useExisting:true});});continueButton.onclick=()=>{greetingDetached=true;voiceLoading.hidden=true;engineProgress.hidden=true;continueButton.hidden=true;continueIntro();};
- const greetingName=scene.dataset.mentor;let greetingState=null;const greetingReady=greetingName?(async()=>{while(scene.isConnected&&!greetingDetached){try{const r=await fetch('/api/mentor-greeting?name='+encodeURIComponent(greetingName));greetingState=await r.json();if(greetingState.url){voiceProgress=1;voiceLoading.hidden=true;engineProgress.hidden=true;return greetingState;}if(greetingState.status==='failed'){voiceLoading.hidden=false;voiceLabel.textContent='专属前言生成失败：'+(greetingState.error||'请稍后重试');return null;}continueButton.hidden=false;voiceProgress=Number(greetingState.progress??({queued:0,loading:20,synthesizing:60,joining:90}[greetingState.status]||0))/100;showEngineProgress();}catch{voiceLoading.hidden=false;voiceLabel.textContent='专属前言连接中断，正在重试';}await wait(3000);}return null;})():Promise.resolve(null);
+ const greetingName=scene.dataset.mentor;let greetingState=null;const greetingReady=greetingName?(async()=>{while(scene.isConnected&&!greetingDetached){try{const r=await fetch('/api/mentor-greeting?name='+encodeURIComponent(greetingName));greetingState=await r.json();if(greetingState.url){voiceProgress=1;showEngineProgress();return greetingState;}if(greetingState.status==='failed'){voiceLoading.hidden=false;voiceLabel.textContent='专属前言生成失败：'+(greetingState.error||'请稍后重试');return null;}continueButton.hidden=false;voiceProgress=Number(greetingState.progress??({queued:0,loading:20,synthesizing:60,joining:90}[greetingState.status]||0))/100;showEngineProgress();}catch{voiceLoading.hidden=false;voiceLabel.textContent='专属前言连接中断，正在重试';}await wait(3000);}return null;})():Promise.resolve(null);
  const tracks=generated.filter(track=>track.role==='mentor'&&track.url);
  if(!tracks.length)tracks.push({id:'mentor-preface',url:'/narration/mentor-preface.m4a'});
  audio.src=tracks[0].url;audio.load();let arriving=true;

@@ -85,8 +85,14 @@ async function renderSingleEngraved(container, score) {
         const sourceMeasure=partDocument.querySelector('score-partwise > part')?.querySelectorAll(':scope > measure')[measureIndex];
         const measure=(Number(sourceMeasure?.getAttribute('data-source-measure'))||measureIndex+1)+(score.measureOffset||0);
         const offset = entry.sourceStaffEntry.Timestamp.RealValue * 4+Number(sourceMeasure?.getAttribute('data-source-offset')||0);
-        let index = score.events.findIndex(e => e.measure === measure && Math.abs(e.offset - offset) < 0.0001);
-        if(index<0&&score.midiSource){for(let i=0;i<score.events.length;i++){const e=score.events[i];if(e.measure===measure&&e.offset<=offset+.0625)index=i;}}
+        // 有些谱面（内置示例、MIDI / 部分 OMR 生成谱）的 events 没有 offset 字段，
+        // 直接比较会变成 Math.abs(undefined-offset)===NaN，导致整批匹配失败、
+        // 音符拿不到 data-index、点击无法跳转。offset 缺失时改用 beat 反推。
+        const beatBeats=Number(String(score.timeSignature||'4/4').split('/')[0])||4;
+        const measureStart=score.events.some(e=>e.measure===measure&&e.offset!=null)?Math.min(...score.events.filter(e=>e.measure===measure&&e.offset!=null).map(e=>e.beat-Number(e.offset))):(measure-1)*beatBeats;
+        const offsetOf=e=>e.offset!=null&&Number.isFinite(Number(e.offset))?Number(e.offset):Number(e.beat||0)-measureStart;
+        let index = score.events.findIndex(e => e.measure === measure && Math.abs(offsetOf(e) - offset) < 0.0001);
+        if(index<0&&score.midiSource){for(let i=0;i<score.events.length;i++){const e=score.events[i];if(e.measure===measure&&offsetOf(e)<=offset+.0625)index=i;}}
         if (index < 0) continue;
         for (const voice of entry.graphicalVoiceEntries) for (const note of voice.notes) {
           if (note.sourceNote.isRest()) continue;
