@@ -2,6 +2,15 @@
 import argparse, hashlib, json, os, pathlib, time, urllib.request, zipfile
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 
+def sha256_file(path):
+ digest=hashlib.sha256()
+ with pathlib.Path(path).open('rb') as source:
+  while True:
+   chunk=source.read(1024*1024)
+   if not chunk:break
+   digest.update(chunk)
+ return digest.hexdigest()
+
 def safe_members(archive,root):
  for member in archive.infolist():
   name=member.filename.replace('\\','/')
@@ -26,7 +35,7 @@ def restore(manifest,root=ROOT,proxy=None):
   target=cache/name
   def valid():
    if not target.exists() or target.stat().st_size!=asset['size']:return False
-   with target.open('rb') as source:return hashlib.file_digest(source,'sha256').hexdigest()==asset['sha256']
+   return sha256_file(target)==asset['sha256']
   if not valid():
    temporary=target.with_suffix('.download')
    for attempt in range(4):
@@ -47,10 +56,28 @@ def restore(manifest,root=ROOT,proxy=None):
   with zipfile.ZipFile(target) as archive:
    members=list(safe_members(archive,root))
    archive.extractall(root,members=members)
- print('Public resources restored. Private uploads and personalised voices are not included.',flush=True)
+ for fragment in data.get('fragments',[]):
+  name=fragment['path'];destination=(root/name).resolve()
+  if '..' in pathlib.PurePosixPath(name).parts or ':' in name or not destination.is_relative_to(root.resolve()) or not name.startswith(('.sites-runtime/','dist/narration/')):raise ValueError('Invalid fragment target')
+  temporary=destination.with_name(destination.name+'.restoring');digest=hashlib.sha256();size=0
+  destination.parent.mkdir(parents=True,exist_ok=True)
+  parts=[]
+  with temporary.open('wb') as output:
+   for part_name in fragment['parts']:
+    part=(root/part_name).resolve()
+    if not part_name.startswith(name+'.restore-parts/') or not part.is_relative_to(root.resolve()):raise ValueError('Invalid fragment path')
+    parts.append(part)
+    with part.open('rb') as source:
+     while chunk:=source.read(1024*1024):output.write(chunk);digest.update(chunk);size+=len(chunk)
+  if digest.hexdigest()!=fragment['sha256'] or size!=fragment['size']:raise ValueError('Reassembled checkpoint checksum mismatch')
+  temporary.replace(destination)
+  for part in parts:part.unlink()
+  if parts:parts[0].parent.rmdir()
+  print('Reassembled and verified',name,flush=True)
+ print('Selected project resources restored.',flush=True)
 
 if __name__=='__main__':
- parser=argparse.ArgumentParser();parser.add_argument('--group',choices=['all','core','cosy'],default='all');parser.add_argument('--proxy')
+ parser=argparse.ArgumentParser();parser.add_argument('--group',choices=['all','core','cosy','personal'],default='all');parser.add_argument('--proxy')
  args=parser.parse_args()
  for group in (['core','cosy'] if args.group=='all' else [args.group]):
   restore(ROOT/'deploy'/f'runtime-{group}-manifest.json',proxy=args.proxy)
