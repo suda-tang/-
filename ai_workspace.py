@@ -102,7 +102,101 @@ class ReplyStreamExtractor:
         return text
 
 
-def post_model_stream(messages,on_visible=None,timeout=(5,90)):
+_ACTIONS_KEY = re.compile(r'"actions"\s*:\s*\[')
+
+
+class ActionStreamExtractor:
+    """从流式 JSON 里增量提取 actions 数组里**已经完整**的动作对象。
+
+    ★ 为什么需要：上游**不提供独立思维链**（见文件顶部的实测说明），用户能看到的
+      「模型正在做什么」就是这些动作；而 actions 排在 reply 后面，以前要等整个 JSON
+      收完才一次性拿到 —— 生成期的后半段界面又是一动不动。
+      现在每凑齐一个动作就吐出去，前端能边收边显示「打开《知足》→ 速度调到 88 → …」。
+    """
+
+    def __init__(self):
+        self.buf=''
+        self.pos=0
+        self.started=False
+        self.depth=0
+        self.obj_start=-1
+        self.in_str=False
+
+    def feed(self,chunk):
+        """喂入新到的原始增量，返回本次**新凑齐**的动作对象列表。"""
+        self.buf+=chunk
+        out=[]
+        if not self.started:
+            hit=_ACTIONS_KEY.search(self.buf,self.pos)
+            if not hit:return out
+            self.pos=hit.end();self.started=True
+        i=self.pos;n=len(self.buf)
+        while i<n:
+            ch=self.buf[i]
+            if self.in_str:
+                if ch=='\\':i+=2;continue
+                if ch=='"':self.in_str=False
+                i+=1;continue
+            if ch=='"':self.in_str=True;i+=1;continue
+            if self.depth==0:
+                if ch=='{':self.depth=1;self.obj_start=i
+                elif ch==']':self.pos=n;return out
+            else:
+                if ch=='{':self.depth+=1
+                elif ch=='}':
+                    self.depth-=1
+                    if self.depth==0:
+                        try:
+                            obj=json.loads(self.buf[self.obj_start:i+1])
+                            if isinstance(obj,dict) and obj.get('type'):out.append(obj)
+                        except ValueError:pass
+            i+=1
+        self.pos=i
+        return out
+
+
+_ACTION_LABELS={'play':'开始播放','pause':'暂停','stop':'停止','chords':'分析和弦',
+                'score_report':'核对曲谱','search':'搜索曲库','web_search':'联网搜索',
+                'skill_search':'查找技能','panel':'打开面板','generate_arrangement':'生成总谱'}
+_VIEW_LABELS={'simple':'简谱','engraved':'五线谱','pdf':'原稿','daw':'音轨'}
+_PANEL_LABELS={'play':'演奏面板','library':'曲库','arrange':'改编面板','tasks':'任务中心'}
+
+
+def action_label(action,scores=None):
+    """把动作翻译成一句人话（给「正在做什么」的实时展示用）。"""
+    if not isinstance(action,dict):return '执行操作'
+    kind=str(action.get('type') or '').lower()
+    value=action.get('value','')
+    if isinstance(value,(list,dict)):value=json.dumps(value,ensure_ascii=False)
+    value=str(value)
+    def title_of(v):
+        v=str(v or '')
+        for s in (scores or []):
+            if str(s.get('id'))==v or str(s.get('id'))[:12]==v[:12]:return str(s.get('title') or '')
+        return ''
+    if kind=='open':
+        t=title_of(value)
+        return '打开《'+t+'》' if t else '打开曲谱'
+    if kind=='play':
+        t=title_of(value)
+        return '播放《'+t+'》' if t else '开始播放'
+    if kind=='solo':return '恢复全部声部' if value=='all' else '独奏 '+value
+    if kind=='solo_group':
+        try:return '只听 '+('、'.join(json.loads(value)))
+        except (ValueError,TypeError):return '只听指定声部'
+    if kind=='mute':return '静音 '+(value if value!='all' else '全部')
+    if kind=='unmute':return '恢复 '+(value if value!='all' else '全部')
+    if kind=='view':return '切换到'+_VIEW_LABELS.get(value,value)+'谱面'
+    if kind=='set_tempo':return '速度调到 '+value
+    if kind=='set_metronome':return '打开节拍器' if value in ('on','1','true','True') else '关闭节拍器'
+    if kind=='set_instrument':return '音色换成 '+value
+    if kind=='set_arrangement':return '配器换成 '+value
+    if kind=='seek_measure':return '跳到第 '+value+' 小节'
+    if kind=='panel':return '打开'+_PANEL_LABELS.get(value,value)
+    return _ACTION_LABELS.get(kind,'执行 '+kind)
+
+
+def post_model_stream(messages,on_visible=None,timeout=(5,90),on_action=None):
     """流式调用 8765，边收边把可显示文本交给 on_visible；返回模型产出的完整文本。
 
     8765 的流式是**真流式**（实测 0.14s 首包、之后每 ~50ms 一个 delta），
@@ -112,6 +206,7 @@ def post_model_stream(messages,on_visible=None,timeout=(5,90)):
       「模型没响应」错怪成隧道断了。
     """
     extractor=ReplyStreamExtractor()
+    actions_seen=ActionStreamExtractor()
     parts=[]
     with requests.post('http://127.0.0.1:8765/v1/chat/completions',headers={'Authorization':'Bearer suda-local'},json={'model':'suda-deepseek','messages':messages,'temperature':0.2,'max_tokens':MODEL_TOKENS,'stream':True},stream=True,timeout=timeout) as response:
         response.raise_for_status()
@@ -126,6 +221,8 @@ def post_model_stream(messages,on_visible=None,timeout=(5,90)):
             if on_visible:
                 visible=extractor.feed(delta)
                 if visible:on_visible(visible)
+            if on_action:
+                for act in actions_seen.feed(delta):on_action(act)
     return ''.join(parts)
 
 
@@ -828,7 +925,7 @@ def stream_result(handler,data):
                     if self.streamed:emit({'type':'reset'})
                     emit({'type':'delta','text':reply})
                 emit({'type':'result',**result})
-        plan_data(data,Capture(),on_delta=lambda text:emit({'type':'delta','text':text}),on_reset=lambda:emit({'type':'reset'}))
+        plan_data(data,Capture(),on_delta=lambda text:emit({'type':'delta','text':text}),on_reset=lambda:emit({'type':'reset'}),on_action=lambda label:emit({'type':'action','label':label}))
     except (BrokenPipeError,ConnectionResetError):return
     except Exception as e:emit({'type':'error','text':'未能完成：'+friendly_error(e)})
 
@@ -885,7 +982,7 @@ def handle(handler):
         return plan_data(data,handler)
     except Exception as e:return handler.json_response({'error':friendly_error(e)},400)
 
-def plan_data(data,handler,on_delta=None,on_reset=None):
+def plan_data(data,handler,on_delta=None,on_reset=None,on_action=None):
     """规划一次操作。
 
     on_delta / on_reset 只在**流式**路径（stream_result）传入：
@@ -935,9 +1032,12 @@ search 按曲名或歌手搜索现有曲库；多首候选先询问选哪首，�
             if not text:return
             if hasattr(handler,'streamed'):handler.streamed+=text
             if on_delta:on_delta(text)
+        def on_action_stream(action):
+            # 每凑齐一个动作就把中文标签推给前端（「打开《知足》→ 速度调到 88 → …」）。
+            if on_action:on_action(action_label(action,_scores_full))
         for attempt in range(3):
             if attempt and on_reset:on_reset()
-            content=post_model_stream(messages,on_visible)
+            content=post_model_stream(messages,on_visible,on_action=on_action_stream)
             try:plan=parse_model_json(content);break
             except (ValueError,SyntaxError,TypeError):
                 if attempt==2:raise ValueError('模型连续返回不完整的操作方案，自动修复尚未成功；没有执行不可靠的操作')
