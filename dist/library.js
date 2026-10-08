@@ -273,7 +273,7 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
         const response=await fetch('/api/scores/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query,scores,stream:true}),signal:controller.signal});
         if(!response.ok){const data=await response.json();throw Error(data.error||'搜索服务返回 HTTP '+response.status);}
         let result=null;
-        const receive=event=>{if(revision!==searchRevision)return;if(event.type==='progress'){stage=event.text||'正在检索';progress=Math.max(progress,10+85*(event.total?event.completed/event.total:0));paint();}else if(event.type==='result')result=event;else if(event.type==='error')throw Error(event.text||'搜索未完成');};
+        const receive=event=>{if(revision!==searchRevision)return;if(event.type==='progress'){stage=event.text||'正在检索';progress=Math.max(progress,10+85*(event.total?event.completed/event.total:0));paint();}else if(event.type==='result'){result=event;if(event.partial&&!lowMemory){const part=event.ids||[];decks.search(query.toLowerCase(),part);stage='已找到 '+part.length+' 首，继续检索…';paint();}}else if(event.type==='error')throw Error(event.text||'搜索未完成');};
         if(response.headers.get('Content-Type')?.includes('ndjson')&&response.body?.getReader){
           const reader=response.body.getReader(),decoder=new TextDecoder();let buffer='';
           const consume=line=>{if(line.trim())receive(JSON.parse(line));};

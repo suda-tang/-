@@ -81,8 +81,12 @@ def normalized_title(value):
  import unicodedata
  return re.sub(r'[\s《》「」—_\-·.]+','',unicodedata.normalize('NFKC',str(value))).casefold()
 
-def search_scores(query,items,request=requests.post,progress=lambda *args:None):
- """Preserve partial matches, report real batches, and cache semantic results."""
+def search_scores(query,items,request=requests.post,progress=lambda *args:None,on_partial=None):
+ """Preserve partial matches, report real batches, and cache semantic results.
+
+ ★ on_partial(ids,done,total)：每批检索完就回调一次当前命中的 id —— 前端据此**边找边出卡片**，
+   而不是等到全部跑完才一次性刷出来（唐老师 2026-10-08 的要求）。
+ """
  from ai_workspace import parse_model_json
  needle=normalized_title(query)
  found={x['id'] for x in items if needle and needle in normalized_title(x['title'])}
@@ -146,6 +150,10 @@ def search_scores(query,items,request=requests.post,progress=lambda *args:None):
    warnings.append(reason)
   offset+=len(batch)
   progress(min(offset,total),total,'已检索 '+str(min(offset,total))+'/'+str(total)+' 首曲谱')
+  # ★ 边找边出：每批一结束就把当前命中的 id 推给前端（卡片一张张出现，不用等最后）
+  if on_partial and found:
+   try:on_partial(sorted(found),min(offset,total),total)
+   except Exception:pass
  result={'ids':sorted(found)}
  if warnings:result['warning']=warnings[0]+'，当前显示本地匹配结果。'
  else:
@@ -166,7 +174,8 @@ def handle_search(handler):
   def emit(event):handler.wfile.write((json.dumps(event,ensure_ascii=False)+'\n').encode());handler.wfile.flush()
   try:
    emit({'type':'progress','completed':0,'total':len(items),'text':'正在读取曲库作品信息'})
-   result=search_scores(query,items,progress=lambda done,total,text:emit({'type':'progress','completed':done,'total':total,'text':text}))
+   result=search_scores(query,items,progress=lambda done,total,text:emit({'type':'progress','completed':done,'total':total,'text':text}),
+                        on_partial=lambda ids,done,total:emit({'type':'result','ids':ids,'partial':True,'completed':done,'total':total}))
    emit({'type':'result',**result})
   except (BrokenPipeError,ConnectionResetError):pass
  except (ValueError,TypeError,AttributeError):return handler.json_response({'error':'搜索请求格式不正确'},400)
