@@ -2,6 +2,8 @@
 const {chromium}=require('C:/Users/mail/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const CASES=[
+ '有哪些是小提琴和钢琴合奏的？',
+ '这个里边哪些巴洛克时期的？',
  '这首歌曲里边什么和弦最多？',
  '哪首歌曲的小提琴声部是从五十三小节进入的？',
  '哪些歌曲有两个小提琴声部？',

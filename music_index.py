@@ -96,6 +96,55 @@ CHORD_ALIASES = {
 }
 
 
+# ── 时期（作曲家在曲名里，例如 "BWV 1043 - 巴赫"）────────────────────────────
+# ★ 这是**作曲家人名到时期的映射**，不是作品本身的历史考证：曲库只有标题+作曲家，
+#   所以"巴洛克时期的曲子"只能按作曲家归类。回复里会写明这一点。
+PERIODS = {
+    '巴洛克': ('巴赫', '维瓦尔第', '亨德尔', '科雷利', '泰勒曼', '斯卡拉蒂', '珀塞尔', '普赛尔',
+              '拉莫', '阿尔比诺尼', '帕赫贝尔', '库普兰', '塔蒂尼', '博凯里尼', '加布里埃利',
+              '蒙特威尔第', '吕利', 'buxtehude', 'bach', 'vivaldi', 'handel', 'corelli',
+              'telemann', 'scarlatti', 'purcell', 'rameau', 'albinoni', 'pachelbel'),
+    '古典': ('莫扎特', '海顿', '贝多芬', '克莱门蒂', '胡梅尔', '库劳', '迪亚贝利',
+            'mozart', 'haydn', 'beethoven', 'clementi'),
+    '浪漫': ('肖邦', '李斯特', '勃拉姆斯', '柴可夫斯基', '舒曼', '舒伯特', '门德尔松', '瓦格纳',
+            '柏辽兹', '格里格', '德沃夏克', '拉赫玛尼诺夫', '圣桑', '圣-桑', '比才', '威尔第',
+            '普契尼', '弗兰克', '福雷', '萨拉萨蒂', '帕格尼尼', '布鲁赫', '埃尔加', '马勒',
+            '理查·施特劳斯', '施特劳斯', '奥芬巴赫', '罗西尼', '多尼采蒂', '贝利尼', '斯美塔那',
+            '西贝柳斯', '柴科夫斯基', 'chopin', 'liszt', 'brahms', 'tchaikovsky', 'schumann',
+            'schubert', 'mendelssohn', 'wagner', 'berlioz', 'grieg', 'dvorak', 'rachmaninoff'),
+    '印象': ('德彪西', '拉威尔', '萨蒂', 'debussy', 'ravel', 'satie'),
+    '现代': ('普罗科菲耶夫', '肖斯塔科维奇', '斯特拉文斯基', '巴托克', '欣德米特', '勋伯格',
+            '贝尔格', '韦伯恩', '梅西安', '布里顿', '科普兰', '格什温', '拉赫玛尼诺夫',
+            'prokofiev', 'shostakovich', 'stravinsky', 'bartok', 'britten', 'copland',
+            'gershwin', 'messiaen'),
+}
+
+
+def resolve_period(text):
+    """把「巴洛克 / 古典时期 / 浪漫主义」等说法映射到时期标签，返回 (period, 别名)。"""
+    text = str(text or '')
+    aliases = {
+        '巴洛克': '巴洛克', '巴罗克': '巴洛克',
+        '古典时期': '古典', '古典主义': '古典', '维也纳古典': '古典',
+        '浪漫主义': '浪漫', '浪漫时期': '浪漫', '浪漫乐派': '浪漫', '晚期浪漫': '浪漫',
+        '印象主义': '印象', '印象派': '印象',
+        '现代乐派': '现代', '二十世纪': '现代', '20世纪': '现代', '现代主义': '现代',
+    }
+    for alias, period in aliases.items():
+        if alias in text:
+            return period, alias
+    return None, None
+
+
+def title_in_period(title, period):
+    """标题里的作曲家是否属于该时期。"""
+    names = PERIODS.get(period)
+    if not names:
+        return False
+    low = str(title or '').lower()
+    return any(name.lower() in low for name in names)
+
+
 # ── mood / colour words -> chord qualities ─────────────────────────────────
 # 「阴冷」「明亮」是**听觉色彩词**，落到具体和声上就是减三/减七/半减七/增三（不协和、
 # 张力大）或大三/大七（明亮）。回复里会写明"把 X 理解为哪些和弦"，免得用户以为
@@ -440,6 +489,19 @@ def resolve_instrument(text):
     return None
 
 
+def resolve_instruments(text):
+    """句子里提到的**所有**乐器标签（去重、保持规则表顺序）。
+
+    用于「小提琴和钢琴合奏」这类**多声部**要求（两个都要有）。
+    """
+    text = str(text or '')
+    out = []
+    for label, pattern in INSTRUMENT_RULES:
+        if label not in out and re.search(pattern, text, re.I):
+            out.append(label)
+    return out
+
+
 def resolve_chord(text):
     """Map a user phrase to a chord-quality label (or None)."""
     text = str(text or '')
@@ -468,9 +530,19 @@ def song_notes(facts):
     return sum(int(p.get('notes') or 0) for p in _parts_of(facts))
 
 
-def match_song(facts, spec):
+def match_song(facts, spec, title=''):
     """True if one score's facts satisfy the structured filters in spec."""
     inst = spec.get('instrument')
+    # ★ 多乐器：「小提琴和钢琴合奏」= 两个声部**都要有**
+    need = list(spec.get('instruments') or [])
+    if need:
+        labels = {p.get('label') for p in _parts_of(facts)}
+        if not all(x in labels for x in need):
+            return False
+    # ★ 时期：按标题里的**作曲家**归类（曲库没有别的时期信息）
+    period = spec.get('period')
+    if period and not title_in_period(title, period):
+        return False
     part = spec.get('part') or inst
     qualities = list(spec.get('qualities') or ([spec['chord']] if spec.get('chord') else []))
     min_parts = spec.get('minParts')
@@ -513,7 +585,7 @@ def match_song(facts, spec):
     return True
 
 
-def run_query(index, spec, allowed=None):
+def run_query(index, spec, allowed=None, title_of=None):
     """Execute a structured query. Returns (ids, description-fragment).
 
     ★ allowed：只在这些 id 里找（曲库真实曲目）。必须在**排序/取前 N 之前**过滤 ——
@@ -534,7 +606,8 @@ def run_query(index, spec, allowed=None):
         top = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[:3]
         desc = '、'.join('%s（%d 次）' % (CHORD_LABEL.get(q, q), c) for q, c in top)
         return [sid], '出现最多的和弦是：' + desc
-    ids = [sid for sid, facts in songs.items() if match_song(facts, spec)]
+    titles = title_of or {}
+    ids = [sid for sid, facts in songs.items() if match_song(facts, spec, titles.get(sid, ''))]
     sort = spec.get('sort')
     desc = bool(spec.get('desc'))
     if sort == 'measures':
