@@ -120,29 +120,80 @@ PERIODS = {
 }
 
 
+PERIOD_ALIASES = {
+    '巴洛克': '巴洛克', '巴罗克': '巴洛克',
+    '古典时期': '古典', '古典主义': '古典', '维也纳古典': '古典',
+    '浪漫主义': '浪漫', '浪漫时期': '浪漫', '浪漫乐派': '浪漫', '晚期浪漫': '浪漫',
+    '印象主义': '印象', '印象派': '印象',
+    '现代乐派': '现代', '二十世纪': '现代', '20世纪': '现代', '现代主义': '现代',
+    '流行': '流行', '通俗': '流行', '流行歌': '流行',
+    '民歌': '民歌', '民谣': '民歌',
+    '爵士': '爵士',
+    '影视': '影视', '电影配乐': '影视', '游戏音乐': '影视', '动漫': '影视',
+}
+
+
 def resolve_period(text):
-    """把「巴洛克 / 古典时期 / 浪漫主义」等说法映射到时期标签，返回 (period, 别名)。"""
+    """把「巴洛克 / 古典时期 / 浪漫主义 / 流行」等说法映射到时期标签，返回 (period, 别名)。"""
     text = str(text or '')
-    aliases = {
-        '巴洛克': '巴洛克', '巴罗克': '巴洛克',
-        '古典时期': '古典', '古典主义': '古典', '维也纳古典': '古典',
-        '浪漫主义': '浪漫', '浪漫时期': '浪漫', '浪漫乐派': '浪漫', '晚期浪漫': '浪漫',
-        '印象主义': '印象', '印象派': '印象',
-        '现代乐派': '现代', '二十世纪': '现代', '20世纪': '现代', '现代主义': '现代',
-    }
-    for alias, period in aliases.items():
+    for alias, period in PERIOD_ALIASES.items():
         if alias in text:
             return period, alias
     return None, None
 
 
+def resolve_periods(text):
+    """句子里提到的**所有**时期标签（去重，按别名表顺序）。"""
+    text = str(text or '')
+    out = []
+    for alias, period in PERIOD_ALIASES.items():
+        if period not in out and alias in text:
+            out.append(period)
+    return out
+
+
+_PERIOD_CACHE = {'at': 0.0, 'map': None}
+PERIODS_FILE = ROOT / '.sites-runtime' / 'composer-periods.json'
+
+
+def load_composer_periods(max_age=300):
+    """作曲家→时期 的映射，由 **AI** 生成（scripts/build-composer-periods.py）。
+
+    ★ 为什么不是硬编码表：曲库实测有 186 个作曲家（巴赫…周杰伦），写死必漏人；
+      而"哪个时期"是音乐史语义，谱面里读不出来 —— 正该交给 AI。
+    """
+    now = time.time()
+    if _PERIOD_CACHE['map'] is not None and now - _PERIOD_CACHE['at'] < max_age:
+        return _PERIOD_CACHE['map']
+    try:
+        table = json.loads(PERIODS_FILE.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        table = {}
+    _PERIOD_CACHE['at'] = now
+    _PERIOD_CACHE['map'] = table
+    return table
+
+
+def composer_of(title):
+    """从曲名里取作曲家（曲名形如 'BWV 1043 - 巴赫'）。"""
+    parts = [p.strip() for p in re.split(r'\s+-\s+|-\s*(?=[^-]{2,8}$)', str(title or '')) if p.strip()]
+    if len(parts) >= 2:
+        last = parts[-1]
+        if 1 <= len(last) <= 10 and not re.search(r'\d', last):
+            return last
+    return None
+
+
 def title_in_period(title, period):
-    """标题里的作曲家是否属于该时期。"""
+    """标题里的作曲家是否属于该时期：**先查 AI 生成的映射表**，再回退到内置表。"""
+    name = composer_of(title)
+    if name and load_composer_periods().get(name) == period:
+        return True
     names = PERIODS.get(period)
     if not names:
         return False
     low = str(title or '').lower()
-    return any(name.lower() in low for name in names)
+    return any(n.lower() in low for n in names)
 
 
 # ── mood / colour words -> chord qualities ─────────────────────────────────
@@ -543,10 +594,19 @@ def match_song(facts, spec, title=''):
     period = spec.get('period')
     if period and not title_in_period(title, period):
         return False
+    for bad in (spec.get('excludePeriods') or []):
+        if title_in_period(title, bad):
+            return False
     part = spec.get('part') or inst
     qualities = list(spec.get('qualities') or ([spec['chord']] if spec.get('chord') else []))
     min_parts = spec.get('minParts')
     measure = spec.get('measure')
+    # ★ 独奏：整首曲子**只有**这一个乐器在出声
+    solo = spec.get('soloInstrument')
+    if solo:
+        sounding = {p.get('label') for p in _parts_of(facts) if p.get('notes')}
+        if sounding != {solo}:
+            return False
     only = spec.get('only')            # 只要这一个声部（独奏）
     parts = _parts_of(facts)
     # 排序类查询要求有真实谱面数据：库里有 0 小节的空/测试条目，会把"最短"霸占掉
