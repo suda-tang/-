@@ -2,9 +2,12 @@
 const {chromium}=require('C:/Users/mail/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const CASES=[
- '查找有小提琴轨道的歌曲',
- '继续',
+ '这首歌曲里边什么和弦最多？',
+ '哪首歌曲的小提琴声部是从五十三小节进入的？',
+ '哪些歌曲有两个小提琴声部？',
  '有没有小提琴声部有比较阴冷的和弦色彩的曲子',
+ '查找有小提琴的歌',
+ '继续',
  '找悲伤的小提琴曲',
  '明亮一点的钢琴曲',
  '查找含有减七和弦的歌曲',

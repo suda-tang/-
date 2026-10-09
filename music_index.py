@@ -31,7 +31,7 @@ from xml.etree import ElementTree as ET
 ROOT = Path(__file__).resolve().parent
 CACHE = ROOT / '.sites-runtime' / 'score-cache'
 STORE = ROOT / '.sites-runtime' / 'theory-cache'
-VERSION = 2   # v2 adds per-part chords (by_part) -- old caches are re-read
+VERSION = 3   # v3 adds parts(first measure/notes) + chord counts -- old caches re-read
 
 # ── instrument normalisation ────────────────────────────────────────────────
 # Order matters: the narrower family must be tested before its parent
@@ -174,7 +174,8 @@ def analyze_xml(xml):
     dark/diminished colour" answerable -- the colour has to belong to the
     named instrument, not merely to the piece as a whole.
     """
-    empty = {'instruments': [], 'chords': [], 'by_part': {}}
+    empty = {'instruments': [], 'chords': [], 'by_part': {}, 'parts': [],
+             'chordCounts': {}, 'partChordCounts': {}, 'measureCount': 0}
     if not xml or '<part' not in xml:
         return empty
     root = ET.fromstring(xml)
@@ -188,20 +189,31 @@ def analyze_xml(xml):
             instruments.add(label)
     chords = set()
     by_part = {}
+    parts = []
+    chord_counts = defaultdict(int)
+    part_chord_counts = {}
+    measure_count = 0
     for part in root.findall('part'):
         pid = part.get('id')
-        label = normalize_instrument(names.get(pid, '')) or str(pid or '')
+        raw_name = (names.get(pid, '') or '').strip()
+        label = normalize_instrument(raw_name) or raw_name or str(pid or '')
         divisions = 1.0
-        part_chords = set()
-        for measure in part.findall('measure'):
+        part_chords = defaultdict(int)
+        first = None
+        last = None
+        notes = 0
+        part_measures = part.findall('measure')
+        measure_count = max(measure_count, len(part_measures))
+        for index, measure in enumerate(part_measures, 1):
             attrs = measure.find('attributes')
             if attrs is not None:
                 raw = attrs.findtext('divisions')
                 if raw is not None and _num(raw) > 0:
                     divisions = _num(raw)
             cursor = 0.0
-            last = 0.0
+            last_start = 0.0
             groups = {}
+            sounded = False
             for node in measure:
                 if node.tag == 'backup':
                     cursor -= _num(node.findtext('duration')) / divisions
@@ -213,28 +225,39 @@ def analyze_xml(xml):
                     continue
                 duration = _num(node.findtext('duration')) / divisions
                 if node.find('chord') is not None:
-                    start = last
+                    start = last_start
                 else:
                     start = cursor
-                    last = start
+                    last_start = start
                     cursor += duration
                 if node.find('rest') is not None:
                     continue
                 pitch = node.find('pitch')
                 if pitch is None:
                     continue
+                sounded = True
+                notes += 1
                 midi = (12 * (int(_num(pitch.findtext('octave'), 4)) + 1)
                         + {'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11}.get(pitch.findtext('step'), 0)
                         + _num(pitch.findtext('alter')))
                 groups.setdefault(round(start, 4), set()).add(int(midi) % 12)
+            if sounded:
+                if first is None:
+                    first = index
+                last = index
             for pcs in groups.values():
                 quality = chord_of(pcs)
                 if quality:
-                    part_chords.add(quality)
+                    part_chords[quality] += 1
+                    chord_counts[quality] += 1
                     chords.add(quality)
+        parts.append({'label': label, 'name': raw_name, 'first': first, 'last': last, 'notes': notes})
         if part_chords:
+            part_chord_counts[label] = dict(part_chords)
             by_part[label] = sorted(part_chords)
-    return {'instruments': sorted(instruments), 'chords': sorted(chords), 'by_part': by_part}
+    return {'instruments': sorted(instruments), 'chords': sorted(chords), 'by_part': by_part,
+            'parts': parts, 'chordCounts': dict(chord_counts),
+            'partChordCounts': part_chord_counts, 'measureCount': measure_count}
 
 
 # ── per-score cache ─────────────────────────────────────────────────────────
@@ -288,6 +311,7 @@ def build_all(progress=lambda text: None, force=False):
     instruments = defaultdict(list)
     chords = defaultdict(list)
     part_chords = defaultdict(lambda: defaultdict(list))
+    songs = {}
     covered = 0
     for i, path in enumerate(files, 1):
         facts = facts_for(path, use_cache=not force)
@@ -300,6 +324,12 @@ def build_all(progress=lambda text: None, force=False):
         for label, qualities in (facts.get('by_part') or {}).items():
             for quality in qualities:
                 part_chords[label][quality].append(path.stem)
+        songs[path.stem] = {
+            'parts': facts.get('parts') or [],
+            'chordCounts': facts.get('chordCounts') or {},
+            'partChordCounts': facts.get('partChordCounts') or {},
+            'measureCount': facts.get('measureCount') or 0,
+        }
         if total and (i % 200 == 0 or i == total):
             progress(f'正在建立全库乐理索引… {i}/{total}')
     return {
@@ -312,6 +342,7 @@ def build_all(progress=lambda text: None, force=False):
         'chords': {k: sorted(set(v)) for k, v in sorted(chords.items())},
         'partChords': {label: {q: sorted(set(v)) for q, v in sorted(qualities.items())}
                        for label, qualities in sorted(part_chords.items())},
+        'songs': songs,
     }
 
 
@@ -334,6 +365,7 @@ def _scan_cache():
     instruments = defaultdict(set)
     chords = defaultdict(set)
     part_chords = defaultdict(lambda: defaultdict(set))
+    songs = {}
     covered = 0
     cached = 0
     if STORE.exists():
@@ -353,6 +385,12 @@ def _scan_cache():
             for label, qualities in (facts.get('by_part') or {}).items():
                 for quality in qualities:
                     part_chords[label][quality].add(p.stem)
+            songs[p.stem] = {
+                'parts': facts.get('parts') or [],
+                'chordCounts': facts.get('chordCounts') or {},
+                'partChordCounts': facts.get('partChordCounts') or {},
+                'measureCount': facts.get('measureCount') or 0,
+            }
     return {
         'builtAt': time.time(),
         'scores': total,
@@ -363,6 +401,7 @@ def _scan_cache():
         'chords': {k: sorted(v) for k, v in sorted(chords.items())},
         'partChords': {label: {q: sorted(v) for q, v in sorted(qualities.items())}
                        for label, qualities in sorted(part_chords.items())},
+        'songs': songs,
     }
 
 
@@ -408,3 +447,77 @@ def resolve_chord(text):
         if alias in text:
             return label
     return None
+
+
+# ── generic query engine ────────────────────────────────────────────────────
+# 把「问题」变成一份**结构化查询**（op + 过滤条件），再对事实库求值。
+# 这样新增一种问法只需要多解析一个字段，不必再为每句话写一条正则。
+#
+# 支持的 op：
+#   find       按条件筛曲目（instrument / part / chord / qualities / minParts / measure）
+#   top_chord  某首曲子里出现次数最多的和弦（scope=current 用当前曲目）
+QUERY_OPS = ('find', 'top_chord')
+
+
+def _parts_of(facts):
+    return facts.get('parts') or []
+
+
+def match_song(facts, spec):
+    """True if one score's facts satisfy the structured filters in spec."""
+    inst = spec.get('instrument')
+    part = spec.get('part') or inst
+    qualities = list(spec.get('qualities') or ([spec['chord']] if spec.get('chord') else []))
+    min_parts = spec.get('minParts')
+    measure = spec.get('measure')
+    only = spec.get('only')            # 只要这一个声部（独奏）
+    parts = _parts_of(facts)
+    if inst and not any(p.get('label') == inst for p in parts):
+        return False
+    if min_parts is not None:
+        target = part or inst
+        if sum(1 for p in parts if p.get('label') == target) < int(min_parts):
+            return False
+    if measure is not None:
+        target = part or inst
+        if not any(p.get('label') == target and p.get('first') == int(measure) for p in parts):
+            return False
+    if only and len([p for p in parts if p.get('label') != '全部乐器']) > 1:
+        return False
+    if qualities:
+        if part:
+            table = (facts.get('partChordCounts') or {}).get(part) or {}
+        else:
+            table = facts.get('chordCounts') or {}
+        if not any(table.get(q) for q in qualities):
+            return False
+    return True
+
+
+def run_query(index, spec):
+    """Execute a structured query. Returns (ids, description-fragment)."""
+    op = str(spec.get('op') or 'find')
+    songs = index.get('songs') or {}
+    if op == 'top_chord':
+        sid = str(spec.get('id') or '')
+        facts = songs.get(sid) or {}
+        counts = facts.get('chordCounts') or {}
+        if not counts:
+            return [], '这首曲子的谱面里没有识别出成型的和弦'
+        top = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[:3]
+        desc = '、'.join('%s（%d 次）' % (CHORD_LABEL.get(q, q), c) for q, c in top)
+        return [sid], '出现最多的和弦是：' + desc
+    ids = [sid for sid, facts in songs.items() if match_song(facts, spec)]
+    return sorted(ids), ''
+
+
+# 中文名（给回复用；和 ai_workspace 里的 _CHORD_LABEL 保持同一套口径）
+CHORD_LABEL = {
+    'dim7': '减七和弦', 'dom7': '属七和弦', 'min7': '小七和弦', 'maj7': '大七和弦',
+    'half-dim7': '半减七和弦', 'dim': '减三和弦', 'aug': '增三和弦',
+    'min': '小三和弦', 'maj': '大三和弦',
+}
+
+
+def chord_label(quality):
+    return CHORD_LABEL.get(quality, quality)
