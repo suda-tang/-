@@ -31,7 +31,7 @@ from xml.etree import ElementTree as ET
 ROOT = Path(__file__).resolve().parent
 CACHE = ROOT / '.sites-runtime' / 'score-cache'
 STORE = ROOT / '.sites-runtime' / 'theory-cache'
-VERSION = 1
+VERSION = 2   # v2 adds per-part chords (by_part) -- old caches are re-read
 
 # ── instrument normalisation ────────────────────────────────────────────────
 # Order matters: the narrower family must be tested before its parent
@@ -96,6 +96,36 @@ CHORD_ALIASES = {
 }
 
 
+# ── mood / colour words -> chord qualities ─────────────────────────────────
+# 「阴冷」「明亮」是**听觉色彩词**，落到具体和声上就是减三/减七/半减七/增三（不协和、
+# 张力大）或大三/大七（明亮）。回复里会写明"把 X 理解为哪些和弦"，免得用户以为
+# AI 真能"听"出情绪 —— 它只是把色彩词映射到和弦类型再检索。
+COLOR_MAP = (
+    ('阴冷', ('dim7', 'half-dim7', 'dim', 'aug')),
+    ('阴暗', ('dim7', 'half-dim7', 'dim', 'aug')),
+    ('阴沉', ('dim7', 'half-dim7', 'dim', 'aug')),
+    ('冷色调', ('dim7', 'half-dim7', 'dim', 'aug')),
+    ('清冷', ('dim7', 'half-dim7', 'dim', 'aug')),
+    ('不协和', ('dim7', 'dim', 'aug', 'half-dim7')),
+    ('张力', ('dim7', 'dom7', 'aug', 'half-dim7')),
+    ('忧郁', ('min', 'min7', 'dim', 'half-dim7')),
+    ('悲伤', ('min', 'min7', 'dim', 'half-dim7')),
+    ('暗淡', ('min', 'min7', 'dim', 'half-dim7')),
+    ('黯淡', ('min', 'min7', 'dim', 'half-dim7')),
+    ('明亮', ('maj', 'maj7')),
+    ('温暖', ('maj', 'maj7', 'min7')),
+)
+
+
+def resolve_color(text):
+    """Return (word, qualities) for a colour/mood word, or (None, ())."""
+    text = str(text or '')
+    for word, qualities in COLOR_MAP:
+        if word in text:
+            return word, qualities
+    return None, ()
+
+
 def _num(value, default=0.0):
     try:
         return float(value)
@@ -133,20 +163,36 @@ def chord_of(pitch_classes):
 
 
 def analyze_xml(xml):
-    """Extract {'instruments': [...], 'chords': [...]} from one MusicXML string."""
+    """Extract per-score facts from one MusicXML string.
+
+    Returns:
+      instruments : [label]            normalised part names
+      chords      : [quality]          qualities anywhere in the score
+      by_part     : {label: [quality]} qualities **within that part only**
+
+    ``by_part`` is what makes "which pieces have a *violin* part with a
+    dark/diminished colour" answerable -- the colour has to belong to the
+    named instrument, not merely to the piece as a whole.
+    """
+    empty = {'instruments': [], 'chords': [], 'by_part': {}}
     if not xml or '<part' not in xml:
-        return {'instruments': [], 'chords': []}
+        return empty
     root = ET.fromstring(xml)
     for node in root.iter():
         node.tag = node.tag.rsplit('}', 1)[-1]
+    names = {p.get('id'): p.findtext('part-name', '') for p in root.findall('part-list/score-part')}
     instruments = set()
-    for p in root.findall('part-list/score-part'):
-        label = normalize_instrument(p.findtext('part-name', ''))
+    for value in names.values():
+        label = normalize_instrument(value)
         if label:
             instruments.add(label)
     chords = set()
+    by_part = {}
     for part in root.findall('part'):
+        pid = part.get('id')
+        label = normalize_instrument(names.get(pid, '')) or str(pid or '')
         divisions = 1.0
+        part_chords = set()
         for measure in part.findall('measure'):
             attrs = measure.find('attributes')
             if attrs is not None:
@@ -184,8 +230,11 @@ def analyze_xml(xml):
             for pcs in groups.values():
                 quality = chord_of(pcs)
                 if quality:
+                    part_chords.add(quality)
                     chords.add(quality)
-    return {'instruments': sorted(instruments), 'chords': sorted(chords)}
+        if part_chords:
+            by_part[label] = sorted(part_chords)
+    return {'instruments': sorted(instruments), 'chords': sorted(chords), 'by_part': by_part}
 
 
 # ── per-score cache ─────────────────────────────────────────────────────────
@@ -238,6 +287,7 @@ def build_all(progress=lambda text: None, force=False):
     total = len(files)
     instruments = defaultdict(list)
     chords = defaultdict(list)
+    part_chords = defaultdict(lambda: defaultdict(list))
     covered = 0
     for i, path in enumerate(files, 1):
         facts = facts_for(path, use_cache=not force)
@@ -247,6 +297,9 @@ def build_all(progress=lambda text: None, force=False):
             instruments[label].append(path.stem)
         for quality in facts['chords']:
             chords[quality].append(path.stem)
+        for label, qualities in (facts.get('by_part') or {}).items():
+            for quality in qualities:
+                part_chords[label][quality].append(path.stem)
         if total and (i % 200 == 0 or i == total):
             progress(f'正在建立全库乐理索引… {i}/{total}')
     return {
@@ -257,6 +310,8 @@ def build_all(progress=lambda text: None, force=False):
         'building': False,
         'instruments': {k: sorted(set(v)) for k, v in sorted(instruments.items())},
         'chords': {k: sorted(set(v)) for k, v in sorted(chords.items())},
+        'partChords': {label: {q: sorted(set(v)) for q, v in sorted(qualities.items())}
+                       for label, qualities in sorted(part_chords.items())},
     }
 
 
@@ -278,6 +333,7 @@ def _scan_cache():
     total = len(files)
     instruments = defaultdict(set)
     chords = defaultdict(set)
+    part_chords = defaultdict(lambda: defaultdict(set))
     covered = 0
     cached = 0
     if STORE.exists():
@@ -294,6 +350,9 @@ def _scan_cache():
                 instruments[label].add(p.stem)
             for quality in facts.get('chords', []):
                 chords[quality].add(p.stem)
+            for label, qualities in (facts.get('by_part') or {}).items():
+                for quality in qualities:
+                    part_chords[label][quality].add(p.stem)
     return {
         'builtAt': time.time(),
         'scores': total,
@@ -302,6 +361,8 @@ def _scan_cache():
         'building': cached < total,
         'instruments': {k: sorted(v) for k, v in sorted(instruments.items())},
         'chords': {k: sorted(v) for k, v in sorted(chords.items())},
+        'partChords': {label: {q: sorted(v) for q, v in sorted(qualities.items())}
+                       for label, qualities in sorted(part_chords.items())},
     }
 
 

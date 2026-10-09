@@ -1,7 +1,15 @@
 // 实测全库乐理检索在真实界面里的表现（抓回复 + 原始动作）。
 const {chromium}=require('C:/Users/mail/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-const CASES=['查找有小提琴轨道的歌曲','查找有小提琴的歌','查找含有减七和弦的歌曲','只听小提琴','分析当前小节的和弦'];
+const CASES=[
+ '查找有小提琴轨道的歌曲',
+ '有没有小提琴声部有比较阴冷的和弦色彩的曲子',
+ '找悲伤的小提琴曲',
+ '明亮一点的钢琴曲',
+ '查找含有减七和弦的歌曲',
+ '只听小提琴',
+ '分析当前小节的和弦',
+];
 (async()=>{
   const browser=await chromium.launch({channel:'msedge',headless:true});
   const scores=await (async()=>{const p=await browser.newPage();await p.goto('http://127.0.0.1:5173/',{waitUntil:'load'});
