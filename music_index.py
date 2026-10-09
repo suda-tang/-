@@ -463,6 +463,11 @@ def _parts_of(facts):
     return facts.get('parts') or []
 
 
+def song_notes(facts):
+    """整首曲子的音符总数。"""
+    return sum(int(p.get('notes') or 0) for p in _parts_of(facts))
+
+
 def match_song(facts, spec):
     """True if one score's facts satisfy the structured filters in spec."""
     inst = spec.get('instrument')
@@ -472,6 +477,20 @@ def match_song(facts, spec):
     measure = spec.get('measure')
     only = spec.get('only')            # 只要这一个声部（独奏）
     parts = _parts_of(facts)
+    # 排序类查询要求有真实谱面数据：库里有 0 小节的空/测试条目，会把"最短"霸占掉
+    if spec.get('sort') == 'measures' and not (facts.get('measureCount') or 0):
+        return False
+    if spec.get('sort') == 'notes' and not song_notes(facts):
+        return False
+    # 排除项（「没有弦乐的曲子」「不含减七和弦的曲子」）
+    exinst = spec.get('excludeInstrument')
+    if exinst and any(p.get('label') == exinst for p in parts):
+        return False
+    exq = list(spec.get('excludeQualities') or [])
+    if exq:
+        counts = facts.get('chordCounts') or {}
+        if any(counts.get(q) for q in exq):
+            return False
     if inst and not any(p.get('label') == inst for p in parts):
         return False
     if min_parts is not None:
@@ -494,10 +513,18 @@ def match_song(facts, spec):
     return True
 
 
-def run_query(index, spec):
-    """Execute a structured query. Returns (ids, description-fragment)."""
+def run_query(index, spec, allowed=None):
+    """Execute a structured query. Returns (ids, description-fragment).
+
+    ★ allowed：只在这些 id 里找（曲库真实曲目）。必须在**排序/取前 N 之前**过滤 ——
+      索引里含缓存变体条目（id 形如 `<digest>.bounds-v6-1`），不在曲库里；先排序取
+      前 1 再过滤，会把真正的答案滤掉，变成"没有找到"。
+    """
     op = str(spec.get('op') or 'find')
     songs = index.get('songs') or {}
+    if allowed is not None:
+        allow = {str(x) for x in allowed}
+        songs = {k: v for k, v in songs.items() if k in allow}
     if op == 'top_chord':
         sid = str(spec.get('id') or '')
         facts = songs.get(sid) or {}
@@ -508,7 +535,21 @@ def run_query(index, spec):
         desc = '、'.join('%s（%d 次）' % (CHORD_LABEL.get(q, q), c) for q, c in top)
         return [sid], '出现最多的和弦是：' + desc
     ids = [sid for sid, facts in songs.items() if match_song(facts, spec)]
-    return sorted(ids), ''
+    sort = spec.get('sort')
+    desc = bool(spec.get('desc'))
+    if sort == 'measures':
+        ids.sort(key=lambda s: (songs[s].get('measureCount') or 0), reverse=desc)
+    elif sort == 'notes':
+        ids.sort(key=lambda s: song_notes(songs[s]), reverse=desc)
+    else:
+        ids.sort()
+    limit = spec.get('limit')
+    if limit:
+        try:
+            ids = ids[:max(1, int(limit))]
+        except (TypeError, ValueError):
+            pass
+    return ids, ''
 
 
 # 中文名（给回复用；和 ai_workspace 里的 _CHORD_LABEL 保持同一套口径）
