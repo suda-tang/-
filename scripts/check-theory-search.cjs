@@ -3,6 +3,7 @@ const {chromium}=require('C:/Users/mail/.cache/codex-runtimes/codex-primary-runt
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const CASES=[
  '查找有小提琴轨道的歌曲',
+ '继续',
  '有没有小提琴声部有比较阴冷的和弦色彩的曲子',
  '找悲伤的小提琴曲',
  '明亮一点的钢琴曲',
