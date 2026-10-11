@@ -13,3 +13,9 @@
 #daw-view .daw-ruler-label{box-sizing:border-box;height:36px;overflow:hidden}
 
 .vocal-fine-timing{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-top:12px;font-size:12px}.vocal-fine-timing>span:first-child{flex:1 0 80px}.vocal-fine-timing input{width:90px;min-width:0;padding:8px;border:1px solid #ffffffcf;border-radius:12px;background:#ffffff80;color:inherit;text-align:center;font-variant-numeric:tabular-nums}.vocal-fine-timing button{padding:8px 12px;min-height:36px;border:1px solid #ffffffcf;border-radius:12px;background:linear-gradient(145deg,#ffffffb8,#eee7ee80);color:var(--green,#ad2720);box-shadow:inset 0 1px #fff}.vocal-fine-timing input::-webkit-inner-spin-button{appearance:none}
+
+/* Keep the timing controls together when the settings panel narrows. */
+#vocal-timing-settings .vocal-fine-timing{display:grid;grid-template-columns:minmax(0,1fr) minmax(64px,1.25fr) auto minmax(0,1fr);align-items:center;gap:8px;min-width:0}
+#vocal-timing-settings .vocal-fine-timing>span:first-child{grid-column:1/-1;min-width:0}
+#vocal-timing-settings .vocal-fine-timing>button,#vocal-timing-settings .vocal-fine-timing>input{box-sizing:border-box;width:100%;min-width:0;height:36px;min-height:36px;margin:0;align-self:center;line-height:20px}
+#vocal-timing-settings .vocal-fine-timing>span:not(:first-child){display:flex;align-items:center;justify-content:center;height:36px;margin:0;line-height:20px}

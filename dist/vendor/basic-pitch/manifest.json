@@ -1,0 +1,14 @@
+{
+  "basicPitch": "1.0.1",
+  "tensorflow": "3.21.0",
+  "source": "https://github.com/spotify/basic-pitch-ts",
+  "sha256": {
+    "worker.js": "05b8ccc7e13ea676d550bc34c8dd39b36e1e8d327abea515e6a802d04e910390",
+    "worker.js.LEGAL.txt": "95954a37d1f14c0172ee2e050e25ab6d3a7e2a76e5cd40a1706abdf423c92b74",
+    "model/model.json": "1ed1aaee3409ec1dc098c8b01f430c0911f6fe9412e7af8086750f9e8f302f68",
+    "model/group1-shard1of1.bin": "b142a95737a52e1e412d5f92e73d8bb80dfe8d04941acc0702f11f4524fb377c",
+    "tfjs-backend-wasm.wasm": "3fdde0b7f76782146ed7a5212bca394d1e59e1bfb8768531c72480d6f10aee1f",
+    "tfjs-backend-wasm-simd.wasm": "918e97b89039305394e9987088249bacee5ef09111ae9f9384c06bec564e2d7b",
+    "tfjs-backend-wasm-threaded-simd.wasm": "7ca7dc269cc43b600cc231c252d16383aae22c4383f4363ce30c413673d8a911"
+  }
+}

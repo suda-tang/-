@@ -299,20 +299,29 @@ function checkReply(rule,reply){
           }
           await page.locator('.ai-conversation input').fill(turn);
           await page.locator('.ai-conversation input').press('Enter');
+          // ★ 2026-10-09：模型首字延迟变大（上下文/提示词变长），20s 内可能还没进入
+          //   is-thinking → 旧代码会「没等到就往下走」→ 在动作生效前就读状态 → 误判失败。
+          //   放宽到 45s，并在「动作执行完」后多留 3s 让界面稳定。
           await page.waitForFunction(
             ()=>document.querySelector('.ai-conversation')?.classList.contains('is-thinking'),
-            null,{timeout:20000}).catch(()=>{});
+            null,{timeout:45000}).catch(()=>{});
           await page.waitForFunction(
             ()=>!document.querySelector('.ai-conversation')?.classList.contains('is-thinking'),
             null,{timeout:CASE_TIMEOUT_MS});
-          await sleep(1500);
+          // ★ 2026-10-09：动作是**逐条**执行的，is-thinking 消失后可能还有最后几步没落盘
+          //   （实测 #3「只听钢琴+速度60」读早了 → 误判未生效，实际 UI 已生效）。多留 4.5s。
+          await sleep(4500);
         }
 
         const after=await readState(page);
         rec.after=after;
         rec.reply=await page.evaluate(()=>{
-          const nodes=[...document.querySelectorAll('.ai-messages p.assistant')];
-          return nodes.length?nodes[nodes.length-1].textContent:'';
+          // ★ 2026-10-09：前端把 assistant 消息从 `<p class="assistant">` 改成了
+          //   `<div class="assistant">`（workspace-ai.js 的 line() 用 createElement('div') +
+          //   renderAssistantText 渲染）。旧选择器 `p.assistant` 恒为空 → 所有回复断言全挂。
+          //   而且现在**每条动作/回复各占一个 div**，只取最后一个会漏内容 → 合并全部。
+          const nodes=[...document.querySelectorAll('.ai-messages .assistant')];
+          return nodes.map(n=>n.textContent).join('\n').trim();
         });
         rec.actions=await page.evaluate(()=>{
           // 结果气泡里带动作清单的文本，尽力抓一份，便于人工看「它到底做了什么」

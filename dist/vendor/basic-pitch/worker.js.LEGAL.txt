@@ -1,0 +1,1092 @@
+Bundled license information:
+
+@tensorflow/tfjs-core/dist/tf-core.node.js:
+  /**
+   * @license
+   * Copyright 2022 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2020 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2017 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2018 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2019 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2020 Google Inc. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /** @license See the LICENSE file. */
+  /**
+   * @license
+   * Copyright 2021 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2022 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the 'License');
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an 'AS IS' BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+
+@tensorflow/tfjs-layers/dist/tf-layers.node.js:
+  /**
+   * @license
+   * Copyright 2022 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2018 Google LLC
+   *
+   * Use of this source code is governed by an MIT-style
+   * license that can be found in the LICENSE file or at
+   * https://opensource.org/licenses/MIT.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2022 Google LLC
+   *
+   * Use of this source code is governed by an MIT-style
+   * license that can be found in the LICENSE file or at
+   * https://opensource.org/licenses/MIT.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2020 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2017 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2018 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2020 Google Inc. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2019 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2021 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2022 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the 'License');
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an 'AS IS' BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2019 Google LLC
+   *
+   * Use of this source code is governed by an MIT-style
+   * license that can be found in the LICENSE file or at
+   * https://opensource.org/licenses/MIT.
+   * =============================================================================
+   */
+  /** @license See the LICENSE file. */
+  /**
+   * @license
+   * Copyright 2020 Google LLC
+   *
+   * Use of this source code is governed by an MIT-style
+   * license that can be found in the LICENSE file or at
+   * https://opensource.org/licenses/MIT.
+   * =============================================================================
+   */
+
+@tensorflow/tfjs-converter/dist/tf-converter.node.js:
+  /**
+   * @license
+   * Copyright 2022 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2021 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2019 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   *
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2019 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2020 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2017 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2018 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2020 Google Inc. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2022 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the 'License');
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an 'AS IS' BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /** @license See the LICENSE file. */
+
+@tensorflow/tfjs-data/dist/tf-data.node.js:
+  /**
+   * @license
+   * Copyright 2022 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2018 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   *
+   * =============================================================================
+   */
+  /** @license See the LICENSE file. */
+
+@tensorflow/tfjs-backend-cpu/dist/tf-backend-cpu.node.js:
+  /**
+   * @license
+   * Copyright 2022 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2019 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2020 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the License);
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an AS IS BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2020 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2021 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /** @license See the LICENSE file. */
+
+@tensorflow/tfjs-backend-webgl/dist/tf-backend-webgl.node.js:
+  /**
+   * @license
+   * Copyright 2022 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2018 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2019 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2017 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2020 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the License);
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an AS IS BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2020 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2021 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /** @license See the LICENSE file. */
+  /**
+   * @license
+   * Copyright 2020 Google Inc. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+
+@tensorflow/tfjs/dist/tf.node.js:
+  /**
+   * @license
+   * Copyright 2022 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2020 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2017 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2018 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2019 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2021 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2020 Google Inc. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /** @license See the LICENSE file. */
+  /**
+   * @license
+   * Copyright 2022 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the 'License');
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an 'AS IS' BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2021 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * https://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+  /**
+   * @license
+   * Copyright 2022 Google Inc. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+
+@tensorflow/tfjs-backend-wasm/dist/kernels/types.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/_FusedMatMul.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/unary_kernel.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Abs.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/binary_kernel.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Add.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/AddN.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Transpose.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/ArgMax.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/AvgPool.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Reshape.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/BatchMatMul.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Slice.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Cast.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/ClipByValue.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Concat.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Conv2D.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Cos.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/CropAndResize.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/DepthToSpace.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/DepthwiseConv2dNative.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Exp.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/ExpandDims.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/FlipLeftRight.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/FloorDiv.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/FusedBatchNorm.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/FusedConv2D.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/FusedDepthwiseConv2D.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/GatherNd.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/GatherV2.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Greater.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/GreaterEqual.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/LeakyRelu.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Less.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/LessEqual.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Log.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/LogicalAnd.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/LogicalNot.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/LogicalOr.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/LogicalXor.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Max.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Maximum.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/MaxPool.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Min.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Minimum.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Multiply.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/NonMaxSuppression_util.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/NonMaxSuppressionV3.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/NonMaxSuppressionV5.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/PadV2.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Pow.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Prelu.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/RealDiv.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Relu.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Relu6.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/ResizeBilinear.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/RotateWithOffset.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Rsqrt.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/ScatterNd.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Sigmoid.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Sin.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Square.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/SquaredDifference.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Sub.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Sum.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Tanh.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Tile.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Unpack.js:
+@tensorflow/tfjs-backend-wasm/dist/backend_wasm.js:
+@tensorflow/tfjs-backend-wasm/dist/index.js:
+  /**
+   * @license
+   * Copyright 2019 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+
+@tensorflow/tfjs-backend-wasm/dist/kernels/Identity.js:
+@tensorflow/tfjs-backend-cpu/dist/kernels/Concat_impl.js:
+@tensorflow/tfjs-backend-cpu/dist/kernels/Range_impl.js:
+@tensorflow/tfjs-backend-cpu/dist/kernels/Slice.js:
+@tensorflow/tfjs-backend-cpu/dist/shared.js:
+@tensorflow/tfjs-backend-wasm/dist/kernel_utils/shared.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Conv2DBackpropInput.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Cumsum.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Equal.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Fill.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Floor.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Mean.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Neg.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/NonMaxSuppressionV4.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/NotEqual.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/OneHot.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/OnesLike.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Pack.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Prod.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Range.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Reverse.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Select.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Softmax.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/SplitV.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Sqrt.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Step.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/TopK.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/ZerosLike.js:
+@tensorflow/tfjs-backend-wasm/dist/register_all_kernels.js:
+@tensorflow/tfjs-backend-wasm/dist/flags_wasm.js:
+@tensorflow/tfjs-backend-wasm/dist/base.js:
+  /**
+   * @license
+   * Copyright 2020 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+
+@tensorflow/tfjs-backend-wasm/dist/kernels/kernel_utils.js:
+  /**
+   * @license
+   * Copyright 2020 Google Inc. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+
+@tensorflow/tfjs-backend-wasm/dist/kernels/All.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Any.js:
+@tensorflow/tfjs-backend-cpu/dist/kernels/StringNGrams_impl.js:
+@tensorflow/tfjs-backend-cpu/dist/kernels/StringSplit_impl.js:
+@tensorflow/tfjs-backend-cpu/dist/kernels/StringToHashBucketFast_impl.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/BatchToSpaceND.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Ceil.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Cosh.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Elu.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/MirrorPad.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Round.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/SpaceToBatchND.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/SparseFillEmptyRows.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/SparseReshape.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/SparseSegmentReduction.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/SparseSegmentMean.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/SparseSegmentSum.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/StridedSlice.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/StringNGrams.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/StringSplit.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/StringToHashBucketFast.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Tan.js:
+@tensorflow/tfjs-backend-wasm/dist/kernels/Transform.js:
+  /**
+   * @license
+   * Copyright 2021 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+
+@tensorflow/tfjs-backend-wasm/dist/kernels/Cumprod.js:
+  /**
+   * @license
+   * Copyright 2022 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+
+@tensorflow/tfjs-backend-wasm/dist/kernels/ResizeNearestNeighbor.js:
+  /**
+   * @license
+   * Copyright 2019 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the 'License');
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an 'AS IS' BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   */
+
+@tensorflow/tfjs-backend-wasm/dist/version.js:
+  /** @license See the LICENSE file. */

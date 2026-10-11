@@ -18,6 +18,10 @@ function ensureOsmd() {
   }
   return osmdLoader;
 }
+// ★ 2026-10-10：启动后空闲时预热排版引擎（OSMD 约 1.1 MB）。
+//   原来它要等第一次排版才开始下载 + 编译，正好压在「打开曲谱」的关键路径上；
+//   预热之后第一次开谱就不必再等它。失败无所谓（真排版时 ensureOsmd 会再试）。
+export function warmEngravingEngine(){return ensureOsmd().catch(()=>{});}
 // A container that is still hidden reports clientWidth 0. Measuring the
 // container therefore collapsed a whole score into a 260 px strip whenever the
 // engraving happened before the view switched over — which is exactly what
@@ -80,42 +84,73 @@ async function renderSingleEngraved(container, score) {
     // Match engraving positions to the same measure-relative onset used by
     // playback/following, including simultaneous notes in both piano staves.
     const partDocument=new DOMParser().parseFromString(engravingXML,'application/xml');const staffParts=[...partDocument.querySelectorAll('score-partwise > part')].flatMap(part=>Array(Math.max(1,Number(part.querySelector('staves')?.textContent)||1)).fill(part.id));
+    // ★ 2026-10-10：下面这段以前对**每一个** staffEntry 都把整首曲子的 score.events 全表扫描
+    //   三四遍（some / filter+map / findIndex），大曲 5494 个事件 × 上千个 entry ≈ 数千万次比较，
+    //   在主线程上形成十几秒的单个长任务 —— 唐老师说的「卡好久好久」就是它。
+    //   改成「先按小节建一次索引，再只在该小节的候选里找」，整体降到线性。
+    const beatBeats=Number(String(score.timeSignature||'4/4').split('/')[0])||4;
+    const eventsByMeasure=new Map();
+    for(let i=0;i<score.events.length;i++){const event=score.events[i];let list=eventsByMeasure.get(event.measure);if(!list){list=[];eventsByMeasure.set(event.measure,list);}list.push({index:i,offset:event.offset,beat:event.beat});}
+    const measureStarts=new Map();
+    const measureStartOf=measure=>{let start=measureStarts.get(measure);if(start!==undefined)return start;
+      const list=eventsByMeasure.get(measure);
+      if(list&&list.some(e=>e.offset!=null)){start=Infinity;for(const e of list)if(e.offset!=null){const value=e.beat-Number(e.offset);if(value<start)start=value;}if(!Number.isFinite(start))start=(measure-1)*beatBeats;}
+      else start=(measure-1)*beatBeats;
+      measureStarts.set(measure,start);return start;};
+    const chunkMeasures=[...(partDocument.querySelector('score-partwise > part')?.querySelectorAll(':scope > measure')||[])];
+    const noteTargets=[];
     osmd.GraphicSheet.MeasureList.forEach((staves, measureIndex) => {
+      const sourceMeasure=chunkMeasures[measureIndex];
+      const measure=(Number(sourceMeasure?.getAttribute('data-source-measure'))||measureIndex+1)+(score.measureOffset||0);
+      const sourceOffset=Number(sourceMeasure?.getAttribute('data-source-offset')||0);
+      const measureStart=measureStartOf(measure);
+      const candidates=eventsByMeasure.get(measure)||[];
+      // 有些谱面（内置示例、MIDI / 部分 OMR 生成谱）的 events 没有 offset 字段，
+      // 直接比较会变成 Math.abs(undefined-offset)===NaN，导致整批匹配失败、
+      // 音符拿不到 data-index、点击无法跳转。offset 缺失时改用 beat 反推。
+      const offsetOf=event=>event.offset!=null&&Number.isFinite(Number(event.offset))?Number(event.offset):Number(event.beat||0)-measureStart;
       for (const [staffIndex,staff] of staves.entries()) for (const entry of staff?.staffEntries || []) {
-        const sourceMeasure=partDocument.querySelector('score-partwise > part')?.querySelectorAll(':scope > measure')[measureIndex];
-        const measure=(Number(sourceMeasure?.getAttribute('data-source-measure'))||measureIndex+1)+(score.measureOffset||0);
-        const offset = entry.sourceStaffEntry.Timestamp.RealValue * 4+Number(sourceMeasure?.getAttribute('data-source-offset')||0);
-        // 有些谱面（内置示例、MIDI / 部分 OMR 生成谱）的 events 没有 offset 字段，
-        // 直接比较会变成 Math.abs(undefined-offset)===NaN，导致整批匹配失败、
-        // 音符拿不到 data-index、点击无法跳转。offset 缺失时改用 beat 反推。
-        const beatBeats=Number(String(score.timeSignature||'4/4').split('/')[0])||4;
-        const measureStart=score.events.some(e=>e.measure===measure&&e.offset!=null)?Math.min(...score.events.filter(e=>e.measure===measure&&e.offset!=null).map(e=>e.beat-Number(e.offset))):(measure-1)*beatBeats;
-        const offsetOf=e=>e.offset!=null&&Number.isFinite(Number(e.offset))?Number(e.offset):Number(e.beat||0)-measureStart;
-        let index = score.events.findIndex(e => e.measure === measure && Math.abs(offsetOf(e) - offset) < 0.0001);
-        if(index<0&&score.midiSource){for(let i=0;i<score.events.length;i++){const e=score.events[i];if(e.measure===measure&&offsetOf(e)<=offset+.0625)index=i;}}
+        const offset = entry.sourceStaffEntry.Timestamp.RealValue * 4+sourceOffset;
+        let index = -1;
+        for(const candidate of candidates){if(Math.abs(offsetOf(candidate)-offset)<0.0001){index=candidate.index;break;}}
+        if(index<0&&score.midiSource){for(const candidate of candidates){if(offsetOf(candidate)<=offset+.0625)index=candidate.index;}}
         if (index < 0) continue;
         for (const voice of entry.graphicalVoiceEntries) for (const note of voice.notes) {
           if (note.sourceNote.isRest()) continue;
           const element = note.getSVGGElement?.();
           if (!element) continue;
-          element.classList.add('note-event', 'pending');
-          element.dataset.index = String(index);element.dataset.measure=String(measure);element.dataset.part=staffParts[staffIndex]||'default';
-          element.setAttribute('tabindex','0');element.setAttribute('role','button');
-          element.setAttribute('aria-label',`从第 ${measure} 小节此音播放`);
-          const box=element.getBBox();
-          const hit=document.createElementNS('http://www.w3.org/2000/svg','rect');
-          for(const [key,value] of Object.entries({x:box.x-9,y:box.y-8,width:Math.max(24,box.width+18),height:Math.max(36,box.height+16),rx:6,fill:'transparent',class:'score-hit'}))hit.setAttribute(key,value);
-          element.prepend(hit);
+          noteTargets.push({element,index,measure,part:staffParts[staffIndex]||'default',midi:Number(note.sourceNote.Pitch?.getHalfTone?.())+12,staffNumber:staffParts.slice(0,staffIndex).filter(p=>p===staffParts[staffIndex]).length+1});
         }
       }
     });
+    // ★ 2026-10-10：以前是「给一个音符加 class/属性 → getBBox() → 插入命中区 → 下一个音符」，
+    //   也就是「改 DOM → 读布局」交替进行 —— 每一次改动都会让浏览器把整棵 SVG（数千个节点）
+    //   重新布局一遍；28 声部的首块上千个音符 ≈ 上千次全量重排，实测在主线程上形成 8.7 秒长任务
+    //   （时间线显示它正好落在「正在排版完整五线谱」阶段）。
+    //   改成两遍：先把所有包围盒一次量完（此时 DOM 尚未改动，只需布局一次），再统一写入。
+    //   .note-event / .pending 只改颜色与光标、不改几何，所以「先量后写」结果与原来一致。
+    for(const target of noteTargets)target.box=target.element.getBBox();
+    for(const {element,index,measure,part,box,midi,staffNumber} of noteTargets){
+      const refs=element.dataset.fingeringNotes?JSON.parse(element.dataset.fingeringNotes):[];if(Number.isFinite(midi)&&!refs.some(n=>n.index===index&&n.part===part&&n.midi===midi))refs.push({index,part,midi,staff:staffNumber});element.dataset.fingeringNotes=JSON.stringify(refs);
+      element.classList.add('note-event', 'pending');
+      element.dataset.index = String(index);element.dataset.measure=String(measure);element.dataset.part=part;
+      element.setAttribute('tabindex','0');element.setAttribute('role','button');
+      element.setAttribute('aria-label',`从第 ${measure} 小节此音播放`);
+      const hit=document.createElementNS('http://www.w3.org/2000/svg','rect');
+      for(const [key,value] of Object.entries({x:box.x-9,y:box.y-8,width:Math.max(24,box.width+18),height:Math.max(36,box.height+16),rx:6,fill:'transparent',class:'score-hit'}))hit.setAttribute(key,value);
+      element.prepend(hit);
+    }
     const definitions=new Map([...partDocument.querySelectorAll('score-part')].map(p=>[p.id,p.querySelector('part-name')?.textContent||'乐器']));
     for(const svg of sheet.querySelectorAll('svg')){
      const rows=[...svg.querySelectorAll('g.staffline')];
-     for(const [rowIndex,row] of rows.entries()){
+     // 同理：先把每一行的包围盒一次量完，再统一把乐器名写上去，避免「边写边量」反复触发重排。
+     const labels=rows.map((row,rowIndex)=>{
       row.dataset.systemStaves=String(staffParts.length);
       const part=staffParts[rowIndex%staffParts.length]||'default',name=definitions.get(part)||'钢琴',box=row.getBBox();
       const staffLines=[...row.querySelectorAll('path')].map(path=>path.getBBox()).filter(line=>line.width>50&&line.height<1);
+      return {part,name,box,staffLines};
+     });
+     for(const {part,name,box,staffLines} of labels){
       const staffTop=staffLines.length?Math.min(...staffLines.map(line=>line.y)):box.y,staffBottom=staffLines.length?Math.max(...staffLines.map(line=>line.y)):box.y+Math.min(box.height,40);
       const text=document.createElementNS('http://www.w3.org/2000/svg','text');text.setAttribute('x',String(Math.max(4,box.x-12)));text.setAttribute('y',String((staffTop+staffBottom)/2+4));text.setAttribute('text-anchor','end');text.setAttribute('font-size','11');text.setAttribute('fill','#736367');text.setAttribute('font-family','system-ui, sans-serif');text.setAttribute('class','staff-instrument-label');text.dataset.part=part;text.textContent=name;svg.append(text);
      }
@@ -257,20 +292,30 @@ function xmlWithMetadata(xml, metadata = {}, width = 900) {
 }
 
 export async function renderEngraved(container,score){
- let documentXML=new DOMParser().parseFromString(score.xml,'application/xml');
- const measures=documentXML.querySelector('score-partwise > part')?.querySelectorAll(':scope > measure').length||0;
+ // ★ 2026-10-10：以前这里为了「数有多少小节」把整份 XML 重新 DOMParser 一遍
+ //   （大谱 18MB 一次就要 1.3 秒，纯属浪费），而 score.measures 在解析阶段就算好了。
+ //   先用它给小谱做快判；真要分块时再让 engravingPlan 解析一次（全程只解析一次）。
+ const declared=Number(score.measures);
+ if(Number.isFinite(declared)&&declared>0&&declared<=16)return renderSingleEngraved(container,score);
+ const plan=await engravingPlan(score);
+ const measures=plan.count||declared||0;
  if(measures<=16)return renderSingleEngraved(container,score);
- await engravingPlan(score,documentXML);documentXML=null;
+ // 分块大小按声部数收敛（见 engraving-plan.js）。占位高度用同一套估算，
+ // 免得每渲染一块就把下面的内容往下顶（实测 28 声部时首块真实高度 6678px，而占位只有 850px）。
+ const step=plan.chunk||16;
+ const width=sheetWidth(container);
+ const barsPerSystem=width<600?2:width<950?3:4;
+ const placeholderHeight=Math.round(Math.max(1,Math.ceil(step/barsPerSystem))*Math.max(1,plan.parts?.length||1)*60+60);
  container.replaceChildren();const generation={};container.renderGeneration=generation;
  const mobile=matchMedia('(pointer:coarse)').matches||innerWidth<800;
- for(let start=0;start<measures;start+=16){
-  if(start>=16){const placeholder=document.createElement('div');placeholder.className='notation-chunk';placeholder.dataset.lazyMeasure=String(start);placeholder.style.minHeight='850px';placeholder.textContent='正在准备后续谱面…';container.append(placeholder);continue;}
+ for(let start=0;start<measures;start+=step){
+  if(start>=step){const placeholder=document.createElement('div');placeholder.className='notation-chunk';placeholder.dataset.lazyMeasure=String(start);placeholder.style.minHeight=placeholderHeight+'px';placeholder.textContent='正在准备后续谱面…';container.append(placeholder);continue;}
   if(container.renderGeneration!==generation||!container.isConnected)return;
-  const xml=await engravingChunk(score,start,16);
+  const xml=await engravingChunk(score,start,step);
   const chunk=document.createElement('div');chunk.className='notation-chunk';container.append(chunk);
   await new Promise(r=>requestAnimationFrame(()=>setTimeout(r,0)));
   await renderSingleEngraved(chunk,{...score,xml,measureOffset:(score.measureOffset||0)+start});
-  score.onRenderProgress?.(Math.min(1,(start+16)/measures));
+  score.onRenderProgress?.(Math.min(1,(start+step)/measures));
  }
 }
 
@@ -280,7 +325,7 @@ export function activateLazyEngraving(container,score){
  const observer=new IntersectionObserver(entries=>{for(const entry of entries){const chunk=entry.target;if(!entry.isIntersecting||chunk.dataset.loading)continue;observer.unobserve(chunk);chunk.dataset.loading='true';const start=Number(chunk.dataset.lazyMeasure);
  const work=lazyRenderQueue.catch(()=>{}).then(async()=>{
  if(!chunk.isConnected||container.hidden){delete chunk.dataset.loading;return;}
- const xml=await engravingChunk(score,start,16);if(!chunk.isConnected||container.hidden){delete chunk.dataset.loading;return;}
+ const xml=await engravingChunk(score,start);if(!chunk.isConnected||container.hidden){delete chunk.dataset.loading;return;}
  await renderSingleEngraved(chunk,{...score,xml,measureOffset:(score.measureOffset||0)+start});if(!chunk.isConnected)return;chunk.style.minHeight='';delete chunk.dataset.lazyMeasure;delete chunk.dataset.loading;document.dispatchEvent(new Event('engraving-chunk-ready'));});lazyRenderQueue=work;void work.catch(()=>{delete chunk.dataset.loading;if(chunk.isConnected)chunk.textContent='此段排版失败，请重新打开曲谱';});
  }},{root:container.closest('.sheet-scroll'),rootMargin:'500px'});container.lazyEngravingObserver=observer;container.querySelectorAll('[data-lazy-measure]').forEach(chunk=>observer.observe(chunk));
 }

@@ -49,8 +49,8 @@ def main():
     check_shape(payload, '卡农')
 
     results = payload['results']
-    # 只剩「在 Everyone Piano 搜索《…》」这一条兜底时，说明外网那条腿全断了。
-    only_fallback = len(results) == 1 and '在 Everyone Piano 搜索' in results[0]['title']
+    # 只剩「在 SUPERTANG AI 智能找谱 搜索《…》」这一条兜底时，说明外网那条腿全断了。
+    only_fallback = len(results) == 1 and '在 SUPERTANG AI 智能找谱 搜索' in results[0]['title']
     if only_fallback:
         print('WARN 只拿到兜底搜索入口（外网搜索源不可达），结构校验通过')
         print('PASS 联网找谱：结构合法 + notice 说明了现状')

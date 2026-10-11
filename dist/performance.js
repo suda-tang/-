@@ -1,9 +1,12 @@
 // Interpret written expression before adding small performance variations.
+import { scoreDocument } from './score-document.js?v=1';
 export function preparePerformance(score){
  const levels={ppp:.24,pp:.33,p:.43,mp:.54,mf:.65,f:.78,ff:.9,fff:.98};
  const lanes=new Map();
  if(score.xml){
-  const doc=new DOMParser().parseFromString(score.xml,'application/xml');
+  // ★ 2026-10-10：以前这里自己 new DOMParser().parseFromString(score.xml)，18MB 大谱一次 1.1~2.1 秒；
+  //   而这份 DOM 排版计划那边已经解析过了。改用共享 DOM（只读），一首曲子不再被反复解析。
+  const doc=scoreDocument(score.xml);
   for(const part of doc.querySelectorAll('score-partwise > part')){
    let divisions=1;
    Array.from(part.children).filter(x=>x.localName==='measure').forEach((measure,m)=>{

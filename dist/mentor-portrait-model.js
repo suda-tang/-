@@ -74,8 +74,8 @@ export async function createPortraitMentor(signal, progress = () => {}) {
   }
   // Every hair component uses the head's local coordinates and shared scalp surface.
   const hairGroup=new T.Group();hairGroup.name='MentorHair';head.add(hairGroup);
-  const scalpPoint=(a,p,inset=1)=>new T.Vector3(Math.sin(a)*Math.sin(p)*.190*inset,Math.cos(p)*.230*inset+.015,Math.cos(a)*Math.sin(p)*.219*inset-.025);
-  const hairBoundary=a=>{const front=Math.max(0,Math.cos(a));return .53+(1-front)*1.52+.045*Math.sin(a)*front;};
+  const scalpPoint=(a,p,inset=1)=>new T.Vector3(Math.sin(a)*Math.sin(p)*.182*inset,Math.cos(p)*.247*inset+.015,Math.cos(a)*Math.sin(p)*.211*inset+.005);
+  const hairBoundary=a=>{const front=Math.max(0,Math.cos(a));return .73+(1-front)*1.34+.12*Math.sin(a-.25)*front;};
   // Crown and shoulder-length hair are one indexed surface, sharing the
   // exact same boundary vertices. Separate tube roots cannot leave a gap.
   const crownFraction=22/46;
@@ -85,9 +85,9 @@ export async function createPortraitMentor(signal, progress = () => {}) {
     const root=scalpPoint(a,boundary),t=(s-crownFraction)/(1-crownFraction);
     const distance=Math.acos(Math.cos(a)),length=Math.max(0,Math.min(1,(distance-.95)/.35));
     if(!length)return root;
-    const wave=Math.sin(t*5.4+a*2)*.008*t;
-    return new T.Vector3(root.x+Math.sin(a)*(.018*t+wave)*length,
-      root.y+(-.33+.018*Math.sin(a*3)-root.y)*t*length,
+    const wave=Math.sin(t*9.2+a*2.4)*.017*t*t;
+    return new T.Vector3(root.x+Math.sin(a)*(.028*Math.sin(t*Math.PI)+wave)*length,
+      root.y+(-.40+.035*Math.sin(a*3)-root.y)*t*length,
       root.z+(Math.cos(a)*.18-.035-root.z)*t*length-wave*.6*length);
   }
   const vertices=[],indices=[],uCount=96,vCount=46;
@@ -99,40 +99,28 @@ export async function createPortraitMentor(signal, progress = () => {}) {
     }
   }
   const scalp=new T.BufferGeometry();scalp.setAttribute('position',new T.Float32BufferAttribute(vertices,3));scalp.setIndex(indices);scalp.computeVertexNormals();
-  const hairShell=new T.Mesh(scalp,new T.MeshStandardMaterial({color:'#201c1d',roughness:.52,side:T.DoubleSide}));hairShell.name='MentorContinuousHair';hairGroup.add(hairShell);
-  // Fine strands follow the continuous surface; they are decoration, not
-  // detached structural locks with exposed roots above the scalp.
-  for(let i=0;i<40;i++){
-    const a=1.12+i/39*(Math.PI*2-2.24);
-    const start=crownFraction*.67/hairBoundary(a),root=hairSurface(a,start);
-    const points=Array.from({length:33},(_,j)=>hairSurface(a,start+(1-start)*j/32));
-    const curve=new T.CatmullRomCurve3(points), lockGeometry=new T.TubeGeometry(curve,48,.0035,6,false);
-    const attribute=lockGeometry.attributes.position;
-    for(let segment=0;segment<=48;segment++){
-      const t=segment/48,center=curve.getPointAt(t),radiusScale=Math.sin(Math.PI*t)**.4;
-      for(let k=0;k<=6;k++){
-        const index=segment*7+k,v=new T.Vector3().fromBufferAttribute(attribute,index).sub(center).multiplyScalar(radiusScale).add(center);
-        attribute.setXYZ(index,v.x,v.y,v.z);
+  const hairShell=new T.Mesh(scalp,new T.MeshStandardMaterial({color:'#282324',roughness:.4,side:T.DoubleSide}));hairShell.name='MentorContinuousHair';hairGroup.add(hairShell);
+  const strandVertices=[],strandColors=[],strandIndices=[];
+  for(let i=0;i<240;i++){
+    const a=1.02+i/239*(Math.PI*2-2.04);
+    const start=crownFraction*.35/hairBoundary(a),offset=strandVertices.length/3;
+    const tone=new T.Color().setRGB(.052+(i%11)*.0016,.041+(i%9)*.0015,.038+(i%7)*.0015);
+    for(let j=0;j<=40;j++){
+      const t=j/40,s=start+(1-start)*t,half=.00034*Math.sin(Math.PI*t)**.35;
+      for(const side of [-1,1]){
+        const point=hairSurface(a+side*half/.18,s);
+        point.z+=Math.cos(a)*.0008;point.x+=Math.sin(a)*.0008;
+        strandVertices.push(...point.toArray());strandColors.push(tone.r,tone.g,tone.b);
       }
+      if(j<40){const k=offset+j*2;strandIndices.push(k,k+2,k+1,k+1,k+2,k+3);}
     }
-    lockGeometry.computeVertexNormals();
-    const lock=new T.Mesh(lockGeometry,i%7===0?sheen:hair);
-    lock.userData.scalpRoot=root.toArray();hairGroup.add(lock);
   }
-  for(let i=0;i<9;i++){
-    const points=Array.from({length:33},(_,j)=>{
-      const t=j/32,a=-.7+1.83*t,p=Math.min(hairBoundary(a)-.01,.23+1.07*t+i*.005);
-      return hairSurface(a,crownFraction*p/hairBoundary(a));
-    });
-    const curve=new T.CatmullRomCurve3(points),detail=new T.TubeGeometry(curve,32,.0025,6,false);
-    const positions=detail.attributes.position;
-    for(let j=0;j<=32;j++)for(let k=0;k<=6;k++){
-      const center=curve.getPointAt(j/32),index=j*7+k;
-      const point=new T.Vector3().fromBufferAttribute(positions,index).sub(center).multiplyScalar(Math.sin(Math.PI*j/32)**.4).add(center);
-      positions.setXYZ(index,point.x,point.y,point.z);
-    }
-    detail.computeVertexNormals();hairGroup.add(new T.Mesh(detail,i%4===0?sheen:hair));
-  }
+  const strandGeometry=new T.BufferGeometry();
+  strandGeometry.setAttribute('position',new T.Float32BufferAttribute(strandVertices,3));
+  strandGeometry.setAttribute('color',new T.Float32BufferAttribute(strandColors,3));
+  strandGeometry.setIndex(strandIndices);strandGeometry.computeVertexNormals();
+  const strands=new T.Mesh(strandGeometry,new T.MeshStandardMaterial({vertexColors:true,roughness:.38,side:T.DoubleSide}));
+  strands.name='MentorHairStrands';hairGroup.add(strands);
   const base=geometry.attributes.position.array.slice();
   const baseUV=geometry.attributes.uv.array.slice();
   const eyes=[[33,133,159,145],[362,263,386,374]].map(([a,b,top,bottom])=>({
@@ -149,7 +137,7 @@ export async function createPortraitMentor(signal, progress = () => {}) {
       smile:Math.exp(-(((Math.abs(x)-.066)/.027)**2)-(((y+.080)/.024)**2))
     };
   });
-  let gazeX=0,gazeY=-.006,lastFrame=0,headYaw=0,headPitch=.045,expression=0;
+  let gazeX=0,gazeY=0,lastFrame=0,headYaw=0,headPitch=.045,expression=0;
   const lipY=(base[13*3+1]+base[14*3+1])/2,lipX=(base[13*3]+base[14*3])/2;
   const mouthGap=new T.Mesh(new T.CircleGeometry(1,32),new T.MeshBasicMaterial({color:'#58302e',side:T.DoubleSide,toneMapped:false}));
   mouthGap.name='MentorMouth';mouthGap.position.set(lipX,lipY,Math.max(base[13*3+2],base[14*3+2])+.0008);mouthGap.visible=false;head.add(mouthGap);
@@ -162,8 +150,8 @@ export async function createPortraitMentor(signal, progress = () => {}) {
     const targetYaw=attention==='board'?boardSide*.65:attention==='slides'?boardSide*.55:viewerYaw+Math.sin(time*.7)*.035;
     const targetPitch=attention==='board'?-.025:attention==='slides'?.018:.055+Math.sin(elapsed*2.1)*.025*(speaking?1:.15);
     const smooth=1-Math.exp(-dt*4);headYaw+=(targetYaw-headYaw)*smooth;headPitch+=(targetPitch-headPitch)*smooth;
-    const targetX=attention==='visitor'?Math.sin(time*.62)*.0025:boardSide*.008;
-    const targetY=attention==='board'?-.0008:attention==='slides'?-.002:-.006+Math.sin(time*.8)*.0007;
+    const targetX=attention==='visitor'?Math.sin(time*.62)*.0015:boardSide*.004;
+    const targetY=attention==='board'?-.0008:attention==='slides'?-.001:Math.sin(time*.8)*.0007;
     gazeX+=(targetX-gazeX)*(1-Math.exp(-dt*7));gazeY+=(targetY-gazeY)*(1-Math.exp(-dt*7));
     expression+=((speaking?Math.min(1,.22+energy*2):0)-expression)*smooth;
     const emphasis=expression;
@@ -185,7 +173,7 @@ export async function createPortraitMentor(signal, progress = () => {}) {
         dy+=(eye.y-y)*blink*.94*w.blink;
         du-=gazeX*eye.ux*w.iris*(1-blink);dv-=gazeY*eye.vy*w.iris*(1-blink);
       }
-      dy+=weights.brow*.004*emphasis+weights.smile*.003*emphasis;
+      dy+=weights.brow*.0015*emphasis+weights.smile*.001*emphasis;
       p[i+1]=y+dy;uv[index*2]=baseUV[index*2]+du;uv[index*2+1]=baseUV[index*2+1]+dv;
     }
     mouthGap.visible=opening>.0003;mouthGap.scale.set(.025,opening*.48,1);mouthGap.position.y=lipY-opening*.28;

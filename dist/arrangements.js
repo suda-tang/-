@@ -39,12 +39,14 @@ export function initArrangements({getScore,request,message,open}){
   if(rows.some(t=>['running','queued'].includes(t.status)))panel.querySelector('details').open=true;
  }
  document.addEventListener('cloud-jobs-update',event=>{remote=event.detail;draw();});
- panel.querySelector('#generate-arrangement').onclick=async event=>{
-  const digest=getScore()?.serverId||getScore()?.sourceDigest;if(!digest)return message('请先打开云曲谱','warning');
+ async function generate(){
+  const digest=getScore()?.serverId||getScore()?.sourceDigest;if(!digest)throw Error('请先打开云曲谱');
   const style=select.value,drums=panel.querySelector('#generation-drums').checked||style==='original',programs=[...custom.querySelectorAll('input:checked')].map(el=>Number(el.value));
-  if(style==='custom'&&(!programs.length||programs.length>8))return message('请选择 1–8 个乐器声部','warning');
-  const button=event.currentTarget;button.disabled=true;
-  try{await request(`/api/scores/${digest}/arrange`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({style,drums,...(style==='custom'?{programs}:{})})});panel.querySelector('.arrangement-status').textContent='已加入任务队列，空闲时生成。当前演奏可继续。';panel.querySelector('details').open=true;}
-  catch(error){message(/请选择原谱.*室内乐.*管弦乐/.test(error.message)?'本机仍在运行旧版服务。请重启钢琴服务后再生成，木管四重奏等新编制已包含在更新中。':error.message,'error');}finally{button.disabled=false;}
+  if(style==='custom'&&(!programs.length||programs.length>8))throw Error('请选择 1–8 个乐器声部');
+  const button=panel.querySelector('#generate-arrangement');if(button.disabled)throw Error('正在提交，请勿重复生成');button.disabled=true;
+  try{const result=await request(`/api/scores/${digest}/arrange`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({style,drums,...(style==='custom'?{programs}:{})})});panel.querySelector('.arrangement-status').textContent='已加入任务队列，空闲时生成。当前演奏可继续。';panel.querySelector('details').open=true;return result;}
+  catch(error){throw Error(/请选择原谱.*室内乐.*管弦乐/.test(error.message)?'本机仍在运行旧版服务。请重启钢琴服务后再生成，木管四重奏等新编制已包含在更新中。':error.message);}finally{button.disabled=false;}
  };
+ panel.querySelector('#generate-arrangement').onclick=()=>generate().catch(error=>message(error.message,'error'));
+ document.addEventListener('ai-generate-arrangement',event=>{generate().then(event.detail.resolve,event.detail.reject);});
 }

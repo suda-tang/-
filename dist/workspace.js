@@ -1,4 +1,5 @@
 import {updateRangeFill} from './range-fill.js';
+import {mountPracticePanel} from './practice-panel.js';
 window.reportStartupActivity?.({id:'workspace',label:'整理曲库、演奏、改编和任务面板'});
 // Navigation owns grouping; the existing controls keep their ids and handlers.
 // The 3D classroom is not a startup dependency of the music workspace.
@@ -101,6 +102,7 @@ moveTasks();setTimeout(moveTasks,100);
 $('.setup-head').hidden=true;
 const settings=document.createElement('details');settings.className='practice-settings';settings.innerHTML='<summary>跟弹练习</summary>';
 settings.append($('.control-grid'),$('.practice-actions'));pages.play.append(settings);
+mountPracticePanel(settings);
 const sampleButton=$('#sample-button'),altRecognize=$('#alt-recognize'),librarySettings=$('.score-library .library-settings'),bottomSettings=$('.service-controls .technical');
 if(bottomSettings){const actions=document.createElement('div');actions.className='library-settings-actions';
  if(sampleButton){sampleButton.className='small-button';actions.append(sampleButton);}
@@ -116,15 +118,20 @@ const more=document.createElement('details');more.className='play-options';more.
 more.append($('.sound-options'),$('.autoplay-label:not(.score-follow-label)'),$('.score-follow-label'),$('#render-expression'),$('#expression-state'));const vocalTiming=document.createElement('div');vocalTiming.id='vocal-timing-settings';more.append(vocalTiming);$('.playback-panel').append(more);
 $('.feedback').hidden=false;
 // Deck perspective follows the visible card, rather than pointer-only tilt.
-const list=$('.library-list');let deckFrame=0;
-function deck(){deckFrame=0;const center=list.scrollLeft+list.clientWidth/2;
+const list=$('.library-list');let deckFrame=0,deckFlying=false;
+document.addEventListener('library-flight-layer',()=>{deckFlying=true;cancelAnimationFrame(deckFrame);deckFrame=0;});
+document.addEventListener('library-flight-finished',()=>{deckFlying=false;if(!deckFrame)deckFrame=requestAnimationFrame(deck);});
+function deck(event){deckFrame=0;if(deckFlying)return;const center=list.scrollLeft+list.clientWidth/2;
  if(document.body.classList.contains('library-expanded'))return;
  const width=list.clientWidth;
  const positions=[...list.querySelectorAll('.library-score')].filter(card=>!card.hidden&&(!card.closest('.library-card-stack:not(.is-expanded)')||card.classList.contains('stack-peek'))).map(card=>({card,left:card.offsetLeft,w:card.offsetWidth})).filter(p=>p.left+p.w>list.scrollLeft-width&&p.left<list.scrollLeft+width*2).map(p=>({...p,d:Math.max(-1,Math.min(1,(p.left+p.w/2-center)/Math.max(1,width)))}));
+ const instant=event?.type==='library-layout-ready',transitions=instant?positions.map(({card})=>[card,card.style.getPropertyValue('transition'),card.style.getPropertyPriority('transition')]):[];
+ for(const [card]of transitions)card.style.setProperty('transition','none','important');
  for(const {card,d} of positions){const turn=(-d*28)+'deg',depth=(-Math.abs(d)*38)+'px';if(card.style.getPropertyValue('--deck-turn')!==turn)card.style.setProperty('--deck-turn',turn);if(card.style.getPropertyValue('--deck-depth')!==depth)card.style.setProperty('--deck-depth',depth);}
-
+ if(instant){for(const {card}of positions)getComputedStyle(card).transform;for(const [card,value,priority]of transitions)if(value)card.style.setProperty('transition',value,priority);else card.style.removeProperty('transition');}
 }
 list.addEventListener('scroll',()=>{if(!deckFrame)deckFrame=requestAnimationFrame(deck);},{passive:true});
+document.addEventListener('library-layout-ready',deck);
 new MutationObserver(()=>{if(!deckFrame)deckFrame=requestAnimationFrame(deck);}).observe(list,{childList:true});new ResizeObserver(()=>{if(!deckFrame)deckFrame=requestAnimationFrame(deck);}).observe(list);
 // Foreground leases expire after inactivity, even if the browser closes.
 let lastInteraction=Date.now(),lastSent=0,playing=false;

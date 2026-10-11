@@ -1,7 +1,12 @@
 import { renderEngraved } from './engraving.js?v=chunk-plan4';
+import { rememberSourceDocument } from './engraving-plan.js?v=1';
+import { yieldToBrowser } from './yield-to-browser.js?v=1';
 const semitones={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
 export const noteName=n=>['C','C♯','D','E♭','E','F','F♯','G','A♭','A','B♭','B'][((n%12)+12)%12]+(Math.floor(n/12)-1);
-const child=(el,name)=>Array.from(el?.children||[]).find(n=>n.localName===name);
+// ★ 2026-10-10：以前是 Array.from(el.children).find(...)，每个音符要调用约 10 次，
+//   10 万音符 ≈ 100 万次数组分配（实测 child() 自耗时 2.3 秒）。直接遍历 children 即可，
+//   行为完全一致，只是不再为每次查找新建数组。
+const child=(el,name)=>{if(!el)return undefined;const kids=el.children;for(let i=0;i<kids.length;i++)if(kids[i].localName===name)return kids[i];return undefined;};
 const text=(el,name,fallback='')=>child(el,name)?.textContent?.trim()??fallback;
 const number=(value,fallback)=>{const n=Number(String(value??'').trim());return Number.isFinite(n)?n:fallback;};
 function* parseMusicXMLSteps(xml,fallback='导入的琴谱'){
@@ -11,24 +16,39 @@ function* parseMusicXMLSteps(xml,fallback='导入的琴谱'){
  xml=String(xml).replace(/<divisions>\s*(?:0|NaN|Infinity|-Infinity)?\s*<\/divisions>/gi,'<divisions>1</divisions>');
  const doc=new DOMParser().parseFromString(xml,'application/xml');if(doc.querySelector('parsererror'))throw Error('XML 格式不正确');if(doc.documentElement.localName!=='score-partwise')throw Error('仅支持 score-partwise 格式的 MusicXML');
  const midiInstruments=new Map([...doc.querySelectorAll('midi-instrument')].map(item=>[item.getAttribute('id'),item]));let processed=0;const measureCount=doc.querySelectorAll('part > measure').length;
- const parts=Array.from(doc.documentElement.children).filter(n=>n.localName==='part');if(!parts.length)throw Error('没有找到声部');let events=[],maxMeasure=0,unsupported=false,totalBeats=0,normalizedFourTwo=false;const measureLengths=new Map();
+ const parts=Array.from(doc.documentElement.children).filter(n=>n.localName==='part');if(!parts.length)throw Error('没有找到声部');let events=[],maxMeasure=0,unsupported=false,totalBeats=0,normalizedFourTwo=false;const measureLengths=new Map(),measureSignatures=new Map();
  for(const part of parts){const ties=new Map();let divisions=1,beatBase=0,beats=4,beatType=4,transpose=0,measureOrder=0,page=1;for(const measure of Array.from(part.children).filter(n=>n.localName==='measure')){measureOrder++;maxMeasure=Math.max(maxMeasure,measureOrder);let cursor=0,lastStart=0,end=0;for(const item of measure.children){const kind=item.localName;if(kind==='print'&&item.getAttribute('new-page')==='yes')page++;if(kind==='attributes'){const parsedDivisions=number(text(item,'divisions',String(divisions)),divisions);divisions=parsedDivisions>0?parsedDivisions:divisions;const time=child(item,'time');if(time){const value=text(time,'beats','4'),nextBeats=value.split('+').reduce((a,b)=>a+number(b,0),0),nextType=number(text(time,'beat-type','4'),4);if(nextBeats>0&&nextBeats<=32&&nextType>0&&nextType<=64&&Number.isInteger(nextType)){beats=nextBeats;beatType=nextType;}}const tr=child(item,'transpose');if(tr)transpose=number(text(tr,'chromatic','0'),0)+12*number(text(tr,'octave-change','0'),0);}
  if(kind==='backup')cursor-=number(text(item,'duration','0'),0)/divisions;
  if(kind==='forward'){cursor+=number(text(item,'duration','0'),0)/divisions;end=Math.max(end,cursor);}
  if(kind!=='note')continue;if(child(item,'grace')){unsupported=true;continue;}const duration=number(text(item,'duration','0'),0)/divisions;if(!Number.isFinite(duration)||duration<=0)throw Error('音符缺少有效时值，请校对识谱结果');const chord=!!child(item,'chord');const start=chord?lastStart:cursor;if(!chord){lastStart=start;cursor+=duration;}end=Math.max(end,cursor,start+duration);if(child(item,'rest'))continue;const pitch=child(item,'pitch'),unpitched=child(item,'unpitched');if(!pitch&&!unpitched){unsupported=true;continue;}const instrumentId=child(item,'instrument')?.getAttribute('id');const midiInstrument=midiInstruments.get(instrumentId);const step=pitch?text(pitch,'step'):'C';const octave=pitch?number(text(pitch,'octave'),4):4;const alter=pitch?number(text(pitch,'alter','0'),0):0;const midi=unpitched?number(text(midiInstrument,'midi-unpitched','39'),39)-1:12*(octave+1)+semitones[step]+alter+transpose;if(!Number.isInteger(midi)||midi<0||midi>127)throw Error('无法读取音高');
  const staff=Number(text(item,'staff','1')),voice=text(item,'voice','1'),key=`${staff}:${voice}:${midi}`;
- const tieTypes=Array.from(item.children).filter(n=>n.localName==='tie').map(n=>n.getAttribute('type'));
+ const tieTypes=[];for(const kid of item.children)if(kid.localName==='tie')tieTypes.push(kid.getAttribute('type'));
  const prior=ties.get(key);if(tieTypes.includes('stop')&&prior&&Math.abs(prior.end-(beatBase+start))<.0001){prior.note.duration+=duration;prior.end+=duration;if(!tieTypes.includes('start'))ties.delete(key);continue;}
- const note={midi,step,octave,alter,staff,duration,...(item.hasAttribute('dynamics')?{velocity:Math.min(1,Math.max(.01,Number(item.getAttribute('dynamics'))/100))}:{}),percussion:!!unpitched,...(unpitched?{instrument:'drums'}:{}),part:part.getAttribute('id')};if(tieTypes.includes('start'))ties.set(key,{note,end:beatBase+start+duration});
+ const note={midi,step,octave,alter,staff,voice,fingering:Number(item.querySelector("notations technical fingering")?.textContent)||0,duration,...(item.hasAttribute('dynamics')?{velocity:Math.min(1,Math.max(.01,Number(item.getAttribute('dynamics'))/100))}:{}),percussion:!!unpitched,...(unpitched?{instrument:'drums'}:{}),part:part.getAttribute('id')};if(tieTypes.includes('start'))ties.set(key,{note,end:beatBase+start+duration});
  events.push({beat:beatBase+start,offset:start,duration,pitches:[midi],notes:[note],measure:measureOrder,page});}
- if(!(beats>0)||!(beatType>0)){beats=4;beatType=4;}let nominal=beats*4/beatType;if(beats===4&&beatType===2&&end>0&&end<=4.25){nominal=4;normalizedFourTwo=true;}if(beats===2&&beatType===4&&end>=3.5){nominal=4;normalizedFourTwo=true;}const span=measure.getAttribute('implicit')==='yes'?(end||nominal):Math.max(end,nominal);measureLengths.set(measureOrder,Math.max(measureLengths.get(measureOrder)||0,span));beatBase+=span;yield {processed:++processed,total:measureCount};}totalBeats=Math.max(totalBeats,beatBase);}
+ if(!(beats>0)||!(beatType>0)){beats=4;beatType=4;}let nominal=beats*4/beatType;if(beats===4&&beatType===2&&end>0&&end<=4.25){nominal=4;normalizedFourTwo=true;}if(beats===2&&beatType===4&&end>=3.5){nominal=4;normalizedFourTwo=true;}const span=measure.getAttribute('implicit')==='yes'?(end||nominal):Math.max(end,nominal);measureLengths.set(measureOrder,Math.max(measureLengths.get(measureOrder)||0,span));if(!measureSignatures.has(measureOrder))measureSignatures.set(measureOrder,beats+'/'+beatType);beatBase+=span;yield {processed:++processed,total:measureCount};}totalBeats=Math.max(totalBeats,beatBase);}
  const measureStarts=new Map();let commonBeat=0;for(let m=1;m<=maxMeasure;m++){measureStarts.set(m,commonBeat);commonBeat+=measureLengths.get(m)||4;}for(const event of events)event.beat=(measureStarts.get(event.measure)||0)+event.offset;totalBeats=commonBeat;
  events.sort((a,b)=>a.beat-b.beat);const grouped=[];for(const event of events){event.duration=event.notes[0].duration;const prev=grouped.at(-1);if(prev&&Math.abs(prev.beat-event.beat)<1e-5){prev.pitches=[...new Set([...prev.pitches,...event.pitches])].sort((a,b)=>a-b);prev.notes.push(...event.notes);prev.duration=Math.min(prev.duration,event.duration);}else grouped.push(event);}if(!grouped.length)throw Error('没有识别到可演奏的有音高音符');
  const soundTempo=doc.querySelector('sound[tempo]')?.getAttribute('tempo');
  const perMinute=doc.querySelector('per-minute')?.textContent?.trim();
   const tempoValue=number(soundTempo||perMinute,0);const tempo=tempoValue>=30&&tempoValue<=240?Math.round(tempoValue):null;
- const keyFifths=number(doc.querySelector('key > fifths')?.textContent,0);const timeNode=doc.querySelector('time');const timeSignature=normalizedFourTwo?'4/4':timeNode?`${text(timeNode,'beats','4')}/${text(timeNode,'beat-type','4')}`:'4/4';
- return{xml,title:doc.querySelector('work-title')?.textContent?.trim()||doc.querySelector('movement-title')?.textContent?.trim()||fallback,events:grouped,measures:maxMeasure,unsupported,totalBeats,tempo,keyFifths,timeSignature};
+ const keyFifths=number(doc.querySelector('key > fifths')?.textContent,0);
+// ★ 拍号不能取「第一个 <time>」。实测《央金梅朵》：单个 part110 小节里有 3 处拍号声明，
+   //   顺序是 #1=1/4、#2=4/4、#110=1/4 —— 真正的写法是「段首小节换成 1/4，随后回到 4/4」。
+   //   取第一个会把整首曲子认成 1/4，于是拍号显示、按拍换算（速度渐变/循环）、
+   //   导出的 MIDI/MusicXML 首拍号、以及简谱每行格子数全跟着错。
+   //   改成取**管辖小节数最多的那个**拍号（本例 4/4 占 108 小节、1/4 只占 2 小节），
+   //   顺带把逐小节拍号统计留在 timeSignatures 里，需要看变拍分布时用得上。
+ const weights=new Map();
+ for(const [m,len] of measureLengths){const sig=measureSignatures.get(m);if(sig)weights.set(sig,(weights.get(sig)||0)+1);}
+ let dominant=null,bestWeight=-1;
+ for(const [sig,w] of weights){if(w>bestWeight){bestWeight=w;dominant=sig;}}
+ const timeSignature=normalizedFourTwo?'4/4':(dominant||(doc.querySelector('time')?`${text(doc.querySelector('time'),'beats','4')}/${text(doc.querySelector('time'),'beat-type','4')}`:'4/4'));
+ const timeSignatures=Object.fromEntries(weights);
+ // ★ 2026-10-10：把刚解析好的 DOM 交给排版计划复用，省掉第二次 18MB 全量 DOMParser（实测约 1.3 秒）。
+ //   只在需要分块排版（>16 小节）时才留，小谱不白占内存；计划取走后会立即清掉引用。
+ if(maxMeasure>16)rememberSourceDocument(xml,doc);
+ return{xml,title:doc.querySelector('work-title')?.textContent?.trim()||doc.querySelector('movement-title')?.textContent?.trim()||fallback,events:grouped,measures:maxMeasure,unsupported,totalBeats,tempo,keyFifths,keyMode:doc.querySelector('key > mode')?.textContent?.trim()||'',timeSignature,timeSignatures};
 }
 export function sampleScore(){const pitches=[60,62,64,65,67,67,69,69,67,65,65,64,64,62,62,60];return{title:'C 大调　旋律与和声',measures:4,events:pitches.map((midi,i)=>({beat:i,duration:1,pitches:i%4===0?[48,midi]:[midi],notes:[{midi,staff:1,duration:1},...(i%4===0?[{midi:48,staff:2,duration:1}]:[])],measure:Math.floor(i/4)+1})),unsupported:false};}
 export function fallbackMusicXML(score){const escape=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[char])),pitch=midi=>{const chromatic=[['C',0],['C',1],['D',0],['E',-1],['E',0],['F',0],['F',1],['G',0],['A',-1],['A',0],['B',-1],['B',0]][midi%12],octave=Math.floor(midi/12)-1;return `<pitch><step>${chromatic[0]}</step>${chromatic[1]?`<alter>${chromatic[1]}</alter>`:''}<octave>${octave}</octave></pitch>`;},divisions=96,units=value=>Math.max(1,Math.round(Math.max(0,value)*divisions)),signature=String(score.timeSignature||"4/4").split("/").map(Number),measureBeats=(signature[0]||4)*4/(signature[1]||4);let measures='';for(let measure=1;measure<=Math.max(1,score.measures||1);measure++){let voices='';for(const staff of [1,2]){let cursor=0;const items=score.events.map((event,index)=>({event,index,notes:event.notes.filter(note=>(Number(note.staff)||1)===staff)})).filter(item=>item.event.measure===measure&&item.notes.length);for(const item of items){const offset=Number.isFinite(Number(item.event.offset))?Number(item.event.offset):item.event.beat-(measure-1)*measureBeats,gap=Math.max(0,offset-cursor);if(gap>.001)voices+=`<note><rest/><duration>${units(gap)}</duration><voice>${staff}</voice><staff>${staff}</staff></note>`;item.notes.forEach((note,i)=>{const duration=Math.max(1/divisions,Number(note.duration)||item.event.duration||1);voices+=`<note>${i?'<chord/>':''}${pitch(note.midi)}<duration>${units(duration)}</duration><voice>${staff}</voice><type>${duration>=2?'half':duration>=1?'quarter':duration>=.5?'eighth':'16th'}</type><staff>${staff}</staff></note>`;});cursor=Math.max(cursor,offset+Math.max(...item.notes.map(note=>Number(note.duration)||item.event.duration||1)));}if(cursor<measureBeats)voices+=`<note><rest/><duration>${units(measureBeats-cursor)}</duration><voice>${staff}</voice><staff>${staff}</staff></note>`;if(staff===1)voices+=`<backup><duration>${units(measureBeats)}</duration></backup>`;}measures+=`<measure number="${measure}">${measure===1?`<attributes><divisions>96</divisions><key><fifths>0</fifths></key><time><beats>${signature[0]||4}</beats><beat-type>${signature[1]||4}</beat-type></time><staves>2</staves><clef number="1"><sign>G</sign><line>2</line></clef><clef number="2"><sign>F</sign><line>4</line></clef></attributes>`:''}${voices}</measure>`;}return `<?xml version="1.0" encoding="UTF-8"?><score-partwise version="4.0"><work><work-title>${escape(score.title||'练习谱')}</work-title></work><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1">${measures}</part></score-partwise>`;}
@@ -46,8 +66,10 @@ export function renderNotation(container,score){if(!score.xml)return renderEngra
 export function parseMusicXML(xml,fallback='导入的琴谱'){
  const iterator=parseMusicXMLSteps(xml,fallback);let result;do{result=iterator.next();}while(!result.done);return result.value;
 }
+// ★ 2026-10-10：让步别用 setTimeout(0)（嵌套定时器有 4ms 下限，300 次要 2~4.5 秒），
+//   统一用 yieldToBrowser（MessageChannel，300 次只要几毫秒）。见 yield-to-browser.js。
 export async function parseMusicXMLAsync(xml,fallback='导入的琴谱',progress=()=>{}){
  const iterator=parseMusicXMLSteps(xml,fallback);let result,start=performance.now();
- do{result=iterator.next();if(!result.done&&performance.now()-start>8){progress(result.value.processed/result.value.total);await new Promise(resolve=>setTimeout(resolve,0));start=performance.now();}}while(!result.done);
+ do{result=iterator.next();if(!result.done&&performance.now()-start>8){progress(result.value.processed/result.value.total);await yieldToBrowser();start=performance.now();}}while(!result.done);
  progress(1);return result.value;
 }

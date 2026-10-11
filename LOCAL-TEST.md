@@ -95,4 +95,4 @@ powershell -File scripts/setup-omr.ps1 -Installer "C:\path\Audiveris-5.11.0-wind
 `probe_new_actions.py`（暂停/变速/节拍器/音色/配器/越界小节）、`e2e-real-ai.cjs`（端到端）、
 `check_task_ttl.py`（任务 TTL 端到端，会临时改任务存储并还原）、
 `probe_web_search.py` / `probe_score_search.py` / `probe_engines.py` / `probe_sitemap.py`
-（联网找谱各条腿的可用性实测：Everyone Piano 验证码 / Bing `site:` 失效 / DDG 被墙 / 360、搜狗可用）。
+（联网找谱各条腿的可用性实测：SUPERTANG AI 智能找谱 验证码 / Bing `site:` 失效 / DDG 被墙 / 360、搜狗可用）。

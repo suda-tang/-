@@ -7,12 +7,12 @@ from pathlib import Path
 import requests
 ROOT=Path(__file__).resolve().parent
 
-# 不带 UA 的请求会被多数站点直接当机器人打回（Everyone Piano 就是跳验证码）。
+# 不带 UA 的请求会被多数站点直接当机器人打回（部分曲谱站会跳验证码）。
 BROWSER_HEADERS={'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
                                 '(KHTML, like Gecko) Chrome/122.0 Safari/537.36',
                  'Accept-Language':'zh-CN,zh;q=0.9,en;q=0.8'}
 # 前端 web_search 的 fetch 超时是 30 秒，几条腿加起来不能超过它，否则用户看到的是超时而不是结果。
-SEARCH_BUDGET=20
+SEARCH_BUDGET=24
 
 def public_url(url):
  p=urlparse(url)
@@ -50,14 +50,84 @@ def remaining(deadline):
 
 # 常见乐谱站的显示名。搜索结果里给「360 搜索」这种来源没意义，
 # 用户想知道的是「这是虫虫钢琴还是弹琴吧」。
-SOURCE_NAMES=(('gangqinpu.com','虫虫钢琴'),('tan8.com','弹琴吧'),('everyonepiano.cn','Everyone Piano'),
-              ('everyonepiano.com','Everyone Piano'),('book118.com','原创力文档'),('doc88.com','道客巴巴'),
-              ('docin.com','豆丁网'),('wenku.so.com','360文库'),('qupu123.com','中国曲谱网'))
+SOURCE_NAMES=(('gangqinpu.com','虫虫钢琴'),('tan8.com','弹琴吧'),('everyonepiano.cn','SUPERTANG AI 智能找谱'),
+              ('everyonepiano.com','SUPERTANG AI 智能找谱'),('book118.com','原创力文档'),('doc88.com','道客巴巴'),
+              ('docin.com','豆丁网'),('wenku.so.com','360文库'),('qupu123.com','中国曲谱网'),
+              ('imslp.org','IMSLP'),('musescore.com','MuseScore'))
 def source_name(host):
  host=(host or '').lower()
  for domain,name in SOURCE_NAMES:
   if host==domain or host.endswith('.'+domain):return name
  return host or '网页'
+
+# 搜索词后缀：钢琴类查询保持「钢琴谱」；提到其它乐器（大提琴 / 小提琴 …）改用「乐谱」，
+# 否则「贝多芬 大提琴 钢琴谱」必然搜不到大提琴谱。录音类仍是「钢琴独奏 视频」。
+_INSTRUMENTS=('大提琴','小提琴','中提琴','低音提琴','长笛','双簧管','单簧管','黑管','圆号','小号',
+ '长号','大号','竖琴','吉他','琵琶','古筝','二胡','竹笛','唢呐','萨克斯','管风琴','手风琴','打击乐',
+ '管乐','弦乐','铜管','木管','声乐','女高音','男高音')
+def web_suffix(query,recording):
+ if recording:return ' 钢琴独奏 视频'
+ if any(inst in query for inst in _INSTRUMENTS):return ' 乐谱'
+ return ' 钢琴谱'
+
+# 从自然语言里抽出「检索核心词」（空格分隔的作曲家/乐器/曲名），用于喂给搜索引擎并做
+# 相关性判断。以前把整句「找到有大提琴的贝多芬的曲子」原样丢给 360/搜狗，搜出来一堆
+# 无关页面、title_matches 又全判不相关 → 结果为空。核心词「贝多芬 大提琴」才搜得准。
+_COMPOSERS=('贝多芬','巴赫','莫扎特','海顿','舒伯特','肖邦','勃拉姆斯','柴可夫斯基','维瓦尔第',
+ '亨德尔','德彪西','李斯特','舒曼','门德尔松','拉威尔','圣-桑','圣桑','马勒','柏辽兹','德沃夏克',
+ '普罗科菲耶夫','肖斯塔科维奇','格里格','埃尔加','比才','德普西','古诺','威尔第','普契尼','唐尼采蒂',
+ '舒伯特','克莱门蒂','巴赫','科雷利','帕赫贝尔','卡农','致爱丽丝','月光','命运','第四交响曲','第五交响曲',
+ '第九交响曲','奏鸣曲','交响曲','协奏曲','练习曲','前奏曲','即兴曲','狂想曲')
+def search_core(query):
+ q=str(query or '')
+ terms=[]
+ m=re.search(r'[《「"]([^》」"]+)[》」"]',q)
+ if m:terms.append(m.group(1).strip())
+ for t in _COMPOSERS:
+  if t in q:terms.append(t)
+ for t in _INSTRUMENTS:
+  if t in q:terms.append(t)
+ for t in re.findall(r'[A-Za-z][A-Za-z0-9\-]{2,}',q):terms.append(t.strip())
+ seen=set();uniq=[]
+ for t in terms:
+  if t and t not in seen:seen.add(t);uniq.append(t)
+ if uniq:return ' '.join(uniq)
+ return re.sub(r'^(请|帮我|我要|我想|找|找到|搜索|查找|播放|听|一下)+','',q).strip()
+
+# IMSLP / MuseScore 是英文站：用户用中文查（「贝多芬 大提琴」）时，先把作曲家 / 乐器 /
+# 曲式翻成英文再投给站内搜索，否则英文站几乎必空。残留的中文（流行歌名等）清掉即可。
+_WESTERN={'贝多芬':'Beethoven','莫扎特':'Mozart','巴赫':'Bach','肖邦':'Chopin','舒伯特':'Schubert',
+ '海顿':'Haydn','勃拉姆斯':'Brahms','布拉姆斯':'Brahms','柴可夫斯基':'Tchaikovsky','维瓦尔第':'Vivaldi',
+ '亨德尔':'Handel','德彪西':'Debussy','李斯特':'Liszt','舒曼':'Schumann','门德尔松':'Mendelssohn',
+ '拉威尔':'Ravel','斯特拉文斯基':'Stravinsky','马勒':'Mahler','柏辽兹':'Berlioz','普罗科菲耶夫':'Prokofiev',
+ '大提琴':'cello','小提琴':'violin','中提琴':'viola','低音提琴':'double bass','钢琴':'piano','长笛':'flute',
+ '双簧管':'oboe','单簧管':'clarinet','黑管':'clarinet','圆号':'horn','小号':'trumpet','长号':'trombone',
+ '大号':'tuba','竖琴':'harp','吉他':'guitar','琵琶':'pipa','古筝':'guzheng','二胡':'erhu','竹笛':'dizi',
+ '唢呐':'suona','萨克斯':'saxophone','手风琴':'accordion','管风琴':'organ','打击乐':'percussion',
+ '奏鸣曲':'sonata','协奏曲':'concerto','交响曲':'symphony','组曲':'suite','前奏曲':'prelude','赋格':'fugue',
+ '变奏曲':'variations','练习曲':'etude','夜曲':'nocturne','圆舞曲':'waltz','进行曲':'march','小曲':'piece'}
+def western_query(query):
+ out=query
+ for zh,en in _WESTERN.items():out=out.replace(zh,en)
+ out=re.sub(r'[^\x00-\x7f]+',' ',out)
+ return ' '.join(out.split())
+
+def site_search(search_url,selector,source,query,deadline,skip=None,require_match=True):
+ """在单个乐谱站站内搜索，返回结果列表（空也行）。单站失败只记一笔，不拖累其它站。
+ require_match=False 时信任站点自身搜索、不再做中文标题匹配（用于英文站，标题是英文）。"""
+ try:
+  r=requests.get(search_url,timeout=remaining(deadline),headers=BROWSER_HEADERS);r.raise_for_status()
+  r.encoding=r.apparent_encoding or 'utf8'
+  soup=BeautifulSoup(r.text,'html.parser');out=[];seen=set()
+  for a in soup.select(selector):
+   title=a.get_text(' ',strip=True);href=urljoin(search_url,a.get('href',''))
+   if not href.startswith('http') or len(title)<4 or href in seen:continue
+   if skip and skip(href):continue
+   if require_match and not title_matches(query,title):continue
+   seen.add(href);out.append({'title':title[:120],'url':href,'directPdf':False,'source':source})
+   if len(out)>=8:break
+  return out
+ except requests.RequestException:return []
 
 def resolve_target(url):
  """把搜索结果的跳转链解析成真实地址。
@@ -107,42 +177,49 @@ def handle(handler,server=None):
    query=str(payload.get('query','')).strip()[:150]
    if not query:raise ValueError('请提供曲名')
    deadline=time.monotonic()+SEARCH_BUDGET
-   search_url='https://www.everyonepiano.cn/Music-search?'+urlencode({'word':query})
+   recording=payload.get('kind')=='recording'
    items=[];blocked=[]
-   # ① Everyone Piano 站内搜索最权威（结果就是可直接打开的曲谱页），但它对自动化请求
+   core=search_core(query) or query
+   search_url='https://www.everyonepiano.cn/Music-search?'+urlencode({'word':core})
+   # ① 该曲谱站站内搜索最权威（结果就是可直接打开的曲谱页），但它对自动化请求
    #    直接 302 到验证码页，所以这条腿经常拿不到东西，只作为第一优先尝试。
+   #    ★ IMSLP / MuseScore 曾试过并行站内抓取：IMSLP 会 302 到 friendlytest.html 反爬
+   #      页、MuseScore 直接 403 —— 两者都拿不到结果、还白白吃掉 8 秒时间预算，已移除。
+   #      「多个乐谱库」改由 ② 的通用搜索承担：实测「贝多芬 大提琴」在 360/搜狗 能搜到
+   #      道客巴巴 / 豆丁网 / 虫虫钢琴等多个真实来源的分谱（见 SOURCE_NAMES 归类）。
    try:
+    if recording:raise requests.RequestException('recording search')
     r=requests.get(search_url,timeout=remaining(deadline),headers=BROWSER_HEADERS);r.raise_for_status();r.encoding='utf8'
-    if 'captcha' in (r.url or '').lower():blocked.append('Everyone Piano 要求人机验证')
+    if 'captcha' in (r.url or '').lower():blocked.append('该曲谱站要求人机验证')
     else:
      soup=BeautifulSoup(r.text,'html.parser');seen=set()
      for link in soup.select('a[href]'):
       title=link.get_text(' ',strip=True);url=urljoin(search_url,link['href'])
-      if re.search(r'/Music-\d+',urlparse(url).path) and title_matches(query,title) and url not in seen:
-       seen.add(url);items.append({'title':title,'url':url,'directPdf':False,'source':'Everyone Piano'})
+      if re.search(r'/Music-\d+',urlparse(url).path) and title_matches(core,title) and url not in seen:
+       seen.add(url);items.append({'title':title,'url':url,'directPdf':False,'source':'SUPERTANG AI 智能找谱'})
       if len(items)>=8:break
-   except requests.RequestException:blocked.append('Everyone Piano 连不上')
+   except requests.RequestException:blocked.append('该曲谱站连不上')
    # ② 兜底换成中文搜索（360 / 搜狗）。
    #    ★ 以前这里用的是 Bing 的 site: 语法，但 cn.bing.com **会忽略 site:，
    #    并把「卡农 钢琴谱 pdf」当成单字查询**，返回一堆汉语字典页，再被 host 过滤掉 ——
    #    等于白等 15 秒还必然为空（这就是 directPdf 恒为 false 的真因）。
    #    实测 360 / 搜狗 都能返回真实相关结果，且它们的跳转链在浏览器里点得开。
    for engine,url,params,selector in (
-    ('360 搜索','https://www.so.com/s',{'q':query+' 钢琴谱'},'.res-list a[href]'),
-    ('搜狗','https://www.sogou.com/web',{'query':query+' 钢琴谱'},'.vrwrap a[href], .rb a[href]'),
+    ('360 搜索','https://www.so.com/s',{'q':core+(' 钢琴独奏 视频' if recording else web_suffix(core,recording))},'.res-list a[href]'),
+    ('搜狗','https://www.sogou.com/web',{'query':core+(' 钢琴独奏 视频' if recording else web_suffix(core,recording))},'.vrwrap a[href], .rb a[href]'),
    ):
-    if items or time.monotonic()>=deadline:break
+    if len(items)>=8 or time.monotonic()>=deadline:break
     try:
      r=requests.get(url,params=params,timeout=remaining(deadline),headers=BROWSER_HEADERS);r.raise_for_status()
      r.encoding=r.apparent_encoding or 'utf8'
      soup=BeautifulSoup(r.text,'html.parser');seen={x['url'] for x in items}
      for a in soup.select(selector):
       title=a.get_text(' ',strip=True)
-      if len(title)<6 or not title_matches(query,title):continue
+      if len(title)<6 or not title_matches(core,title):continue
       # ★ 噪声和「像不像曲谱页」必须在**收集阶段**就判掉：
       #   之前放在收集之后，于是「致爱丽丝」这种 360 只给图片结果的查询，
       #   收集时算有结果 → 不再试搜狗 → 过滤后变空 → 只剩兜底链接。
-      if not looks_like_score(title) or is_noise(title):continue
+      if (not recording and not looks_like_score(title)) or is_noise(title):continue
       href=urljoin(url,a.get('href',''))
       if not href.startswith('http') or href in seen:continue
       seen.add(href);items.append({'title':title[:120],'url':href,'directPdf':False,'source':engine})
@@ -169,8 +246,12 @@ def handle(handler,server=None):
     if item['url'] in seen:continue
     seen.add(item['url']);deduped.append(item)
    items=deduped
+   if recording:
+    supported=('youtube.com','youtu.be','bilibili.com','b23.tv','soundcloud.com')
+    items=[x for x in items if any((urlparse(x['url']).hostname or '').lower()==h or (urlparse(x['url']).hostname or '').lower().endswith('.'+h) for h in supported)]
+    return handler.json_response({'results':items[:8],'notice':'' if items else '没有找到可验证的演奏链接。可以粘贴歌曲或视频地址进行转谱。'})
    # ④ 一条都没找到时，至少留一个站内搜索入口，别让用户对着空气。
-   if not items:items=[{'title':'在 Everyone Piano 搜索《'+query+'》','url':search_url,'directPdf':False,'source':'Everyone Piano'}]
+   if not items:items=[{'title':'在 SUPERTANG AI 智能找谱 搜索《'+query+'》','url':search_url,'directPdf':False,'source':'SUPERTANG AI 智能找谱'}]
    # ⑤ 说清楚现状（报告 #7）：这些站点基本都要登录或 VIP，别让用户以为点一下就能自动下载。
    notice=('本次自动检索受限（'+'；'.join(blocked)+'）。') if blocked else ''
    notice+='这些页面多数需要登录或 VIP 才能下载：打开页面把 PDF 下载下来，拖进曲库就能自动识谱；也可以把文件地址发给我，我帮你导入。'

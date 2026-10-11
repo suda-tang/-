@@ -1,6 +1,6 @@
 import {boardFocus} from './mentor-camera-cues.js?v=1';
 import {createMentorClassroom} from './mentor-classroom.js?v=auto-discovery28';
-import {createPortraitMentor} from './mentor-portrait-model.js?v=cinematic16';
+import {createPortraitMentor} from './mentor-portrait-model.js?v=identity17';
 import * as THREE from './vendor/three/three.module.js';
 import {OrbitControls} from './vendor/three/OrbitControls.js';
 export function attachNarrationAvatar(host,audio,{embedded=false,cinematic=false}={}){

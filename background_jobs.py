@@ -60,13 +60,14 @@ def tasks():
    stage=row['detail'] or KINDS.get(row['kind'],'处理')
    db.execute("UPDATE jobs SET status='failed',detail=?,updated=? WHERE id=?",(f"任务停在“{stage}”超过 3 分钟，后台进程可能已中断；可在任务中心重新处理。",now,row['id']))
   rows=db.execute("SELECT * FROM jobs ORDER BY CASE status WHEN 'running' THEN 0 WHEN 'queued' THEN 1 ELSE 2 END,updated DESC LIMIT 120").fetchall()
- result=[]
+ result=[];title_cache={}
  for row in rows:
-  item=dict(row);title=''
-  try:
-   meta=json.loads((CACHE/(item['digest']+'.metadata.json')).read_text(encoding='utf-8'));title=meta.get('userTitle') or meta.get('ocrTitle') or meta.get('title') or ''
-  except (OSError,ValueError):pass
-  item['scoreTitle']=score_title(item['digest']);item['label']=item['scoreTitle']+'　'+KINDS.get(item['kind'],item['kind'])
+  item=dict(row);digest=item['digest']
+  # 这里原来先读一遍 .metadata.json 取 title，但 title 从未被使用（死代码），
+  # 之后又调 score_title() 再读两遍文件 —— 每行 3 次文件读取。去掉死代码并按
+  # digest 缓存 score_title，任务中心（/api/tasks）的磁盘操作随之大幅下降。
+  if digest not in title_cache:title_cache[digest]=score_title(digest)
+  item['scoreTitle']=title_cache[digest];item['label']=item['scoreTitle']+'　'+KINDS.get(item['kind'],item['kind'])
   if item['status']=='failed' and ('inspect-score' in (item['detail'] or '') or 'Command [' in (item['detail'] or '')):
    item['detail']=friendly_error(item['kind'],item['detail'])
   item['canPrioritize']=item['status']=='queued'

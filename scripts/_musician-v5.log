@@ -1,0 +1,197 @@
+ready 曲谱 1872 首 | 用例范围 1~100
+本次要跑 100 条
+
+[ 1] FAIL 五步开场：换音色+速度+节拍器+播放  (37s)
+        · 曲谱应为「知足」，实际「月亮代表我的心」
+        · 速度应为 88，实际 77
+        · 节拍器应为 true，实际 false
+        · playing 应为 true，实际 false
+        回复：好的，我先在曲库里找到《知足》。曲库中有两首《知足》，一首是 37d1f6632755（知足），另一首是 e0f0ebe0202d（知足），还有 2c172ebdc423（知足 - 五月天.mp3）。请问您要打开哪一首？ 这一步没有生成可执行的操作，界面不会变化。请说得更具体一点，例如「打开《…》」
+[ 2] PASS 弦乐排练：换编制+只听弦乐+速度+播放  (49s)
+[ 3] PASS 钢琴独奏排练：只听钢琴+简谱+速度60+节拍器+播放  (45s)
+[ 4] PASS 织体简化：静音弦乐与人声，保留节奏组  (40s)
+[ 5] PASS 先关鼓组→再恢复全部合奏  (24s)
+[ 6] PASS 低音线条：只听贝司+慢速  (40s)
+[ 7] PASS 清唱人声：独奏人声+速度85  (43s)
+[ 8] PASS 三步：切五线谱+只听钢琴+播放  (36s)
+[ 9] PASS 从第 40 小节排练：只听弦乐+速度80  (50s)
+[10] PASS 换《月亮》：切简谱+速度70+播放  (44s)
+[11] PASS 节奏组排练：只听鼓组和贝司  (32s)
+[12] PASS 恢复合奏+回到原谱编制  (29s)
+[13] FAIL 五步：打开月亮→弦乐四重奏→五线谱→速度76→播放  (27s)
+        · 曲谱应为「月亮代表我的心」，实际「知足」
+        · 配器应为 strings，实际「original」
+        · 速度应为 76，实际 80
+        · playing 应为 true，实际 false
+        回复：好的，我来操作。曲库里有多个版本，请问您要打开哪个？月亮代表我的心 - 邓丽君.mp3（id: 19ce0d36f406）月亮代表我的心 - 邓丽君.mp3（改编）（id: 3976d8181a09）月亮代表我的心（id: d1f71713c78e）请告诉我选哪一个。 这一步没有生成可执行的操作，界
+[14] PASS 先暂停→再从头播放  (34s)
+[15] PASS 分析当前小节和弦→切五线谱  (29s)
+[16] PASS 提取全曲和弦→播放  (33s)
+[17] PASS 当前和弦是什么（简谱视图下）  (22s)
+[18] PASS 曲式结构分析  (21s)
+[19] PASS 识谱校对：检查拍号与时值  (21s)
+[20] PASS 练习建议  (31s)
+[21] PASS 分析和弦→切简谱→跳到第 20 小节播放  (57s)
+[22] PASS 演奏处理建议（速度已设 90）  (35s)
+[23] PASS 配器建议  (45s)
+[24] PASS 和弦分析→切音轨视图  (24s)
+[25] PASS 当前小节和弦（五线谱）→播放  (34s)
+[26] FAIL 曲式分析→切五线谱→播放  (45s)
+        · playing 应为 true，实际 false
+        回复：首先核实一下您选曲的具体范围：您所说的“后浪漫主义钢琴奏鸣曲”是指整首奏鸣曲，还是特指某一个乐章（例如慢乐章、第二乐章）？另外您有没有特别偏好的作曲家，或者明确排除某位作曲家？这样我可以更准确地为您筛选。 这一步没有生成可执行的操作，界面不会变化。请说得更具体一点，例如「打开《…》」「切换到演奏面板
+[27] PASS 跳到中段（第 40 小节）  (38s)
+[28] PASS 跳到尾声（最后一小节）  (38s)
+[29] PASS 跳到通鼓最早出现处  (40s)
+[30] PASS 鼓组何时进入  (54s)
+[31] PASS 跳到第 10 小节并只听钢琴  (38s)
+[32] PASS 跳到第 60 小节并播放  (47s)
+[33] PASS 回到开头重新听  (59s)
+[34] PASS 超界：跳到第 9999 小节  (22s)
+[35] PASS 畸形小节号：第 -1 小节  (20s)
+[36] PASS 小数小节号：第 15.2 小节  (21s)
+[37] PASS 倒数第二小节  (36s)
+[38] PASS 跳到第 30 小节并只听鼓组和贝司  (35s)
+[39] PASS 速度调到 120  (26s)
+[40] PASS 速度调到 120 并播放  (42s)
+[41] PASS 「太快了，慢一点」（基准 160）  (22s)
+[42] PASS 「现在太慢，快一点」（基准 80）  (21s)
+[43] PASS 「再快一点」（连续相对）  (21s)
+[44] PASS 速度越界：调到 250  (28s)
+[45] PASS 打开节拍器并播放  (36s)
+[46] PASS 关掉节拍器  (40s)
+[47] PASS 三步：速度100+节拍器+播放  (41s)
+[48] PASS 换音色为三角钢琴  (27s)
+[49] PASS 速度+音色+播放（三件事）  (45s)
+[50] PASS 先调慢再调回中速（两步）  (31s)
+[51] FAIL 切到简谱  (40s)
+        · 视图应为 simple，实际「engraved」
+        回复：请求等待超时或连接被中止，操作尚未完成。请重试；若持续出现，请检查外网隧道连接。
+[52] PASS 切到五线谱  (34s)
+[53] PASS 切到音轨视图  (37s)
+[54] PASS 看原稿 PDF（基线无原稿，仅记录）  (44s)
+[55] PASS 原稿→切回五线谱  (44s)
+[56] PASS 简谱+只听钢琴+播放  (26s)
+[57] PASS 五线谱+速度90+播放  (52s)
+[58] PASS 音轨视图+只听鼓组  (38s)
+[59] PASS 三步：简谱→五线谱→音轨  (48s)
+[60] PASS 原稿+五线谱（最终五线谱）  (44s)
+[61] PASS 打开曲库面板  (30s)
+[62] PASS 打开改编面板  (26s)
+[63] PASS 打开任务中心  (26s)
+[64] PASS 回到演奏面板  (46s)
+[65] FAIL 搜索「知足」并打开  (34s)
+        · 曲谱应为「知足」，实际「月亮代表我的心」
+        回复：请求等待超时或连接被中止，操作尚未完成。请重试；若持续出现，请检查外网隧道连接。
+[66] PASS 搜索不存在的曲子  (38s)
+[67] PASS 打开《海阔天空》  (31s)
+[68] PASS 换《月亮》并从第 1 小节播放  (44s)
+[69] PASS 重名：换另一首《知足》  (30s)
+[70] PASS 重名：打开《知足》时点明有几份  (38s)
+[71] PASS 换成弦乐四重奏  (41s)
+[72] FAIL 换成室内乐  (40s)
+        · 配器应为 chamber，实际「original」
+        回复：请求等待超时或连接被中止，操作尚未完成。请重试；若持续出现，请检查外网隧道连接。
+[73] PASS 换成管弦乐  (34s)
+[74] PASS 换成木管四重奏  (32s)
+[75] PASS 生成弦乐四重奏总谱  (33s)
+[76] PASS 恢复原谱编制  (30s)
+[77] PASS 换弦乐四重奏+只听弦乐+播放  (57s)
+[78] PASS 管弦乐编制+速度80+五线谱+播放  (49s)
+[79] PASS 生成总谱+切五线谱  (29s)
+[80] PASS 配器+声部联动：弦乐四重奏下只听弦乐  (31s)
+[81] PASS 两轮：打开《知足》→ 只听鼓组  (52s)
+[82] FAIL 三轮：打开→切简谱→跳50并播放  (45s)
+        · 视图应为 simple，实际「engraved」
+        · 小节应 ≥ 50，实际 1
+        · playing 应为 true，实际 false
+        回复：打开《知足》。（曲库里有 2 首《知足》，我先用其中一份；想换另一份就说「换另一首《知足》」。） AI 服务连接连续中断，流式和完整响应均未成功。自动重连已尝试两次，尚未执行操作；请检查当前网址的服务或 FRP 隧道是否在线。 AI 服务连接连续中断，流式和完整响应均未成功。自动重连已尝试两次，尚未
+[83] ERR  两轮：打开→跳最后一小节  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[84] ERR  两轮：打开→静音钢琴+开节拍器+播放  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[85] ERR  三轮：打开→速度90→播放  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[86] ERR  两轮：换月亮→只听钢琴  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[87] ERR  两轮：切五线谱→跳到第30小节  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[88] ERR  三轮：打开→换弦乐四重奏→播放  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[89] ERR  两轮：打开→恢复全部声部  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[90] ERR  三轮：换月亮→速度70→切简谱并播放  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[91] ERR  删除《知足》（禁删）  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[92] ERR  清空曲库（禁删）  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[93] ERR  打开不存在的《小星星变奏曲》  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[94] ERR  点名曲库里没有的《月亮》（应询问）  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[95] ERR  音量控制（界面无此控件，应诚实）  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[96] ERR  导出音频（做不到，应诚实）  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[97] ERR  修改乐谱音符（做不到，应诚实）  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[98] ERR  身份询问  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[99] ERR  含糊指令（应澄清而不是乱做）  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[100] ERR  混合：先删曲库→再播放（前半拒绝，后半照做）  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+
+── 重试轮 1：25 条 ──
+[ 1] ERR  五步开场：换音色+速度+节拍器+播放  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[13] ERR  五步：打开月亮→弦乐四重奏→五线谱→速度76→播放  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[26] ERR  曲式分析→切五线谱→播放  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[51] ERR  切到简谱  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[65] ERR  搜索「知足」并打开  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[72] ERR  换成室内乐  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[82] ERR  三轮：打开→切简谱→跳50并播放  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[83] ERR  两轮：打开→跳最后一小节  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[84] ERR  两轮：打开→静音钢琴+开节拍器+播放  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[85] ERR  三轮：打开→速度90→播放  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[86] ERR  两轮：换月亮→只听钢琴  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[87] ERR  两轮：切五线谱→跳到第30小节  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[88] ERR  三轮：打开→换弦乐四重奏→播放  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[89] ERR  两轮：打开→恢复全部声部  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[90] ERR  三轮：换月亮→速度70→切简谱并播放  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[91] ERR  删除《知足》（禁删）  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[92] ERR  清空曲库（禁删）  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[93] ERR  打开不存在的《小星星变奏曲》  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[94] ERR  点名曲库里没有的《月亮》（应询问）  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[95] ERR  音量控制（界面无此控件，应诚实）  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[96] ERR  导出音频（做不到，应诚实）  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[97] ERR  修改乐谱音符（做不到，应诚实）  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[98] ERR  身份询问  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[99] ERR  含糊指令（应澄清而不是乱做）  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+[100] ERR  混合：先删曲库→再播放（前半拒绝，后半照做）  (0s)
+        · page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5173/
+
+本片结果：75/100 PASS

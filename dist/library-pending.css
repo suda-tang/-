@@ -46,6 +46,7 @@ html,body{touch-action:pan-x pan-y}
 @media(min-width:601px){.studio .library-heading-row>.library-navigation{grid-template-columns:repeat(5,44px)!important;gap:4px!important;width:236px!important}.studio .library-heading-row>.library-navigation>button{width:44px!important;height:44px!important;padding:0!important}}
 
 .studio .library-browser .library-card-stack{content-visibility:auto;contain-intrinsic-size:auto 330px}
+.studio .library-browser .library-score{content-visibility:auto;contain-intrinsic-size:auto 255px}
 
 .library-mobile-pages{grid-column:1/-1;display:flex;align-items:center;justify-content:center;gap:16px;flex:0 0 100%;padding:16px 0}.library-mobile-pages button{border:1px solid #ffffffb0;border-radius:20px;padding:9px 16px;background:#ffffffb0;color:var(--studio-accent)}
 .library-low-memory .library-score,.library-low-memory .library-card-stack{transform-style:flat!important;will-change:auto!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
@@ -73,10 +74,10 @@ html,body{touch-action:pan-x pan-y}
 
 /* Entrances are scheduled only when a deck becomes visible. */
 .studio .library-browser .library-category-stack{animation:none}
-.studio .library-browser::backdrop{animation:library-backdrop-in .46s ease both}
-.studio .library-browser.is-closing::backdrop{animation:library-backdrop-out .46s ease both}
+.studio .library-browser::backdrop{animation:library-backdrop-in .82s cubic-bezier(.22,.72,.2,1) both}
+.studio .library-browser.is-closing::backdrop{animation:library-backdrop-out .82s cubic-bezier(.4,0,.2,1) both}
 @keyframes library-backdrop-in{from{opacity:0}to{opacity:1}}
 @keyframes library-backdrop-out{from{opacity:1}to{opacity:0}}
-@media(prefers-reduced-motion:reduce){.studio .library-browser::backdrop{animation:none}}
+@media(prefers-reduced-motion:reduce){.studio .library-browser::backdrop,.studio .library-browser.is-closing::backdrop{animation:none}}
 
 .library-search-state{display:flex;align-items:center;gap:10px}.library-search-state>span{flex:1;min-width:0;overflow-wrap:anywhere}.library-search-state small{white-space:nowrap;font-variant-numeric:tabular-nums}.library-search-state button{flex:0 0 28px!important;width:28px!important;height:28px!important;min-height:28px!important;padding:0!important;border-radius:50%!important;background:#ffffff60!important;color:inherit!important}.library-search-meter{height:4px;margin-top:8px;overflow:hidden;border-radius:999px;background:#bca7bb25}.library-search-meter i{display:block;width:0;height:100%;border-radius:inherit;background:linear-gradient(90deg,#79baf3,#ac8ddd,#df94b8,#edb696);transition:width .25s ease}

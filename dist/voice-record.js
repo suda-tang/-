@@ -1,3 +1,4 @@
+import {createAudioPreview} from './audio-preview.js';
 import {requireUploadAccess} from './upload-auth.js';
 import {initMentorVoice} from './mentor-voice.js';
 const $=s=>document.querySelector(s);
@@ -8,13 +9,15 @@ const message=t=>$('#message').textContent=t;
 function controls(){ $('#record').disabled=busy||!prompts.length;$('#save').disabled=busy||!blob||saved;$('#record').hidden=recording;$('#stop').hidden=!recording;document.body.classList.toggle('recording',recording);document.querySelectorAll('nav button').forEach(b=>b.disabled=busy); }
 function dispose(){clearInterval(ticker);cancelAnimationFrame(raf);stream?.getTracks().forEach(t=>t.stop());stream=null;if(context){context.close().catch(()=>{});context=null;}$('#meter').style.transform='scaleX(0)';}
 function select(i){if(busy)return;if(blob&&!saved&&!confirm('这一段还没有保存，切换会放弃它。继续吗？'))return;index=i;blob=null;saved=false;if(url)URL.revokeObjectURL(url);$('#preview').pause();$('#preview').removeAttribute('src');$('#preview').hidden=true;$('#download').hidden=true;$('#next').hidden=true;$('#upload').hidden=true;$('#clock').textContent='00:00';$('#level').textContent='准备好后开始';$('#label').textContent=`第 ${i+1} 段 / ${prompts.length} 段`;$('#title').textContent=prompts[i].title;$('#script').textContent=prompts[i].text;document.querySelectorAll('nav button').forEach((b,j)=>b.setAttribute('aria-current',String(i===j)));message('按自己的语气完整读一遍，读完按“结束录音”。');controls();}
-async function playPersonalTrial(item,button,variant=''){button.disabled=true;try{const r=await fetch(`/api/voice-reference/self/${item.id}/trial${variant?'?variant=cosy':''}`);if(!r.ok){const d=await r.json();throw Error(d.error||'试听不可用。');}const a=new Audio(URL.createObjectURL(await r.blob()));a.onended=()=>URL.revokeObjectURL(a.src);await a.play();message(variant==='cosy'?'正在播放 CosyVoice 对照试听。':'正在播放唐秋鸣个人旁白试听。');}catch(e){message(e.message||'试听暂时无法播放。');}finally{button.disabled=false;}}
+const personalPreview=createAudioPreview(message);
+function playPersonalTrial(item,button,variant=''){return personalPreview.play(`/api/voice-reference/self/${item.id}/trial${variant?'?variant=cosy':''}`,button,variant==='cosy'?'正在播放 CosyVoice 对照试听。':'正在播放唐秋鸣个人旁白试听。');}
+
 async function refresh(){const r=await fetch('/api/voice-reference');const data=await r.json();if(!r.ok)throw Error(data.error||'暂时无法连接，请稍后重试。');records=data.recordings;$('#saved').replaceChildren();for(const p of prompts){const matched=records.filter(r=>r.promptId===p.id),n=matched.length;const li=document.createElement('li');li.textContent=p.title+(n?`：已保存 ${n} 次`:'：待录制');const trial=matched.find(r=>r.trialReady);if(trial){const b=document.createElement('button');b.type='button';b.className='personal-trial';b.textContent='播放个人试听';b.onclick=()=>playPersonalTrial(trial,b);li.append(b);}const cosy=matched.find(r=>r.cosyTrialReady);if(cosy){const b=document.createElement('button');b.type='button';b.className='personal-trial';b.textContent='CosyVoice 对照';b.onclick=()=>playPersonalTrial(cosy,b,'cosy');li.append(b);}$('#saved').append(li);}}
 $('#record').onclick=async()=>{
  if(blob&&!saved&&!confirm('重新录制会替换未保存的这一段，继续吗？'))return;
  if(!isSecureContext||!navigator.mediaDevices?.getUserMedia){message('麦克风需要安全连接。请使用 HTTPS 专属链接，或在本机 localhost 打开。');return;}
  if(!window.MediaRecorder){message('此浏览器不支持网页录音，请使用新版 Safari、Edge 或 Chrome。');return;}
- busy=true;controls();$('#preview').pause();message('请允许使用麦克风…');
+ busy=true;controls();personalPreview.stop();$('#preview').pause();message('请允许使用麦克风…');
  try{
  stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
  const mime=['audio/webm;codecs=opus','audio/mp4','audio/ogg;codecs=opus'].find(t=>MediaRecorder.isTypeSupported(t));if(!mime)throw Error('此浏览器没有支持的录音格式，请换用 Safari、Edge 或 Chrome。');
@@ -41,5 +44,5 @@ $('#save').onclick=()=>{
 };
 $('#next').onclick=()=>select(index+1);
 addEventListener('beforeunload',e=>{if(recording||busy||(blob&&!saved)){e.preventDefault();e.returnValue='';}});
-addEventListener('pagehide',()=>{if(recorder?.state==='recording')recorder.stop();dispose();});
+addEventListener('pagehide',()=>{personalPreview.stop();if(recorder?.state==='recording')recorder.stop();dispose();});
 try{const response=await fetch('/voice-prompts.json');if(!response.ok)throw Error('朗读稿加载失败，请刷新。');prompts=await response.json();prompts.forEach((p,i)=>{const b=document.createElement('button');b.textContent=`${i+1}`;b.setAttribute('aria-label',p.title);b.onclick=()=>select(i);$('#segments').append(b);});select(0);await refresh();}catch(e){message(e.message);}controls();

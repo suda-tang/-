@@ -1,4 +1,5 @@
 import { sheetWidth } from './engraving.js';
+import { yieldToBrowser } from './yield-to-browser.js?v=1';
 const DEGREE=['1','2','3','4','5','6','7'];
 const NATURAL=[0,2,4,5,7,9,11];
 const round=(n,p=3)=>Math.round(n*10**p)/10**p;
@@ -74,7 +75,7 @@ function* renderSimpleSteps(container,score){
 export function renderSimpleNotation(container,score){for(const _ of renderSimpleSteps(container,score)){} }
 export async function renderSimpleNotationAsync(container,score,{cancelled=()=>false}={}){
  const iterator=renderSimpleSteps(container,score);let deadline=performance.now()+8;
- for(const _ of iterator){if(cancelled())return;if(performance.now()>deadline){await new Promise(resolve=>setTimeout(resolve,0));deadline=performance.now()+8;}}
+ for(const _ of iterator){if(cancelled())return;if(performance.now()>deadline){await yieldToBrowser();deadline=performance.now()+8;}}
 }
 
 export function materializeSimpleSystem(system){

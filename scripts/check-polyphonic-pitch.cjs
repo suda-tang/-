@@ -1,0 +1,12 @@
+const assert=require('node:assert/strict');
+const {chromium}=require('C:/Users/mail/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+(async()=>{const browser=await chromium.launch({channel:'msedge',headless:true});try{
+ const page=await browser.newPage(),errors=[];page.on('console',m=>{if(m.type()==='error')console.error(m.text());});page.on('pageerror',e=>errors.push(e.message));await page.route('**/api/scores',r=>r.fulfill({json:{scores:[]}}));await page.goto('http://127.0.0.1:5173/');
+ const result=await page.evaluate(async()=>{
+  const {PolyphonicPitchStream,groupOnsets}=await import('/pitch-stream.js');const model=new PolyphonicPitchStream(()=>{},()=>{});const loaded=performance.now();await model.initialize();const loadMs=performance.now()-loaded;
+  const fixtures=[[60],[48,60],[60,64,67],[48,55,60,64,67],[72,76,79]],results=[];
+  for(const pitches of fixtures){const context=new OfflineAudioContext(1,44100,22050);for(const midi of pitches){const root=21+Math.round((midi-21)/3)*3,name=['C','Cs','D','Ds','E','F','Fs','G','Gs','A','As','B'][root%12]+(Math.floor(root/12)-1);const response=await fetch('/assets/piano/salamander/'+name+'v8.mp3');if(!response.ok)throw Error('piano fixture unavailable: '+name);const buffer=await context.decodeAudioData(await response.arrayBuffer()),source=context.createBufferSource(),gain=context.createGain();source.buffer=buffer;source.playbackRate.value=2**((midi-root)/12);gain.gain.value=.65/Math.sqrt(pitches.length);source.connect(gain);gain.connect(context.destination);source.start(.2);source.stop(1.4);}const audio=await context.startRendering(),begin=performance.now();const notes=await model.infer(Float32Array.from(audio.getChannelData(0)));const ms=performance.now()-begin;const groups=groupOnsets(notes,0,0,1.8),heard=[...new Set(groups.filter(g=>g.start<.5).flatMap(g=>g.pitches))].sort((a,b)=>a-b);const matched=heard.filter(n=>pitches.includes(n)).length,f1=2*matched/Math.max(1,heard.length+pitches.length);results.push({pitches,heard,f1,ms:Math.round(ms),groups});}
+  const silence=await model.infer(new Float32Array(22050));model.stop();return {loadMs:Math.round(loadMs),results,silence,errors:[]};
+ });
+ assert.equal(result.silence.length,0);assert.ok(result.results.every(r=>r.f1>=.8),JSON.stringify(result));assert.ok(result.results.every(r=>r.ms<15000));assert.deepEqual(errors,[]);console.log(JSON.stringify(result,null,2));
+ }finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

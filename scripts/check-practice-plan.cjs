@@ -1,0 +1,21 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const {chromium}=require('C:/Users/mail/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+(async()=>{const browser=await chromium.launch({channel:'msedge',headless:true});try{
+ for(const width of [390,1440]){
+  const page=await browser.newPage({viewport:{width,height:1000}}),errors=[];let payload;
+  page.on('pageerror',e=>errors.push(e.message));await page.emulateMedia({reducedMotion:'reduce'});
+  await page.route('**/api/scores',r=>r.fulfill({json:{scores:[]}}));await page.route('**/api/ai-tasks**',r=>r.fulfill({json:{tasks:[]}}));
+  await page.route('**/engine.js',r=>r.fulfill({contentType:'application/javascript',body:fs.readFileSync('dist/engine.js','utf8')+'\nPitchListener.prototype.start=async function(notes){window.planTestNotes=notes;};PitchListener.prototype.stop=function(){};'}));
+  await page.route('**/api/workspace-ai',r=>{payload=r.request().postDataJSON();const plan={scoreVersion:payload.context.practiceVersion,goal:'先分段，再连起来',steps:[{start:1,end:2,bpm:60,rounds:2,method:'先核对低音，再合手。',criterion:'自己听每拍是否均匀。'},{start:3,end:4,bpm:72,rounds:1,method:'保持同一速度连接短句。',criterion:'自己检查句尾是否抢拍。'}]};return r.fulfill({contentType:'application/x-ndjson',body:JSON.stringify({type:'result',reply:'分段建议已提供，确认后应用。',actions:[{type:'practice_plan',value:JSON.stringify(plan)}]})+'\n'});});
+  await page.goto('http://127.0.0.1:5173/');await page.waitForFunction(()=>!!document.querySelector('.follow-content'));await page.evaluate(()=>{document.addEventListener('practice-state',e=>window.planState=e.detail);document.querySelector('#sample-button').click();document.querySelector('[data-panel=play]').click();document.querySelector('.practice-settings').open=true;});await page.waitForFunction(()=>window.planState?.total>0);
+  await page.locator('[data-action=advice]').click();await page.waitForFunction(()=>document.querySelector('.ai-conversation').open);await page.locator('.ai-conversation form').evaluate(f=>f.requestSubmit());await page.waitForSelector('.follow-plan:not([hidden])');await page.waitForFunction(()=>!document.querySelector('.ai-conversation').classList.contains('is-thinking'));
+  assert.ok(payload.context.practiceRequest);assert.equal(await page.locator('#tempo').inputValue(),'80');assert.equal(await page.evaluate(()=>window.planState.range),null);
+  const center=await page.locator('[data-action=advice]').evaluate(el=>({display:getComputedStyle(el).display,justify:getComputedStyle(el).justifyContent,align:getComputedStyle(el).alignItems}));assert.deepEqual(center,{display:'flex',justify:'center',align:'center'});
+  await page.locator('[data-setting=bpm]').fill('55');await page.locator('[data-setting=start]').fill('2');await page.locator('[data-setting=end]').fill('3');await page.getByRole('button',{name:'确认应用，准备第一段'}).click();assert.equal(await page.locator('#tempo').inputValue(),'55');assert.deepEqual(await page.evaluate(()=>window.planState.range),{start:2,end:3});assert.ok(await page.locator('[data-next]').isDisabled());
+  for(let round=0;round<2;round++)await page.evaluate(async()=>{const {sampleScore}=await import('/score.js?v=chunk-plan4');await document.querySelector('#start-button').onclick();let t=0;for(const e of sampleScore().events.filter(e=>e.measure>=2&&e.measure<=3)){window.planTestNotes(e.pitches,t);t+=60/55;}});
+  assert.ok((await page.locator('.follow-plan-progress').textContent()).includes('2 / 2'));assert.ok(await page.locator('[data-next]').isEnabled());await page.locator('[data-next]').click();assert.equal(await page.locator('#tempo').inputValue(),'72');assert.deepEqual(await page.evaluate(()=>window.planState.range),{start:3,end:4});
+  const stale=await page.evaluate(()=>{let result;document.dispatchEvent(new CustomEvent('practice-plan-proposed',{detail:{plan:{scoreVersion:'old',goal:'invalid',steps:[]},resolve:r=>result=r}}));return result;});assert.ok(stale.error);assert.equal(await page.locator('#tempo').inputValue(),'72');assert.deepEqual(errors,[]);
+  console.log(JSON.stringify({width,previewDidNotMutate:true,applyRangeAndTempo:true,completedRounds:2,nextStep:true,staleRejected:true,center,errors}));await page.close();
+ }
+ }finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

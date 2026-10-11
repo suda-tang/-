@@ -14,3 +14,16 @@ html{scrollbar-gutter:stable}
 .studio .workspace-stage,.studio .workspace-stage>.workspace-panel{display:flow-root}
 
 .studio .workspace-stage.is-sizing{overflow:clip}
+
+/* Freeze only the handoff. Hover/deck transitions must not change measured endpoints. */
+.studio .library-list.cards-transferring .library-score{transition:none!important;animation:none!important}
+.studio .library-browser{scrollbar-gutter:stable;overflow-anchor:none}
+.studio .library-browser .library-list{overflow-anchor:none;scroll-snap-type:none!important}
+@media(max-width:600px){#language-wheel .language-mist{backdrop-filter:blur(18px) saturate(1.15);-webkit-backdrop-filter:blur(18px) saturate(1.15)}}
+
+.studio .library-browser .library-stream-more{grid-column:1/-1;min-width:0;text-align:center;padding:16px;overflow-anchor:none}
+
+/* Pointer hit-testing after reparenting must not replay legacy hover transforms. */
+.studio .library-browser .library-score:hover:not(:disabled),.studio .library-browser .library-score:active:not(:disabled){transform:perspective(900px) rotateX(var(--card-x,0deg)) rotateY(var(--card-y,0deg)) translateZ(var(--card-z,0px))!important}
+.studio .library-browser .library-list:not(.library-hover-ready) .library-score{--card-x:0deg!important;--card-y:0deg!important;--card-z:0px!important}
+@media(hover:none){.studio .library-browser .library-score{--card-x:0deg!important;--card-y:0deg!important;--card-z:0px!important}}

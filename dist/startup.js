@@ -1,3 +1,6 @@
+// Start the catalog request alongside module downloads, not after app initialization.
+window.cloudLibraryRequest=fetch('/api/scores',{signal:AbortSignal.timeout(45000)}).then(r=>{if(!r.ok)throw Error('Catalog HTTP '+r.status);return r.json();});
+window.cloudLibraryRequest.catch(()=>{});
 // Keep the first paint stable while the workspace groups its controls.
 const root = document.documentElement;
 root.classList.add('booting');

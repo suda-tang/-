@@ -97,3 +97,15 @@ html:not([lang=zh-CN]) .studio .workspace-nav{display:grid!important;grid-templa
 .score-loading-progress i{transition:none!important;will-change:transform;transform-origin:left center}
 
 .studio #sheet-scroll{height:var(--score-view-height, min(72dvh,760px))!important;min-height:360px;max-height:none!important}.simple-system{overflow:visible!important}
+
+/* Mist grows from the trigger; the modal backdrop itself remains transparent. */
+#language-wheel{overflow:hidden;isolation:isolate;background:transparent!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+#language-wheel::before,#language-wheel::after{display:none!important;content:none!important}
+#language-wheel::backdrop,#language-wheel.is-leaving::backdrop{background:transparent!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;animation:none!important}
+#language-wheel .language-mist{position:absolute;inset:0;overflow:hidden;z-index:0;pointer-events:none;background:#f3edf5a8;backdrop-filter:blur(24px) saturate(1.15);-webkit-backdrop-filter:blur(24px) saturate(1.15);will-change:clip-path,opacity}
+.language-mist-vapour{position:absolute;inset:0;overflow:hidden;pointer-events:none}.language-mist-vapour i{position:absolute;border-radius:50%;background:radial-gradient(ellipse at 40% 45%,#fffafde8 0%,#eee5f1bb 22%,#faf7fb88 40%,transparent 65%);transform-origin:center;will-change:transform;pointer-events:none}
+#language-wheel .language-dial-rail,#language-wheel.is-leaving .language-dial-rail{animation:none!important;z-index:1}
+#language-wheel .language-wheel-close{position:absolute;z-index:2;top:max(22px,env(safe-area-inset-top));right:max(22px,env(safe-area-inset-right));display:grid;place-items:center;width:46px;height:46px;min-width:46px;min-height:46px;padding:0;border:1px solid #ffffffb8!important;border-radius:50%!important;background:#ffffff60!important;color:var(--accent,#816189);box-shadow:inset 0 1px 2px #fff,0 4px 20px #59405b12;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);cursor:pointer}
+#language-wheel .language-wheel-close svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round}#language-wheel .language-wheel-close:active{scale:.94}#language-wheel .language-wheel-close:focus-visible{outline:2px solid currentColor;outline-offset:3px}
+#language-wheel.is-leaving{pointer-events:none}
+@media(prefers-reduced-motion:reduce){#language-wheel .language-mist,.language-mist-vapour i{will-change:auto}}

@@ -61,14 +61,28 @@ def recover_queue():
         else:JOBS[job['id']]=job
     for job_id,pdf,digest in resume:POOL.submit(recognize,job_id,pdf.read_bytes(),digest)
 
+_AUDIVERIS_CACHE=None  # (timestamp, path-or-None)
 def audiveris_path():
+    """定位 Audiveris 可执行文件。结果缓存 120 秒。
+
+    这个函数会 rglob 扫描 .sites-runtime/omr/extracted（上千个文件）+ 搜 PATH，
+    而 /api/health 会被前端轮询、后台 scan() 也会调用它。不缓存时每次都扫一遍目录，
+    在长驻进程里目录操作退化后能把 /api/health 拖到数秒。Audiveris 是固定安装，
+    120 秒的检测延迟可以忽略。
+    """
+    global _AUDIVERIS_CACHE
+    now=time.time()
+    if _AUDIVERIS_CACHE and now-_AUDIVERIS_CACHE[0]<120:
+        return _AUDIVERIS_CACHE[1]
     configured = os.environ.get('AUDIVERIS_PATH')
     candidates = [Path(configured)] if configured else []
     candidates += [ROOT / '.sites-runtime/omr/Audiveris/Audiveris.exe', Path(os.environ.get('ProgramFiles', 'C:/Program Files')) / 'Audiveris/Audiveris.exe']
     extracted = ROOT / '.sites-runtime/omr/extracted'
     if extracted.exists(): candidates.extend(extracted.rglob('Audiveris.exe'))
     if shutil.which('Audiveris'): candidates.append(Path(shutil.which('Audiveris')))
-    return next((str(p.resolve()) for p in candidates if p.is_file()), None)
+    result=next((str(p.resolve()) for p in candidates if p.is_file()), None)
+    _AUDIVERIS_CACHE=(now,result)
+    return result
 
 def cache_path(digest):
     if not re.fullmatch(r'[a-f0-9]{64}', digest): raise ValueError('无效琴谱编号')
@@ -174,6 +188,12 @@ SCORE_LIST_CACHE={}
 SCORE_LIST_CACHE_PATH=ROOT/'.sites-runtime'/'score-list-cache.json'
 _SCORE_LIST_CACHE_LOADED=False
 _SCORE_LIST_CACHE_DIRTY=False
+# 列表级响应缓存：一旦 /api/scores 构建完成，把「(digest 集合, 各文件签名, 进行中任务状态) →
+# 响应 dict」存下来。下次请求只要这三者不变就直接回放，跳过对 4.4GB 缓存目录的逐首内容读取。
+# 冷构建会吃满 GIL，把 /api/health、/api/tasks 等所有动态接口拖到 16~30s 无响应（即 AI 打开
+# 谱面时“卡死”的根因之一）。此缓存只加速、永不改变正确性：签名变化（曲库集合/任意文件改动/
+# 任务状态变化）即触发重建。
+_SCORES_LIST_RESP=None
 
 def _sig_to_json(sig):
     stamps,active,jobs=sig
@@ -210,14 +230,17 @@ def _score_list_cache_save():
         _SCORE_LIST_CACHE_DIRTY=False
     except (OSError,ValueError,TypeError):pass
 
-def _score_list_item(digest,background_active):
+def _score_list_item(digest,background_active,stamps=None):
     global _SCORE_LIST_CACHE_DIRTY
     _score_list_cache_load()
-    stamps=[]
-    for suffix in ('.json','.metadata.json','.name','.pdf'):
-        try:
-            stat=(CACHE_DIR/(digest+suffix)).stat();stamps.append((stat.st_mtime_ns,stat.st_size))
-        except OSError:stamps.append(None)
+    # stamps 可由调用方在一次 scandir 里预先算好（见 /api/scores）。为 None 时退回逐文件
+    # stat —— 1885 首就是 7500 次系统调用，长驻进程里目录操作退化后能拖到 20s 以上。
+    if stamps is None:
+        stamps=[]
+        for suffix in ('.json','.metadata.json','.name','.pdf'):
+            try:
+                stat=(CACHE_DIR/(digest+suffix)).stat();stamps.append((stat.st_mtime_ns,stat.st_size))
+            except OSError:stamps.append(None)
     with LOCK:
         jobs=[(j.get('id'),j.get('status'),j.get('progress'),j.get('stage'),j.get('error')) for j in JOBS.values() if j.get('digest')==digest]
     signature=(tuple(stamps),repr(background_active),repr(jobs))
@@ -697,6 +720,9 @@ class Handler(SimpleHTTPRequestHandler):
         self.wfile.write(body)
     def do_GET(self):
         if not self.allowed(): return self.json_response({'error':'仅接受本机同源请求'},403)
+        if urlparse(self.path).path.startswith('/api/scorestarling'):
+            import scorestarling
+            return scorestarling.handle(self,sys.modules[__name__])
         if urlparse(self.path).path.startswith('/api/upload/'):
             import upload_auth
             return upload_auth.handle(self)
@@ -742,10 +768,16 @@ class Handler(SimpleHTTPRequestHandler):
             jobs+=background_jobs.tasks()
             with performance_service.LOCK:perf_keys=list(performance_service.JOBS)
             jobs+=[{k:v for k,v in performance_service.status(key).items() if k!='result'} for key in perf_keys]
+            import fingering_service
+            with fingering_service.LOCK:finger_keys=list(fingering_service.JOBS)
+            jobs+=[{k:v for k,v in fingering_service.status(key).items() if k!='result'} for key in finger_keys]
             for job in jobs:
-                job['scoreTitle']=background_jobs.score_title(job.get('digest'))
+                if not job.get('scoreTitle'):job['scoreTitle']=background_jobs.score_title(job.get('digest'))
             from idle_runtime import foreground
             return self.json_response({'tasks':sorted(jobs,key=lambda j:(j.get('status') not in ('queued','running'),-j.get('created',0)))[:150],'foreground':foreground()})
+        if path.startswith('/api/fingering/'):
+            import fingering_service
+            return self.json_response(fingering_service.status(path.split('/')[-1]))
         if path=='/api/performance':
             import performance_service
             return self.json_response({'available':performance_service.available()})
@@ -771,15 +803,51 @@ class Handler(SimpleHTTPRequestHandler):
             return library_classification.handle(self,sys.modules[__name__])
         if path == '/api/scores':
             CACHE_DIR.mkdir(parents=True, exist_ok=True)
-            ids = {p.stem for p in CACHE_DIR.glob('*.json')} | {p.stem for p in CACHE_DIR.glob('*.pdf')} | {p.stem for p in CACHE_DIR.glob('*.source')} | {p.name.removesuffix('.photo-book.json') for p in CACHE_DIR.glob('*.photo-book.json')}
+            # ★ 一次 scandir 收集：曲库 digest 集合 + 每首用于缓存校验的文件签名。
+            # 原来用 4 个 glob 找 id、再对每首做 4 次 Path.stat()（1885 首≈7500 次系统
+            # 调用）。DirEntry.stat() 在 Windows 上复用目录扫描已返回的信息，不额外发起
+            # 系统调用，于是把每请求的系统调用量砍掉一个数量级。
+            ids=set(); stamps_by_digest={}
+            tracked=('.json','.metadata.json','.name','.pdf')
+            try:
+                with os.scandir(CACHE_DIR) as scan:
+                    for entry in scan:
+                        name=entry.name
+                        matched=None
+                        # 顺序要紧：.metadata.json / .photo-book.json 必须排在 .json 之前
+                        for suffix in ('.metadata.json','.photo-book.json','.json','.pdf','.source','.name'):
+                            if name.endswith(suffix): matched=suffix; break
+                        if matched is None: continue
+                        stem=name[:-len(matched)]
+                        if matched in ('.json','.pdf','.source','.photo-book.json'): ids.add(stem)
+                        if matched in tracked:
+                            try:
+                                stat=entry.stat();stamps_by_digest.setdefault(stem,{})[matched]=(stat.st_mtime_ns,stat.st_size)
+                            except OSError: pass
+            except OSError: pass
             # 一次性取出所有 digest 的后台任务（避免逐首重开 SQLite 连接，原来 80 首要 2~3s）
             import background_jobs
             job_by_digest = background_jobs.latest_jobs_by_digest()
+            # ★ 列表级响应缓存：曲库集合 + 各文件签名 + 进行中任务状态 三者都不变时，
+            # 直接回放上次构建结果，跳过对 4.4GB 缓存目录的逐首内容读取。冷构建会吃满 GIL，
+            # 把 /api/health、/api/tasks 等所有动态接口拖到 16~30s 无响应（AI 开谱“卡死”根因之一）。
+            import hashlib as _hl
+            _stamp_sig=_hl.sha256()
+            for _d in sorted(ids):
+                _s=stamps_by_digest.get(_d,{})
+                _stamp_sig.update(_d.encode());_stamp_sig.update(repr(tuple(_s.get(_suf) for _suf in tracked)).encode())
+            _job_sig=tuple(sorted((_d,job_by_digest.get(_d,{}).get('status')) for _d in ids if job_by_digest.get(_d)))
+            _list_sig=(frozenset(ids),_stamp_sig.hexdigest(),_job_sig)
+            global _SCORES_LIST_RESP
+            if _SCORES_LIST_RESP is not None and _SCORES_LIST_RESP[0]==_list_sig:
+                return self.json_response(_SCORES_LIST_RESP[1])
             items = []
             for digest in ids:
                 if not re.fullmatch(r'[a-f0-9]{64}', digest): continue
+                per=stamps_by_digest.get(digest,{})
+                stamps=tuple(per.get(suffix) for suffix in tracked)
                 try:
-                    it = _score_list_item(digest, job_by_digest.get(digest))
+                    it = _score_list_item(digest, job_by_digest.get(digest), stamps)
                 except Exception:
                     # 单首损坏绝不让整个曲库列表崩（之前会令 /api/scores 空回复）
                     continue
@@ -791,7 +859,9 @@ class Handler(SimpleHTTPRequestHandler):
                 for stale in [k for k in SCORE_LIST_CACHE if k not in ids]:SCORE_LIST_CACHE.pop(stale,None)
                 _score_list_cache_save()
             except Exception:pass
-            return self.json_response({'scores':sorted(items,key=lambda x:x['saved'],reverse=True)})
+            _built={'scores':sorted(items,key=lambda x:x['saved'],reverse=True)}
+            _SCORES_LIST_RESP=(_list_sig,_built)
+            return self.json_response(_built)
         if path.startswith('/api/scores/'):
             parts = path.split('/')
             digest = parts[3]
@@ -902,6 +972,9 @@ class Handler(SimpleHTTPRequestHandler):
         return self.json_response({'error':'接口不存在'},404)
     def do_POST(self):
         if not self.allowed(): return self.json_response({'error':'仅接受本机同源请求'},403)
+        if urlparse(self.path).path.startswith('/api/scorestarling'):
+            import scorestarling
+            return scorestarling.handle(self,sys.modules[__name__])
         if urlparse(self.path).path=='/api/ai-tasks':
             import ai_task_store
             return ai_task_store.handle(self)
@@ -1042,6 +1115,13 @@ class Handler(SimpleHTTPRequestHandler):
                 options=json.loads(body or b'{}') if body else {}
                 alternative=options.get('engine')=='alternative'
                 return self.json_response(enqueue_recognition(pdf.read_bytes(),digest,force=bool(options.get('force') or alternative),fine=alternative),202)
+            if self.path=='/api/fingering/profile':
+                import fingering_service
+                return self.json_response(fingering_service.profile(json.loads(body)))
+            if self.path=='/api/fingering':
+                import fingering_service
+                result,code=fingering_service.start(json.loads(body))
+                return self.json_response(result,code)
             if self.path=='/api/performance':
                 import performance_service
                 result,code=performance_service.start(json.loads(body))
@@ -1188,6 +1268,55 @@ def sources_busy():
     except Exception: pass
     return False
 
+# ── 文件系统退化看门狗 ────────────────────────────────────────────────────────
+# 长驻进程的目录操作会随运行时间退化：实测同一个 /api/scores 在刚起的新进程里 0.9s，
+# 在跑了几小时的进程里涨到 18–26s（同代码、同数据，threads/handles 都正常，纯 CPU 接口
+# 两边都快）。没找到唯一根因，但「换一个干净进程」能立刻恢复。这里用一次目录扫描当探针，
+# 持续严重退化就交给 scripts/restart-server.py 换进程 —— 比让用户干等 20 秒强。
+# 三条安全阀：启动后 5 分钟内不动手；连续 3 次（≈2.5 分钟）才判定；15 分钟内最多重启一次。
+WATCHDOG_INTERVAL=float(os.environ.get('PIANO_WATCHDOG_INTERVAL','45'))    # 探针间隔（秒）
+WATCHDOG_THRESHOLD=float(os.environ.get('PIANO_WATCHDOG_THRESHOLD','3'))   # 超过它算退化（健康进程通常 0.05–0.1s）
+WATCHDOG_STRIKES=int(os.environ.get('PIANO_WATCHDOG_STRIKES','3'))         # 连续多少次才算「持续退化」
+WATCHDOG_COOLDOWN=float(os.environ.get('PIANO_WATCHDOG_COOLDOWN','900'))   # 两次自愈重启的最短间隔
+WATCHDOG_GRACE=float(os.environ.get('PIANO_WATCHDOG_GRACE','300'))         # 启动后多久内不干预
+_watchdog_last_restart=0.0
+
+def _fs_probe_seconds():
+    """一次目录扫描的耗时 —— 它是 /api/scores 变慢的同一类操作，可当退化探针。"""
+    start=time.perf_counter()
+    try:
+        with os.scandir(CACHE_DIR) as scan:
+            for _ in scan: pass
+    except OSError:
+        return 0.0
+    return time.perf_counter()-start
+
+def watch_degradation():
+    global _watchdog_last_restart
+    time.sleep(WATCHDOG_GRACE)
+    strikes=0
+    while True:
+        time.sleep(WATCHDOG_INTERVAL)
+        try: cost=_fs_probe_seconds()
+        except Exception: continue
+        if cost<=WATCHDOG_THRESHOLD:
+            strikes=0; continue
+        strikes+=1
+        print(f'看门狗：目录探针 {cost:.1f}s（连续第 {strikes} 次），疑似文件系统退化',flush=True)
+        if strikes<WATCHDOG_STRIKES: continue
+        now=time.time()
+        if now-_watchdog_last_restart<WATCHDOG_COOLDOWN: continue
+        strikes=0; _watchdog_last_restart=now
+        restarter=ROOT/'scripts'/'restart-server.py'
+        if not restarter.is_file():
+            print('看门狗：找不到 scripts/restart-server.py，放弃自愈',flush=True); continue
+        print('看门狗：判定持续退化，交给重启器换新进程',flush=True)
+        flags=(getattr(subprocess,'DETACHED_PROCESS',0)|getattr(subprocess,'CREATE_NEW_PROCESS_GROUP',0)|getattr(subprocess,'CREATE_NO_WINDOW',0)) if os.name=='nt' else 0
+        try:
+            subprocess.Popen([sys.executable,str(restarter)],cwd=str(ROOT),creationflags=flags,close_fds=True)
+        except Exception as error:
+            print('看门狗：触发重启失败：'+str(error),flush=True)
+
 if __name__ == '__main__':
     print(f'Piano Lab: http://127.0.0.1:{PORT}', flush=True)
     print('Audiveris: '+('ready' if audiveris_path() else 'not configured; PDF preview and sample practice remain available'), flush=True)
@@ -1209,6 +1338,8 @@ if __name__ == '__main__':
     recover_queue()
     import background_jobs,sys
     background_jobs.start(sys.modules[__name__])
+    import scorestarling
+    scorestarling.resume(sys.modules[__name__])
     # Python imports a module once per process, so edits to *.py stay invisible
     # until the process is replaced -- every newly written route used to answer
     # "接口不存在" until someone restarted by hand. Watch the sources and, once
@@ -1246,6 +1377,9 @@ if __name__ == '__main__':
             return
     if os.environ.get('PIANO_AUTORELOAD','1')!='0':
         threading.Thread(target=watch_sources,name='source-watcher',daemon=True).start()
+    # 文件系统退化自愈（PIANO_WATCHDOG=0 可关掉）。
+    if os.environ.get('PIANO_WATCHDOG','1')!='0':
+        threading.Thread(target=watch_degradation,name='fs-watchdog',daemon=True).start()
     try: server.serve_forever()
     except KeyboardInterrupt: pass
     finally: server.server_close(); POOL.shutdown(wait=False, cancel_futures=True)

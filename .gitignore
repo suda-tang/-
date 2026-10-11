@@ -81,3 +81,10 @@ dist/assets/piano/salamander/
 
 # Visitor-specific generated speech is private. Existing tracked files are unchanged.
 /dist/narration/greetings/
+
+# Local scratch / temp dumps / backups (not for the public repo)
+/_score-xml.txt
+/audit/
+*.bak
+*.bak-*
+/.gz

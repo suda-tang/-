@@ -1,4 +1,5 @@
 import {writtenExpression} from './written-expression.js';
+import {prepareAudioPlayback} from './audio-session.js';
 import {loadInstrument,rootFor,retainInstrumentSamples} from './instruments.js?v=bounded-cache2';
 import {arrangeScore} from './harmony.js';
 import {preparePerformance} from './performance.js';
@@ -12,10 +13,10 @@ const BANK_GAIN=4,DRUM_GAIN=2.4;
 export const sourceGain=name=>name==='drums'?DRUM_GAIN:name==='salamander'?1:BANK_GAIN;
 export class ScorePlayer {
   constructor({onUpdate=()=>{},onEnd=()=>{},onLoad=()=>{},onPulse=()=>{}}={}) {
-    Object.assign(this,{onUpdate,onEnd,onLoad,onPulse,bpm:80,beat:0,playing:false,score:null,next:0,voices:new Set(),context:null,generation:0,expressive:true,instrument:"salamander",arrangement:"original",soloPart:"all",enabledParts:new Set(),instrumentBanks:new Map()});
+    Object.assign(this,{onUpdate,onEnd,onLoad,onPulse,bpm:80,beat:0,playing:false,score:null,next:0,voices:new Set(),context:null,generation:0,expressive:true,instrument:"salamander",arrangement:"original",soloPart:"all",enabledParts:new Set(),instrumentBanks:new Map(),loop:null,loopRepeats:null,loopDone:0});
   }
   async unlock() {
-    try{if(navigator.audioSession)navigator.audioSession.type='playback';}catch{}
+    prepareAudioPlayback();
     if(!this.context||this.context.state==='closed') {
       const Context=globalThis.AudioContext||globalThis.webkitAudioContext;
       this.context=new Context();this.output=this.context.createGain();this.output.gain.value=.9;
@@ -135,6 +136,13 @@ export class ScorePlayer {
   }
   tick() {
     if(!this.playing)return;this.advance();
+    if(this.loop&&this.beat>=this.loop.to){
+      this.loopDone++;
+      if(this.loop.once||(this.loopRepeats&&this.loopDone>=this.loopRepeats)){
+        const end=this.loop.to;this.clearLoop();this.pause();this.beat=end;this.onEnd();return;
+      }
+      this.restartLoop();return;
+    }
     // Engraving can occupy the UI thread for hundreds of milliseconds. Queue
     // enough audio ahead to survive it; pause/seek cancels all future voices.
     // Keep a longer audio queue than one visual frame. PDF turns and large
@@ -185,4 +193,36 @@ export class ScorePlayer {
   pause(){this.generation++;if(this.playing)this.advance();this.playing=false;clearInterval(this.timer);cancelAnimationFrame(this.paintFrame);for(const voice of this.voices)this.release(voice);if(this.score){this.next=this.score.events.findIndex(e=>e.beat>=this.beat-.0001);if(this.next<0)this.next=this.score.events.length;}}
   rewind(){this.pause();this.beat=0;this.next=0;}
   stop(){this.rewind();}
+  // A–B loop. `once` plays the range a single time and then stops, which is
+  // what「只播这一段」means; `repeat` counts passes before falling through.
+  setLoop(fromBeat,toBeat,{once=false,repeat=null}={}){
+    if(!(Number(toBeat)>Number(fromBeat)))throw Error('循环区间无效，请换一段更长的范围');
+    this.loop={from:Math.max(0,Number(fromBeat)),to:Number(toBeat),once};
+    this.loopRepeats=repeat;
+    this.loopDone=0;
+    if(this.playing&&(this.beat<this.loop.from||this.beat>=this.loop.to))this.restartLoop();
+    return {...this.loop};
+  }
+  clearLoop(){this.loop=null;this.loopRepeats=null;this.loopDone=0;}
+  // Rewind the transport without tearing down the audio graph: the 8-second
+  // look-ahead has already queued notes past the loop point, so those voices
+  // are cancelled before the clock is moved back.
+  restartLoop(){
+    if(!this.loop||!this.context)return;
+    const now=this.context.currentTime;
+    for(const voice of [...this.voices]){
+      if(voice.startTime<=now)continue;
+      try{voice.oscillator.stop(now);}catch{}
+      try{voice.oscillator.disconnect();voice.gain.disconnect();}catch{}
+      this.voices.delete(voice);
+    }
+    this.beat=this.loop.from;
+    this.clockBeat=this.beat;
+    this.clockTime=Math.max(now,this.lastTime||now);
+    this.lastTime=this.clockTime;
+    this.next=this.score.events.findIndex(e=>e.beat>=this.beat-.0001);
+    if(this.next<0)this.next=this.score.events.length;
+    this.nextPulse=Math.ceil(this.beat-.0001);
+    this.onUpdate({beat:this.beat,index:this.displayIndex(this.beat),totalBeats:this.totalBeats,playing:true});
+  }
 }
