@@ -1,4 +1,4 @@
-import { renderEngraved } from './engraving.js?v=chunk-plan4';
+import { renderEngraved } from './engraving.js';
 import { rememberSourceDocument } from './engraving-plan.js?v=1';
 import { yieldToBrowser } from './yield-to-browser.js?v=1';
 const semitones={C:0,D:2,E:4,F:5,G:7,A:9,B:11};

@@ -88,12 +88,17 @@ def lookup(institution,receipt):
    result={'status':'complete','url':'/suda-seal.svg?v=round19','source':'https://www.suda.edu.cn/','institution':institution}
   else:
    pages=roots(institution)
+   # ★ 注册表（dist/institution-websites.json）里的域名是**人工核对过的**，允许它们不受
+   #   fetch() 的 .edu.cn 限制：中学与部分院校的官网就是 .com/.cn 域名，以前一律被拒，
+   #   用户看到的是「未找到能核对院校名称的可访问官网」（实测「苏州星海高级中学」）。
+   #   只放行**注册表里出现过**的 host —— 搜索结果里的域名不算，它们没被核对过。
+   registry_hosts={urlparse(page).hostname for page in pages if urlparse(page).hostname}
    discovered=discover(institution) if not pages else []
    pages=list(dict.fromkeys(pages+discovered))
    best=None;seen=set();deadline=time.monotonic()+80;discovery_done=False;errors=[];verified_pages=[]
    for page in pages:
     if time.monotonic()>deadline:break
-    try:html=fetch(page).decode('utf-8',errors='replace')
+    try:html=fetch(page,registry_hosts).decode('utf-8',errors='replace')
     except Exception as error:
      errors.append(page+': '+str(error))
      if not discovery_done:
@@ -133,8 +138,24 @@ def lookup(institution,receipt):
      if url in seen or not (official(url) or urlparse(url).hostname in trusted_hosts) or time.monotonic()>deadline:continue
      seen.add(url)
      try:
-      image=Image.open(io.BytesIO(fetch(url,trusted_hosts)));image.load()
+      raw=fetch(url,trusted_hosts)
       identified=bool(re.search(r'logo|seal|emblem|校徽|校标|xiaohui',tag,re.I))
+      # ★ SVG 校徽：PIL 读不了 SVG，以前 Image.open 直接抛异常、被下面的 except 吞掉 ——
+      #   实测「上海视觉艺术学院」的 logo 就是 /_upload/tpl/.../logo.svg，官网可达、标题也
+      #   完全匹配，却始终拿不到校徽。浏览器能直接渲染 SVG，所以这里**原样保留、不做栅格化**，
+      #   最后落成 .svg 提供。只认标签里明确写了 logo/seal/emblem 的 SVG，避免把装饰矢量图当校徽。
+      if b'<svg' in raw[:4000].lower():
+       if not identified:continue
+       view=re.search(rb'viewBox\s*=\s*["\']\s*[-0-9.]+\s+[-0-9.]+\s+([0-9.]+)\s+([0-9.]+)',raw[:4000],re.I)
+       if view:
+        try:
+         vw,vh=float(view.group(1)),float(view.group(2))
+         if vh and not .5<=vw/vh<=2.0:continue      # 太扁的多半是横版字标，不是校徽
+        except ValueError:pass
+       score=3000+(500 if re.search(r'seal|emblem|校徽|xiaohui',tag,re.I) else 0)
+       if best is None or score>best[0]:best=(score,None,url,raw)
+       continue
+      image=Image.open(io.BytesIO(raw));image.load()
       if not identified and image.width<image.height*2:continue
       # Official WHCM header embeds its seal above the wordmark on a red plaque.
       if institution=='武汉音乐学院' and url=='https://www.whcm.edu.cn/images/logo.png' and image.size==(267,177):
@@ -147,17 +168,21 @@ def lookup(institution,receipt):
       white=Image.new('RGBA',image.size,'white');white.alpha_composite(image);mask=np.min(np.array(white.convert('RGB')),axis=2)<220;k=max(1,int(min(w,h)*.2));corners=np.mean([mask[:k,:k].mean(),mask[:k,-k:].mean(),mask[-k:,:k].mean(),mask[-k:,-k:].mean()])
       if corners>.18 and .78<=w/h<=1.28:continue
       score=min(512,min(w,h))+(2000 if re.search(r'seal|emblem|校徽|xiaohui',tag,re.I) else 1000 if identified else 0)
-      if best is None or score>best[0]:best=(score,image.convert('RGBA'),url)
+      if best is None or score>best[0]:best=(score,image.convert('RGBA'),url,None)
      except Exception:continue
    if not best:
     fallback=directory_logo(institution)
     if fallback:
      try:
       image=Image.open(io.BytesIO(fetch(fallback,{'www.shanghairanking.cn'})));image.load()
-      if min(image.size)>=32:best=(0,image.convert('RGBA'),fallback)
+      if min(image.size)>=32:best=(0,image.convert('RGBA'),fallback,None)
      except Exception:pass
    if best:
-    image=ImageOps.contain(best[1],(1024,1024));canvas=Image.new('RGBA',(1024,1024));canvas.alpha_composite(image,((1024-image.width)//2,(1024-image.height)//2));target=receipt.with_suffix('.png');temporary=target.with_suffix('.tmp');canvas.save(temporary,format='PNG');temporary.replace(target)
+    if best[3] is not None:
+     # SVG 校徽：原样落盘（浏览器直接渲染），不做 PIL 栅格化 —— 见上面 SVG 分支的说明。
+     target=receipt.with_suffix('.svg');temporary=target.with_suffix('.tmp');temporary.write_bytes(best[3]);temporary.replace(target)
+    else:
+     image=ImageOps.contain(best[1],(1024,1024));canvas=Image.new('RGBA',(1024,1024));canvas.alpha_composite(image,((1024-image.width)//2,(1024-image.height)//2));target=receipt.with_suffix('.png');temporary=target.with_suffix('.tmp');canvas.save(temporary,format='PNG');temporary.replace(target)
     result={'status':'complete','url':'/institution-logos/'+target.name+'?v=7','source':best[2],'institution':institution}
    else:result={'status':'unavailable','institution':institution,'message':'已查找官网但尚未取得可用校徽' if verified_pages else '未找到能核对院校名称的可访问官网','attemptedPages':pages,'diagnostics':errors[-6:],'retryAfter':time.time()+60}
  except Exception as error:result={'status':'unavailable','institution':institution,'message':'校徽查找未完成：'+str(error),'retryAfter':time.time()+300}

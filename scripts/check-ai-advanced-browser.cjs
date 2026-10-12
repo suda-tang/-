@@ -18,7 +18,7 @@ const sse = (reply, actions) => [
 
 (async () => {
   fs.mkdirSync(DOWNLOAD_DIR, { recursive: true });
-  const browser = await chromium.launch({ executablePath: EDGE, headless: true });
+  const browser = await chromium.launch({ executablePath: EDGE, headless: true,proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}});
   const results = [];
   try {
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, acceptDownloads: true });

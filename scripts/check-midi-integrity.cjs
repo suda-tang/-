@@ -1,5 +1,5 @@
 const {chromium}=require('C:/Users/mail/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
-(async()=>{const browser=await chromium.launch({channel:'msedge',headless:true,args:['--js-flags=--max-old-space-size=128']});try{
+(async()=>{const browser=await chromium.launch({channel:'msedge',headless:true,args:['--js-flags=--max-old-space-size=128'],proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}});try{
  const page=await browser.newPage({viewport:{width:390,height:844}});await page.goto('http://127.0.0.1:5173/portrait-upload.html');
  const result=await page.evaluate(async()=>{
   const {parseMidi}=await import('/midi.js');const {parseMusicXML,renderNotation}=await import('/score.js');const {ScorePlayer}=await import('/player.js');

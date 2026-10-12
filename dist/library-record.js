@@ -14,31 +14,50 @@ export async function carryCardToLoader(card,list,loader,settle=()=>Promise.reso
  const layer=document.createElement('div');layer.className='record-flight';layer.setAttribute('popover','manual');layer.setAttribute('aria-hidden','true');
  layer.style.cssText=`position:fixed;left:${box.left+(box.width-w)/2-(source?.projectedX||0)}px;top:${box.top+(box.height-h)/2-(source?.projectedY||0)}px;width:${w}px;height:${h}px;max-width:none;max-height:none;margin:0;padding:0;border:0;border-radius:0;background:transparent;overflow:visible;pointer-events:none;transform-origin:50% 50%;`;
  card.style.cssText+=`;position:absolute!important;inset:0!important;width:${w}px!important;height:${h}px!important;min-width:0!important;min-height:0!important;margin:0!important;padding:${padding}!important;transform:none!important;translate:none!important;rotate:none!important;scale:none!important;opacity:1!important;visibility:visible!important;transition:none!important;animation:none!important;content-visibility:visible!important;`;
- layer.append(card);document.body.append(layer);layer.showPopover?.();
+ const inside=document.createElement('div');inside.className='record-book-inside';
+ const cover=document.createElement('div');cover.className='record-book-cover';cover.append(card);
+ const pocket=document.createElement('div');pocket.className='record-book-pocket';
+ layer.append(inside,cover);document.body.append(layer);layer.showPopover?.();
  const target=loader.querySelector('.score-loading-seal').getBoundingClientRect();
- const dx=target.left+target.width/2-box.left-box.width/2+(source?.projectedX||0),dy=target.top+target.height/2-box.top-box.height/2+(source?.projectedY||0),scale=Math.min(target.width/w,target.height/h);
  const seal=loader.querySelector('.score-loading-seal'),sealStyle=seal.getAttribute('style');
  const sealSlot=document.createElement('div');sealSlot.style.cssText=`width:${target.width}px;height:${target.height}px;`;seal.replaceWith(sealSlot);
  const discLayer=document.createElement('div');discLayer.className='record-disc-stage';discLayer.setAttribute('popover','manual');discLayer.setAttribute('aria-hidden','true');discLayer.style.cssText='position:fixed;inset:0;width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;padding:0;border:0;background:transparent;pointer-events:none;overflow:visible;';
  const diameter=Math.max(90,Math.min(w*.8,200)),cx=box.left+box.width/2,cy=box.top+box.height*.4;
- const disc=document.createElement('div');disc.className='record-launch-disc';disc.style.cssText=`position:absolute;left:${cx-diameter/2}px;top:${cy-diameter/2}px;width:${diameter}px;height:${diameter}px;border-radius:50%;background:conic-gradient(from 20deg,#c5c8dc,#fff,#b3d7dd,#f4cce5,#f7f8ff,#c5c8dc);box-shadow:inset 0 0 0 2px #fff9,0 20px 36px #30203030;`;
- seal.classList.add('record-morph-emblem');seal.style.cssText+=`;position:absolute!important;inset:0!important;width:100%!important;height:100%!important;margin:0!important;opacity:0;transform:scale(.28);`;disc.append(seal);discLayer.append(disc);document.body.append(discLayer);discLayer.showPopover?.();
+ const disc=document.createElement('div');disc.className='record-launch-disc';disc.style.cssText=`position:absolute;left:${cx-diameter/2}px;top:${cy-diameter/2}px;width:${diameter}px;height:${diameter}px;border-radius:50%;background:radial-gradient(circle,#d9b6ad 0 4%,#874357 4.5% 22%,transparent 22.5%),repeating-radial-gradient(circle,#1a191f 0 2px,#35323c 2.5px,#17161c 3.5px);box-shadow:inset 0 0 0 2px #fff9,0 20px 36px #30203030;`;
+ seal.classList.add('record-morph-emblem');seal.style.cssText+=`;position:absolute!important;inset:0!important;width:100%!important;height:100%!important;margin:0!important;opacity:0;transform:scale(.28);`;disc.append(seal);disc.style.left=(w-diameter)/2+'px';disc.style.top=Math.max(12,(h-diameter)/2)+'px';inside.append(disc,pocket);document.body.append(discLayer);
  const animations=[];const animate=(el,frames,options)=>{const a=el.animate(frames,{fill:'both',...options});animations.push(a);return a;};const finish=a=>a.finished.catch(()=>{});
- let flight;
  try{
-  loader.dataset.arrivalPhase='card-tip';
-  flight=animate(layer,[{transform:`perspective(1100px) rotateX(0deg) scale(${source?.fitX||1},${source?.fitY||1}) ${matrix}`},{transform:'perspective(1100px) translate3d(0,22px,130px) rotateX(36deg) scale(1.04)'}],{duration:420,easing:'cubic-bezier(.22,.75,.25,1)'});
-  const rise=animate(disc,[{transform:'perspective(1000px) translate3d(0,65px,-60px) rotateX(64deg) scale(.12)',opacity:0},{transform:'perspective(1000px) translate3d(0,-38px,80px) rotateX(18deg) scale(1)',opacity:1}],{duration:540,delay:150,easing:'cubic-bezier(.16,.8,.28,1)'});
-  await finish(rise);loader.dataset.arrivalPhase='disc-to-seal';
-  const tx=target.left+target.width/2-cx,ty=target.top+target.height/2-cy,ratio=target.width/diameter;
-  const travel=animate(disc,[{transform:'perspective(1000px) translate3d(0,-38px,80px) rotateX(18deg) scale(1)'},{transform:`perspective(1000px) translate3d(${tx*.6}px,${ty*.6-20}px,35px) rotateX(8deg) scale(${ratio*1.3})`,offset:.65},{transform:`perspective(1000px) translate3d(${tx}px,${ty}px,0) rotateX(0deg) scale(${ratio})`}],{duration:560,easing:'cubic-bezier(.26,.65,.2,1)'});
-  animate(seal,[{opacity:0,transform:'scale(.28) rotate(-32deg)'},{opacity:1,transform:'scale(1) rotate(0deg)'}],{duration:480,easing:'cubic-bezier(.22,.8,.2,1)'});
-  animate(layer,[{opacity:1},{opacity:0}],{duration:340,easing:'ease-in'});
+  const bookScale=Math.min(1.05,innerWidth/(w*2.25),innerHeight/(h*1.65));
+  const bx=innerWidth*.5+w*bookScale*.43-box.left-box.width/2+(source?.projectedX||0),by=innerHeight*.48-box.top-box.height/2+(source?.projectedY||0);
+  const lifted=`perspective(1400px) translate3d(${bx}px,${by}px,0) rotateX(10deg) rotateY(-10deg) rotateZ(-3deg) scale(${bookScale})`;
+  loader.dataset.arrivalPhase='book-lift';
+  await finish(animate(layer,[{transform:`perspective(1400px) scale(${source?.fitX||1},${source?.fitY||1}) ${matrix}`},{transform:lifted}],{duration:820,easing:'cubic-bezier(.22,.7,.2,1)'}));
+  loader.dataset.arrivalPhase='book-open';
+  const opening=animate(cover,[{transform:'rotateY(0deg)'},{transform:'rotateY(-148deg)'}],{duration:1100,easing:'cubic-bezier(.35,0,.2,1)'});
+  await finish(opening);
+  loader.dataset.arrivalPhase='disc-release';
+  const flat=`perspective(1400px) translate3d(${bx}px,${by}px,0) scale(${bookScale})`;
+  const flatten=animate(layer,[{transform:lifted},{transform:flat}],{duration:920,easing:'cubic-bezier(.3,.1,.2,1)'});
+  await finish(animate(disc,[{transform:'translate3d(0,0,1px)'},{transform:`translate3d(${w*.15}px,${-h*.38}px,1px)`}],{duration:920,easing:'cubic-bezier(.3,.1,.2,1)'}));
+  await finish(flatten);
+  // Keep the very same disc at its exact projected bounds when it leaves the sleeve.
+  const released=disc.getBoundingClientRect();discLayer.append(disc);discLayer.showPopover?.();
+  for(const animation of animations.filter(a=>a.effect?.target===disc))animation.cancel();
+  Object.assign(disc.style,{left:released.left+'px',top:released.top+'px',width:released.width+'px',height:released.height+'px',transform:'none'});
+  loader.dataset.arrivalPhase='disc-to-seal';
+  const tx=target.left+target.width/2-released.left-released.width/2,ty=target.top+target.height/2-released.top-released.height/2,ratio=target.width/released.width;
+  const travel=animate(disc,[{transform:'translate3d(0,0,0) scale(1)'},{transform:`translate3d(${tx*.48}px,${ty*.48-26}px,0) scale(${1+(ratio-1)*.48})`,offset:.48},{transform:`translate3d(${tx}px,${ty}px,0) scale(${ratio})`}],{duration:1000,easing:'cubic-bezier(.3,.05,.2,1)'});
+  animate(seal,[{opacity:0,transform:'scale(.65) rotate(-12deg)'},{opacity:1,transform:'scale(1) rotate(0deg)'}],{duration:680,delay:260,easing:'cubic-bezier(.22,.8,.2,1)'});
+  animate(layer,[{opacity:1,transform:flat},{opacity:0,transform:`perspective(1400px) translate3d(${bx}px,${by+32}px,-70px) scale(${bookScale*.96})`}],{duration:850,delay:100,easing:'ease-in-out'});
   await finish(travel);
   // Reparent the same emblem at the exact measured landing position.
   sealSlot.replaceWith(seal);seal.classList.remove('record-morph-emblem');sealStyle===null?seal.removeAttribute('style'):seal.setAttribute('style',sealStyle);
-  loader.style.removeProperty('opacity');discLayer.remove();loader.dataset.arrivalPhase='balloon';
-  await Promise.all([unfoldScoreLoader(loader),Promise.resolve().then(settle)]);
+  await Promise.resolve().then(settle);
+  // Top-layer order, rather than z-index, decides which popover covers another.
+  // Finish card returns before the loading surface takes the foreground.
+  layer.remove();discLayer.remove();loader.hidePopover?.();loader.showPopover?.();
+  loader.style.removeProperty('opacity');loader.dataset.arrivalPhase='balloon';
+  await unfoldScoreLoader(loader);
  }
  finally{
   if(slot.isConnected)slot.replaceWith(card);

@@ -23,7 +23,7 @@ const systemIndexes=new WeakMap();
 export function simplePlaybackTarget(container,measure){
  const sheet=container.querySelector('.simple-sheet');if(!sheet)return null;
  let rows=systemIndexes.get(sheet);if(!rows){rows=[...sheet.querySelectorAll('.simple-system')].map(node=>({node,start:Number(node.dataset.startMeasure),end:Number(node.dataset.endMeasure)}));systemIndexes.set(sheet,rows);}
- let low=0,high=rows.length-1;while(low<=high){const mid=(low+high)>>1,row=rows[mid];if(measure<row.start)high=mid-1;else if(measure>row.end)low=mid+1;else{materializeSimpleSystem(row.node);return row.node;}}return null;
+ let low=0,high=rows.length-1;while(low<=high){const mid=(low+high)>>1,row=rows[mid];if(measure<row.start)high=mid-1;else if(measure>row.end)low=mid+1;else{materializeSimpleSystem(row.node);if(sheet._activeSystem!==row.node){if(sheet._activeSystem)sheet._activeSystem.style.contentVisibility='';sheet._activeSystem=row.node;row.node.style.contentVisibility='visible';}return row.node;}}return null;
 }
 
 function* renderSimpleSteps(container,score){

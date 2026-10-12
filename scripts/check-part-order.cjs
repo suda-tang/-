@@ -27,7 +27,7 @@ const XML=`<?xml version="1.0"?><score-partwise version="4.0"><part-list>`+
  `</score-partwise>`;
 
 (async()=>{
- const browser=await chromium.launch({channel:'msedge',headless:true});
+ const browser=await chromium.launch({channel:'msedge',headless:true,proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}});
  try{
   const page=await browser.newPage({viewport:{width:1100,height:900}}),errors=[];
   page.on('pageerror',e=>errors.push(e.message));

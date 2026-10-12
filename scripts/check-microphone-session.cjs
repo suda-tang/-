@@ -1,6 +1,6 @@
 const assert=require('node:assert/strict');
 const {chromium}=require('C:/Users/mail/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
-(async()=>{const browser=await chromium.launch({channel:'msedge',headless:true,args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream']});try{
+(async()=>{const browser=await chromium.launch({channel:'msedge',headless:true,args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream'],proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}});try{
  const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.addInitScript(()=>{let type='auto';window.sessionChecks=[];window.testStreams=[];Object.defineProperty(navigator,'audioSession',{configurable:true,value:{get type(){return type;},set type(value){type=value;window.sessionChecks.push(value);}}});const original=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);navigator.mediaDevices.getUserMedia=async options=>{if(type==='playback')throw Error('AudioSession category is not compatible with audio capture.');const stream=await original(options);window.testStreams.push(stream);return stream;};});
  await page.route('**/api/scores',r=>r.fulfill({json:{scores:[]}}));await page.goto('http://127.0.0.1:5173/');await page.waitForFunction(()=>!!document.querySelector('.follow-content'));

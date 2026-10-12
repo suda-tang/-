@@ -6,7 +6,7 @@ const fs=require('fs'),path=require('path'),assert=require('assert'),{pathToFile
  const tours=JSON.parse(fs.readFileSync('dist/mentor-research.json','utf8'));
  assert.ok(mentors.length>=19);assert.equal(tours.length,mentors.length);
  for(const m of mentors){const t=tours.find(t=>t.names.includes(m.name));assert(t);assert(t.question.includes(m.question));assert.equal(new URL(m.demo).searchParams.get('mentor'),m.name);}
- const browser=await chromium.launch({channel:'msedge',headless:true});
+ const browser=await chromium.launch({channel:'msedge',headless:true,proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}});
  try {
   const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(pathToFileURL(path.join(root,'申请材料总览.html')).href);

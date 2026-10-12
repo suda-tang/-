@@ -1,7 +1,7 @@
 const {chromium}=require('C:/Users/mail/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 const fs=require('node:fs'),assert=require('node:assert/strict');
 const keys=['21a8047ffb91342a082ffea6857c229436dd4575a3689588b3559ace83954c0e','c8cc67f0f6218057afe404a7d46b2f7294bd01f80d705cf336fdb7094666dfef'];
-(async()=>{const browser=await chromium.launch({channel:'msedge',headless:true});try{
+(async()=>{const browser=await chromium.launch({channel:'msedge',headless:true,proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}});try{
  const page=await browser.newPage();await page.goto('http://127.0.0.1:5173/');
  for(const key of keys){
   const manifest=JSON.parse(fs.readFileSync(`.sites-runtime/arrangements/${key}.manifest.json`));

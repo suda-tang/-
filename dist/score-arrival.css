@@ -10,3 +10,12 @@
 @media(prefers-reduced-motion:reduce){.score-arrival-layer{display:none!important}}
 
 .record-disc-stage::backdrop,.record-flight::backdrop{background:transparent;pointer-events:none}.record-launch-disc{will-change:transform;contain:layout style}.record-launch-disc::after{content:"";position:absolute;inset:43%;border-radius:50%;background:#e9e5ed;box-shadow:0 0 0 2px #ffffffa0;pointer-events:none}.record-launch-disc:has(.record-morph-emblem)::after{animation:disc-hole-close .5s .7s forwards}.record-morph-emblem::after{display:none!important}@keyframes disc-hole-close{to{opacity:0;transform:scale(0)}}
+
+.record-book-cover{position:absolute;inset:0;transform-origin:0 50%;transform-style:preserve-3d;will-change:transform;z-index:3}
+.record-book-cover::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,#b9a39e,#eee4db 7%,#f5ede3);border:1px solid #ffffff90;border-radius:18px;transform:rotateY(180deg) translateZ(1px);backface-visibility:hidden;box-shadow:inset -8px 0 16px #67514c18}
+.record-book-cover>.library-score{backface-visibility:hidden;border-radius:18px!important}
+.record-book-inside{position:absolute;inset:0;background:linear-gradient(120deg,#d4c1b7,#f5ede3 30%,#ddcbc0);border:1px solid #ffffffa0;border-radius:18px;box-shadow:0 25px 50px #2e1f3040,inset 5px 0 10px #5d444926;transform:translateZ(-2px)}
+.record-book-pocket{position:absolute;left:5%;right:5%;bottom:4%;height:49%;z-index:2;border-radius:4px 4px 12px 12px;border:1px solid #fff8;background:linear-gradient(135deg,#e5d5c8,#cbb5a8);box-shadow:0 -3px 8px #46312c22;clip-path:polygon(0 0,35% 0,40% 7%,60% 7%,65% 0,100% 0,100% 100%,0 100%)}
+.record-book-inside .record-launch-disc{z-index:1}
+.record-launch-disc:has(.record-morph-emblem)::after{animation:none}
+.record-disc-stage .record-launch-disc::after{animation:disc-hole-close .5s .25s forwards}

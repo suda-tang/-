@@ -1,7 +1,7 @@
 const assert=require('node:assert/strict');
 const {chromium}=require('C:/Users/mail/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 (async()=>{
- const browser=await chromium.launch({channel:'msedge',headless:true});
+ const browser=await chromium.launch({channel:'msedge',headless:true,proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}});
  try{
   const page=await browser.newPage({viewport:{width:900,height:800}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.route('**/__classroom-test',r=>r.fulfill({contentType:'text/html',body:'<style>.avatar-3d-stage{width:640px;height:640px}</style><main></main>'}));

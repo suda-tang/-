@@ -103,6 +103,12 @@ $('.setup-head').hidden=true;
 const settings=document.createElement('details');settings.className='practice-settings';settings.innerHTML='<summary>跟弹练习</summary>';
 settings.append($('.control-grid'),$('.practice-actions'));pages.play.append(settings);
 mountPracticePanel(settings);
+const classroomStyle=document.createElement('link');classroomStyle.rel='stylesheet';classroomStyle.href='/score-classroom.css';document.head.append(classroomStyle);
+const classroom=document.createElement('details');classroom.className='score-classroom';classroom.innerHTML='<summary>曲谱课堂</summary><div class="classroom-mount"></div>';settings.after(classroom);
+for(const section of [settings,classroom]){const summary=section.querySelector(':scope>summary'),label=summary.textContent;summary.classList.add('workspace-disclosure-heading');const title=document.createElement('span');title.textContent=label;const icon=document.createElement('span');icon.className='workspace-disclosure-icon';icon.setAttribute('aria-hidden','true');icon.textContent=section.open?'−':'＋';summary.replaceChildren(title,icon);section.addEventListener('toggle',()=>{icon.textContent=section.open?'−':'＋'})}
+let classroomPromise=null;function loadClassroom(){if(!classroomPromise)classroomPromise=import('./score-classroom.js').then(({mountClassroom})=>mountClassroom(classroom.querySelector('.classroom-mount'))).catch(error=>{classroomPromise=null;classroom.querySelector('.classroom-mount').textContent='课堂未能载入：'+error.message;throw error;});return classroomPromise;}
+classroom.addEventListener('toggle',()=>{if(classroom.open)loadClassroom().then(controller=>controller.expand()).catch(()=>{});});
+document.addEventListener('classroom-open',async event=>{document.querySelector('.workspace-nav [data-panel="play"]')?.click();classroom.open=true;try{await(await loadClassroom()).open(event.detail.id,true);classroom.scrollIntoView({behavior:'smooth',block:'center'});}catch(error){classroom.querySelector('.classroom-mount').textContent=error.message;}});
 const sampleButton=$('#sample-button'),altRecognize=$('#alt-recognize'),librarySettings=$('.score-library .library-settings'),bottomSettings=$('.service-controls .technical');
 if(bottomSettings){const actions=document.createElement('div');actions.className='library-settings-actions';
  if(sampleButton){sampleButton.className='small-button';actions.append(sampleButton);}

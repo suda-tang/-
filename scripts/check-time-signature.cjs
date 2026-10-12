@@ -9,7 +9,7 @@ const ORIGIN = process.env.PIANO_ORIGIN || 'http://192.168.2.6:5173';
 const MULTI = '8ec8df6d0973fd0485ca38c5c328b7cd800ad7ab80bee45f32281953dcfebb6f';
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: EDGE, headless: true });
+  const browser = await chromium.launch({ executablePath: EDGE, headless: true,proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}});
   try {
     const page = await (await browser.newContext()).newPage();
     const errors = [];

@@ -1,9 +1,9 @@
 import {writtenExpression} from './written-expression.js';
 import {prepareAudioPlayback} from './audio-session.js';
-import {loadInstrument,rootFor,retainInstrumentSamples} from './instruments.js?v=bounded-cache2';
+import {loadInstrument,rootFor,retainInstrumentSamples} from './instruments.js';
 import {arrangeScore} from './harmony.js';
 import {preparePerformance} from './performance.js';
-import {loadPianoSamples,sampleRoot,selectLayer,releasePianoSamples} from './piano-samples.js?v=bounded-cache2';
+import {loadPianoSamples,sampleRoot,selectLayer,releasePianoSamples} from './piano-samples.js';
 // Recorded loudness differs wildly between the shipped sources: the Salamander
 // layers peak around 0.70 while the sustained GM bank (violin, cello, flute,
 // clarinet, horn, harp, ensemble) sits near 0.11. Without compensation a string

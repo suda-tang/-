@@ -1,7 +1,7 @@
 const {chromium}=require('C:/Users/mail/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 const assert=require('node:assert/strict');
 (async()=>{
- const browser=await chromium.launch({headless:true,channel:'msedge'});
+ const browser=await chromium.launch({headless:true,channel:'msedge',proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}});
  try{
   for(const width of [1280,390]){
    const page=await browser.newPage({viewport:{width,height:844},reducedMotion:width===390?'reduce':'no-preference'});

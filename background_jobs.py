@@ -5,6 +5,12 @@ from storage import write_json
 from idle_runtime import foreground as foreground_state,checkpoint
 ROOT=Path(__file__).resolve().parent;RUNTIME=ROOT/'.sites-runtime';DB=RUNTIME/'processing.sqlite3';CACHE=RUNTIME/'score-cache';ARTIFACTS=RUNTIME/'analysis';_thread=None
 KINDS={'profile':'曲谱档案与记谱核对','metadata':'标题校验与封面','expression':'演奏表情分析','pdf':'PDF 后台预览','arrangement':'配器与鼓伴奏','transcription':'音视频转录','photos':'照片整理与识谱'}
+# 任务中心里「后台任务」的展示窗口。每首曲子都会留下 档案核对/表情分析/PDF预览/标题校验
+# 等终态记录，实测积到 131 条，把界面淹掉。这里只**收窄展示**（进行中的 + 窗口内结束的），
+# ★ 绝不删库行：scan() 每 45 秒会把曲库里所有曲子的作业重新 enqueue，用的是
+#   INSERT OR IGNORE —— 行一旦没了就会重建并入队，把已经做完的活再跑一遍。
+TASK_WINDOW=24*60*60
+TASK_ROWS=80
 
 class QueueConnection(sqlite3.Connection):
  def __exit__(self,*args):
@@ -59,7 +65,8 @@ def tasks():
   for row in stale:
    stage=row['detail'] or KINDS.get(row['kind'],'处理')
    db.execute("UPDATE jobs SET status='failed',detail=?,updated=? WHERE id=?",(f"任务停在“{stage}”超过 3 分钟，后台进程可能已中断；可在任务中心重新处理。",now,row['id']))
-  rows=db.execute("SELECT * FROM jobs ORDER BY CASE status WHEN 'running' THEN 0 WHEN 'queued' THEN 1 ELSE 2 END,updated DESC LIMIT 120").fetchall()
+  # 只回「进行中 + 窗口内结束」的；窗口与上限见 TASK_WINDOW/TASK_ROWS 的注释（不删行）。
+  rows=db.execute("SELECT * FROM jobs WHERE status IN ('running','queued','needs_review') OR updated>? ORDER BY CASE status WHEN 'running' THEN 0 WHEN 'queued' THEN 1 ELSE 2 END,updated DESC LIMIT "+str(TASK_ROWS),(now-TASK_WINDOW,)).fetchall()
  result=[];title_cache={}
  for row in rows:
   item=dict(row);digest=item['digest']

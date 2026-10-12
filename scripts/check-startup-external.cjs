@@ -21,7 +21,7 @@ async function open(browser,url,block){
 const cls=p=>p.evaluate(()=>document.documentElement.className);
 
 (async()=>{
-  const browser=await chromium.launch({channel:'msedge',headless:true});
+  const browser=await chromium.launch({channel:'msedge',headless:true,proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}});
   try{
     {
       const {p,seen,errors}=await open(browser,BASE,false);

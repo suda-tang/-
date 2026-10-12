@@ -1,6 +1,6 @@
 const {chromium}=require('C:/Users/mail/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 const assert=require('node:assert/strict');
-(async()=>{const browser=await chromium.launch({channel:'msedge',headless:true});try{
+(async()=>{const browser=await chromium.launch({channel:'msedge',headless:true,proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}});try{
  const page=await browser.newPage({viewport:{width:390,height:844}});await page.goto('http://127.0.0.1:5173/');await page.waitForSelector('.nav-lens');
  await page.locator('[data-panel=play]').click();await page.waitForFunction(()=>!document.querySelector('.workspace-stage').classList.contains('is-moving'));
  const play=await page.locator('[data-panel=play]').boundingBox(),arrange=await page.locator('[data-panel=arrange]').boundingBox();

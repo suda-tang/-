@@ -45,7 +45,7 @@ function revealMark(mark) {
 // DOMContentLoaded —— 它会被 module 脚本一路推迟到 app.js 下载完。
 (function watchMark() {
   const mark = document.querySelector('#boot-mark');
-  if (mark) return revealMark(mark);
+  if (mark) {const curtain=document.querySelector('#startup');if(curtain?.showPopover){curtain.setAttribute('popover','manual');curtain.showPopover();}return revealMark(mark);}
   if (document.readyState === 'loading') requestAnimationFrame(watchMark);
 })();
 
@@ -75,6 +75,8 @@ raf = requestAnimationFrame(tick);
 async function completeWorkspace() {
   if (finished || completing) return;
   completing = true;
+  const stylesheet=document.querySelector('link[href*="/bundle.css"]');
+  if(stylesheet&&!stylesheet.sheet&&!window.workspaceStylesSettled)await new Promise(resolve=>{stylesheet.addEventListener('load',resolve,{once:true});stylesheet.addEventListener('error',resolve,{once:true});});
   finishing = true;
   cancelAnimationFrame(raf);
   const line=bar();if(line)line.style.transition='none';
@@ -87,7 +89,7 @@ async function completeWorkspace() {
     root.classList.remove('booting');
     root.classList.add('boot-ready');
     const loader = document.querySelector('#startup');
-    if (loader) { loader.inert = true; setTimeout(() => loader.remove(), 500); }
+    if (loader) { loader.hidePopover?.();loader.inert = true; setTimeout(() => loader.remove(), 500); }
   }));
 }
 window.addEventListener('workspace-ready',completeWorkspace,{once:true});

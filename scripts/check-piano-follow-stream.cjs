@@ -1,6 +1,6 @@
 const assert=require('node:assert/strict');
 const {chromium}=require('C:/Users/mail/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
-(async()=>{const browser=await chromium.launch({channel:'msedge',headless:true,args:['--autoplay-policy=no-user-gesture-required']});try{
+(async()=>{const browser=await chromium.launch({channel:'msedge',headless:true,args:['--autoplay-policy=no-user-gesture-required'],proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}});try{
  const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.route('**/api/scores',r=>r.fulfill({json:{scores:[]}}));await page.goto('http://127.0.0.1:5173/');
  const result=await page.evaluate(async()=>{
   const {PitchListener,Follower}=await import('/engine.js'),events=[{beat:0,measure:1,pitches:[48,60]},{beat:1,measure:1,pitches:[62]},{beat:2,measure:1,pitches:[64]}];

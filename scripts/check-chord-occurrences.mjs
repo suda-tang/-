@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {findChordOccurrences} from '../dist/harmony.js';
+const event=(beat,measure,pitches,duration=1)=>({beat,measure,offset:beat%4,notes:pitches.map(midi=>({midi,duration}))});
+const events=[event(0,1,[60,63,66,69]),event(1,1,[60,63,66,70]),event(2,1,[62,65,68,71]),event(4,2,[60,63,66,69])];
+const diminished=await findChordOccurrences(events,'dim7');
+assert.deepEqual(diminished.map(c=>[c.measure,c.offset]),[[1,0],[1,2],[2,0]]);
+const half=await findChordOccurrences(events,'half-dim7');
+assert.deepEqual(half.map(c=>[c.measure,c.offset]),[[1,1]]);
+const sustained=await findChordOccurrences([event(0,1,[60],4),event(1,1,[63,66,69])],'dim7');
+assert.equal(sustained.length,1);assert.equal(sustained[0].offset,1);
+console.log('PASS: separate chord types, multiple onsets per measure, held bass across onsets');

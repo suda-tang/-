@@ -1,3 +1,4 @@
+import {afterWorkspace} from './background-work.js';
 import {createCardDecks} from './library-decks.js?v=8';
 import {yieldToBrowser} from './yield-to-browser.js?v=1';
 import {cardPositions,tetherCards} from './library-tether.js';
@@ -21,6 +22,7 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
   const pendingItems=pendingGroup.querySelector('.library-pending-items'),pendingToggle=pendingGroup.querySelector('button');
   const decks=createCardDecks({list,pendingGroup,pendingItems,pendingToggle,openBrowser:()=>expand.onclick(),isFullscreen:()=>browser.open});
   function regroupPending(){decks.regroup();}
+  let snapshotWrite=null;
   let pollTimer=null,titleQueue=Promise.resolve(),opening=false;const titlesInFlight=new Set();
   const loader=document.createElement('div');loader.className='score-loading-overlay';loader.hidden=true;loader.innerHTML='<div class=score-loading-dialog role=status aria-live=polite><div class=score-loading-seal role=img aria-label="苏州大学"></div><strong>正在打开琴谱</strong><span>准备连接 SUPERTANG CLOUD</span><div class=score-loading-progress><i></i></div><small>0%</small></div>';loader.setAttribute('popover','manual');document.body.append(loader);
   let shownProgress=0,targetProgress=0,progressFrame=0,progressTime=0,progressStarted=0,barMotion=null;
@@ -48,15 +50,13 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
     loader.hidden=false;loader.showPopover?.();
     const libraryExit=closeLibrary&&browser.open?closeBrowser():Promise.resolve();
     if(!motionAllowed()){await libraryExit;return;}
-    await Promise.all([
-      libraryExit,
-      unfoldScoreLoader(loader)
-    ]).catch(()=>{});
+    await libraryExit;loader.hidePopover?.();loader.showPopover?.();
+    await unfoldScoreLoader(loader).catch(()=>{});
   }
   async function dismissLoader(success=false){
     if(targetProgress>=100){shownProgress=100;animateProgress(performance.now());}
     try{await foldLoaderIntoScore(loader,{success});}catch(error){console.warn('曲谱过渡未完成',error);restoreArrivingScore();}
-    loader.hidePopover?.();loader.hidden=true;barMotion?.cancel();barMotion=null;if(progressFrame)cancelAnimationFrame(progressFrame);progressFrame=0;
+    loader.hidePopover?.();loader.hidden=true;document.dispatchEvent(new Event('score-loader-dismissed'));barMotion?.cancel();barMotion=null;if(progressFrame)cancelAnimationFrame(progressFrame);progressFrame=0;
   }
   const scoreTransfers=new Map();
   const prefetchScore=id=>{
@@ -134,7 +134,7 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
   const categoryPrompt=document.createElement('dialog');categoryPrompt.className='library-category-prompt';categoryPrompt.innerHTML='<form><header><strong>AI 分类</strong><button type="button" aria-label="关闭分类对话">×</button></header><label for="category-instruction">你希望按照什么方式分类？</label><textarea id="category-instruction" rows="3" maxlength="500" placeholder="例如：按作曲者分组，或按适合初学者、进阶、演出分组"></textarea><small role="status"></small><footer><button type="submit">开始分类</button></footer></form>';document.body.append(categoryPrompt);
   categoryControl.onclick=()=>{if(categoryRunning)return;categoryPrompt.showModal();categoryPrompt.querySelector('textarea').focus();};categoryPrompt.querySelector('[type=button]').onclick=()=>categoryPrompt.close();
   categoryPrompt.querySelector('form').onsubmit=event=>{event.preventDefault();const instruction=categoryPrompt.querySelector('textarea').value.trim();if(!instruction){categoryPrompt.querySelector('small').textContent='请填写分类方式。';return;}categoryPrompt.close();void classifyLibrary(true,instruction);};
-  void pollCategories();
+  afterWorkspace(pollCategories,{delay:1200});
   let enteredDecks=new WeakSet();
   const deckEntrance=new IntersectionObserver(entries=>{
     for(const entry of entries){if(!entry.isIntersecting||!browser.open)continue;deckEntrance.unobserve(entry.target);if(enteredDecks.has(entry.target))continue;enteredDecks.add(entry.target);
@@ -242,7 +242,12 @@ export function initLibrary({openPdf, openScore, recognizeTitle, matchCover, ope
         if(response.headers.get('Content-Type')?.includes('ndjson')&&response.body?.getReader){
           const reader=response.body.getReader(),decoder=new TextDecoder();let buffer='';
           const consume=line=>{if(line.trim())receive(JSON.parse(line));};
-          for(;;){const {value,done}=await reader.read();buffer+=decoder.decode(value||new Uint8Array(),{stream:!done});const lines=buffer.split('\n');buffer=lines.pop();for(const line of lines)consume(line);if(done){consume(buffer);break;}}
+          // ★ 与 workspace-ai.js Bug7 同款（2026-10-11）：以前只在 done（连接关闭）时跳出，
+//   而这条流迟迟不关闭 → 结果其实早就收到了，但套用结果的代码在循环之后，
+//   界面就一直转圈，要等到 75 秒超时才把结果刷出来。
+//   result 事件是终点，但 **partial 是中途结果**（后面还会有最终的一版），
+//   所以只在「非 partial 的最终 result」到达时才收工。
+ for(;;){const {value,done}=await reader.read();buffer+=decoder.decode(value||new Uint8Array(),{stream:!done});const lines=buffer.split('\n');buffer=lines.pop();for(const line of lines)consume(line);if(result&&!result.partial){try{void reader.cancel();}catch{}break;}if(done){consume(buffer);break;}}
         }else result=await response.json();
         if(!result)throw Error('搜索连接已结束，但结果未接收完整');if(revision!==searchRevision||!browser.open)return;
         const ids=result.ids||[];if(lowMemory){mobileMatches=new Set(ids);mobileLimit=STREAM_BATCH;await reload(true);}decks.search(query.toLowerCase(),ids);progress=100;stage=result.warning|| (ids.length?'找到 '+ids.length+' 首曲谱':'未找到相关曲谱');paint();searchStatus.querySelector('button')?.remove();
@@ -349,7 +354,7 @@ staff.hidden=item.status!=='running';}
       const fetchFresh=async()=>{if(window.cloudLibraryRequest){const early=window.cloudLibraryRequest;window.cloudLibraryRequest=null;try{return await early;}catch{}}let data=null,lastErr=null;for(let attempt=0;attempt<3;attempt++){try{if(attempt)window.reportStartupActivity?.({id:'catalog',label:'读取云曲库列表（重试 '+attempt+'）'});const response=await fetch('/api/scores',{signal:controller.signal});if(!response.ok)throw Error('HTTP '+response.status);data=await response.json();lastErr=null;break;}catch(err){lastErr=err;if(controller.signal.aborted)break;await new Promise(r=>setTimeout(r,800));}}if(!data)throw lastErr||Error('云曲库读取失败');return data;};
       const paint=async(data)=>{
         invalidateChangedScores(data.scores);window.cloudLibrarySnapshot={scores:data.scores,saved:Date.now()};
-        try{localStorage.setItem('cloudLibrarySnapshot',JSON.stringify(window.cloudLibrarySnapshot));}catch{}
+        snapshotWrite?.cancel();snapshotWrite=afterWorkspace(()=>{try{localStorage.setItem('cloudLibrarySnapshot',JSON.stringify(window.cloudLibrarySnapshot));}catch{}});
         const existing=new Map([...list.querySelectorAll('.library-score')].map(c=>[c.dataset.scoreId,c]));
         if(!local){coverObserver.disconnect();decks.clear(false);pendingItems.replaceChildren();pendingToggle.setAttribute('aria-expanded','false');pendingGroup.classList.remove('is-expanded');list.replaceChildren();}
         list.querySelector('.library-stream-more')?.remove();
@@ -379,12 +384,14 @@ staff.hidden=item.status!=='running';}
             try{
               shownProgress=0;targetProgress=0;progressTime=0;progressStarted=performance.now();barMotion?.cancel();barMotion=null;if(progressFrame)cancelAnimationFrame(progressFrame);progressFrame=0;updateLoader(4,cleanText(item.title)||'正在读取琴谱');
               loader.hidden=false;loader.showPopover?.();loader.style.opacity=motionAllowed()?'0':'';const loaderEntry=Promise.resolve();let libraryExit=Promise.resolve();
+              // Start download, parsing and engraving while the selected sleeve opens.
+              const scoreWork=button.dataset.ready==='true'?(async()=>{concealArrivingScore();const data=await obtainScore(item.id);updateLoader(34,'解析音符与声部');await openScore({...data,id:item.id,hasPdf:item.hasPdf},updateLoader);if(lowMemory)scoreCache.delete(item.id);})().then(()=>({ok:true}),error=>({error})):null;
               const recordFlight=carryCardToLoader(button,list,loader,()=>libraryExit);
               libraryExit=browser.open?closeBrowser():Promise.resolve();
               if(item.ready)void prefetchScore(item.id);
               await Promise.all([recordFlight,loaderEntry,libraryExit]);regroupPending();
               if(button.dataset.ready==='true'){
-                const data=await obtainScore(item.id);updateLoader(34,'解析音符与声部');concealArrivingScore();await openScore({...data,id:item.id,hasPdf:item.hasPdf},updateLoader);if(lowMemory)scoreCache.delete(item.id);
+                const result=scoreWork?await scoreWork:null;if(result?.error)throw result.error;
               }
               else if(item.hasPdf&&openPending){await openPending(item);}
               else if(item.hasPdf){const pdf=await fetch(`/api/scores/${item.id}/pdf`);if(!pdf.ok)throw Error('原谱读取失败');await openPdf(new File([await pdf.blob()],`${cleanText(item.title)||'云曲谱'}.pdf`,{type:'application/pdf'}));}

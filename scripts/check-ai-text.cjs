@@ -1,7 +1,7 @@
 const assert=require('node:assert/strict');
 const {chromium}=require('C:/Users/mail/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 const reply='如果你是在问***钢琴演奏或音乐教学***相关的问题，可以详细描述一下。比如：- 日常练习怎样安排？- &#x548C;声分析如何应用？\n\n**本次建议**\n1. 先慢练\n2. 再连贯弹奏\n\n[参考资料](https://example.com/score)';
-(async()=>{const browser=await chromium.launch({channel:'msedge',headless:true});try{
+(async()=>{const browser=await chromium.launch({channel:'msedge',headless:true,proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}});try{
  for(const width of [390,1440]){
   const page=await browser.newPage({viewport:{width,height:900}}),errors=[];let calls=0;
   page.on('pageerror',e=>errors.push(e.message));

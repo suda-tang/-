@@ -8,7 +8,7 @@ const DIGEST=process.env.DIGEST||'3d25b16fa117827b25da914fd907522ab0a0dfc6e7c5a6
 const TARGETS=[[2,0.3],[2,0.75],[3,0.35],[3,0.8],[4,0.5]];
 
 (async()=>{
- const browser=await chromium.launch({channel:'msedge',headless:true,args:['--autoplay-policy=no-user-gesture-required']});
+ const browser=await chromium.launch({channel:'msedge',headless:true,args:['--autoplay-policy=no-user-gesture-required'],proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}});
  try{
   const page=await browser.newPage({viewport:{width:1280,height:1000}}),errors=[];
   page.on('pageerror',error=>errors.push(error.message));

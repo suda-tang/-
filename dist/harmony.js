@@ -6,6 +6,24 @@ export function detectChord(pitches){
  for(let root=0;root<12;root++)for(const [suffix,intervals] of templates){const tones=intervals.map(x=>(root+x)%12),hits=tones.filter(x=>pcs.includes(x)).length;if(hits!==tones.length)continue;const quality=hits*2-(pcs.length-hits)*2+(root===bass?.25:0);if(!best||quality>best.quality)best={name:names[root]+suffix+(bass!==root?'/'+names[bass]:''),root,tones,quality,confidence:hits/pcs.length};}
  return best?.confidence>=.75?best:null;
 }
+// Inspect simultaneous sounding notes, rather than combining an entire measure.
+// Non-chord tones and enharmonic spelling still need a musician's judgement.
+export async function findChordOccurrences(events,quality,onProgress=()=>{}){
+ const intervals={dim7:[0,3,6,9],'half-dim7':[0,3,6,10],dom7:[0,4,7,10],min7:[0,3,7,10],maj7:[0,4,7,11],dim:[0,3,6],aug:[0,4,8],min:[0,3,7],maj:[0,4,7]}[quality];
+ if(!intervals)throw Error('无法识别这个和弦类型');
+ const ordered=[...events].sort((a,b)=>a.beat-b.beat),active=new Map(),found=[];let serial=0,lastKey='',lastYield=0;
+ for(let i=0;i<ordered.length;){
+  const event=ordered[i],beat=event.beat;for(const [id,note]of active)if(note.end<=beat+1e-6)active.delete(id);
+  let next=i;while(next<ordered.length&&Math.abs(ordered[next].beat-beat)<1e-6){for(const n of ordered[next].notes){if(Number.isFinite(n.midi)&&n.duration>0)active.set(++serial,{midi:n.midi,end:beat+n.duration});}next++;}
+  const pitches=[...active.values()].map(n=>n.midi),pcs=[...new Set(pitches.map(n=>(n%12+12)%12))].sort((a,b)=>a-b);
+  let root=null;if(pcs.length===intervals.length)for(const pc of pcs)if(intervals.every(x=>pcs.includes((pc+x)%12))){root=pc;break;}
+  const key=root===null?'':event.measure+':'+pcs.join(',');
+  if(key&&key!==lastKey){const suffix={dim7:'dim7','half-dim7':'m7♭5',dom7:'7',min7:'m7',maj7:'maj7',dim:'dim',aug:'aug',min:'m',maj:''}[quality];found.push({measure:event.measure,beat,offset:event.offset??0,name:names[root]+suffix,quality,pitchClassMatch:true,pitchClasses:pcs});}
+  lastKey=key;i=next;
+  if(i-lastYield>=128||i===ordered.length){lastYield=i;onProgress(i/Math.max(1,ordered.length));await new Promise(r=>setTimeout(r,0));}
+ }
+ onProgress(1);return found;
+}
 export function analyzeHarmony(score){
  const measures=new Map();for(const e of score.events){if(!measures.has(e.measure))measures.set(e.measure,[]);measures.get(e.measure).push(e);}
  const result=new Map();for(const [measure,events] of measures){const weighted=new Map();for(const e of events)for(const n of e.notes){const pc=n.midi%12;weighted.set(pc,(weighted.get(pc)||0)+n.duration);}

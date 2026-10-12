@@ -1,7 +1,7 @@
 const {chromium}=require('C:/Users/mail/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 const fs=require('node:fs');const assert=require('node:assert/strict');
 (async()=>{
- const browser=await chromium.launch({headless:true,channel:'msedge',args:['--autoplay-policy=no-user-gesture-required']});
+ const browser=await chromium.launch({headless:true,channel:'msedge',args:['--autoplay-policy=no-user-gesture-required'],proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}});
  const page=await browser.newPage({viewport:{width:1360,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
  // 工作区分「曲库 / 演奏 / 改编 / 任务」四个面板，同一时刻只有一个可见：
  // 导入类控件（#pdf-input / #xml-input / #sample-button）在「曲库」，
@@ -32,9 +32,11 @@ const fs=require('node:fs');const assert=require('node:assert/strict');
  await panel('play');await page.waitForFunction(()=>document.querySelector('#play-button').textContent.includes('暂停'));assert.equal(await page.locator('.note-event').count(),3);
  const parsed=await page.evaluate(async xml=>(await import('/score.js')).parseMusicXML(xml),fs.readFileSync('tests/playback.musicxml','utf8'));
  assert.deepEqual(parsed.events.map(e=>e.beat),[1,2,5]);assert.equal(parsed.events[1].notes[0].duration,3);
- // totalBeats 现在是「压缩小节间隙后，最后一个音符的结束拍」：尾部两拍休止
- // 不计入（score.js 取 max(beat+duration)），所以是 6，不是整段谱面的 8 拍。
- assert.equal(parsed.totalBeats,6);
+ // ★ 2026-10-12：f6e59d3（"sync complete piano teaching workspace"）移除了原先的 compactShift
+ //   （压缩小节间隙）逻辑，改为「保留小节位置」的绝对拍模型：event.beat = 小节起点 + offset，
+ //   totalBeats = commonBeat = 各小节长度之和 = 整段谱面的完整拍数（含尾部休止）。
+ //   本例 2 小节 4/4 = 8 拍，最后一个音符结束于第 6 拍，但总时长就是 8 拍（进度条/DAW 时间轴按整谱面计）。
+ assert.equal(parsed.totalBeats,8);
  await page.locator('#play-button').click();
  const audio=await page.evaluate(async()=>{const {ScorePlayer}=await import('/player.js');const p=new ScorePlayer();p.load({events:[{beat:0,notes:[{midi:60,duration:4}]}]});await p.play();const a=p.context.createAnalyser();p.output.connect(a);await new Promise(r=>setTimeout(r,600));const data=new Float32Array(a.fftSize);a.getFloatTimeDomainData(data);const energy=data.reduce((s,x)=>s+x*x,0)/data.length;p.stop();await p.context.close();return energy;});assert.ok(audio>0.000001,'actual Web Audio output must be nonzero');
  // 上传改走 enqueueUploads 之后，校验失败不再写进 #notice，而是进「任务中心」

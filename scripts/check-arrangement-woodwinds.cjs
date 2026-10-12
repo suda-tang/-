@@ -11,7 +11,7 @@ const STYLE=process.env.STYLE||'woodwinds';
 const EXPECTED=(process.env.EXPECTED||'短笛,双簧管,单簧管,巴松').split(',');
 
 (async()=>{
- const browser=await chromium.launch({channel:'msedge',headless:true});
+ const browser=await chromium.launch({channel:'msedge',headless:true,proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}});
  try{
   const page=await browser.newPage({viewport:{width:1360,height:1000}}),errors=[];
   page.on('pageerror',error=>errors.push(error.message));

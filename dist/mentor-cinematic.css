@@ -55,3 +55,4 @@
 .mentor-voice-loading{display:flex;align-items:baseline;justify-content:center;gap:8px;white-space:nowrap;font-size:clamp(9px,2.65vw,14px);color:#66546a;max-width:100%}.mentor-voice-loading[hidden]{display:none}.mentor-voice-loading span:last-child{flex-shrink:0;font-variant-numeric:tabular-nums}
 
 .mentor-cinematic .mentor-caption-panel:not(:has(> :not([hidden]))){display:none!important}
+.studio .mentor-cinematic .mentor-sound-unlock{left:50%!important;top:46%!important;touch-action:manipulation;pointer-events:auto}

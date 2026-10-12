@@ -1,12 +1,12 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="booting">
 <head><meta charset="utf-8"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><meta name="theme-color" content="#122d2b"><title>唐秋鸣课题设计实例</title><meta name="description" content="上传钢琴谱，用麦克风跟随练习，观察音符、节奏与速度反馈。"><link rel="icon" href="/favicon.svg"><link rel="preload" as="image" href="/suda-seal.svg">
 <style>
 /* 加载页样式内联：外链 CSS 会阻塞渲染，不内联的话在它下载完成前整页都是白屏，
    进度条根本来不及露面。这里只管加载页与「启动期间隐藏主体」，其余交给 bundle.css。
    内容与 polish.css 中的对应规则保持一致，所以 CSS 到达后不会有跳动。 */
 html.booting body>.top,html.booting body>.workspace,html.booting body>.workspace-nav{visibility:hidden}
-#startup{position:fixed;inset:0;z-index:100000;display:grid;place-content:center;justify-items:center;gap:22px;background:radial-gradient(ellipse at 8% 0%,#eadce9 0,transparent 48%),radial-gradient(ellipse at 94% 30%,#e2eae8 0,transparent 45%),#f4f2f5;color:#513b39;text-align:center;font:14px system-ui,-apple-system,"Segoe UI",sans-serif}
+#startup{position:fixed;inset:0;margin:0;width:100%;height:100%;max-width:none;max-height:none;border:0;padding:0;z-index:100000;display:grid;place-content:center;justify-items:center;gap:22px;background:radial-gradient(ellipse at 8% 0%,#eadce9 0,transparent 48%),radial-gradient(ellipse at 94% 30%,#e2eae8 0,transparent 45%),#f4f2f5;color:#513b39;text-align:center;font:14px system-ui,-apple-system,"Segoe UI",sans-serif}
 #startup strong{font-size:15px;letter-spacing:.04em;font-weight:600}
 #startup .boot-mark{width:76px;height:76px;position:relative;display:grid;place-items:center;opacity:0;transition:opacity .3s ease}
 #startup .boot-mark.is-ready{opacity:1}
@@ -20,10 +20,17 @@ html.boot-ready #startup,#startup[inert]{opacity:0;pointer-events:none}
 @media(prefers-reduced-motion:reduce){#startup .boot-mark,#startup .boot-bar{transition:none}#startup .boot-mark:after{animation:none}}
 </style>
 
-<link rel="preload" href="/bundle.css?v=library-search21" as="style" onload="this.rel='stylesheet'">
+<link rel="preload" href="/bundle.css?v=library-search21" as="style" onload="this.rel='stylesheet';window.workspaceStylesSettled=true" onerror="window.workspaceStylesSettled=true">
 
-<script src="/page-gestures.js?v=1"></script>
-<script src="/startup.js?v=compact-progress9" onerror="document.documentElement.classList.remove('booting');document.addEventListener('DOMContentLoaded',function(){var s=document.getElementById('startup');if(s)s.remove();})"></script></head>
+<script>
+{const tour=new URLSearchParams(location.search).get('tour')==='1';
+for(const href of tour?['/tour-presentation.js?v=auto-discovery5','/narration-avatar.js?v=auto-discovery6','/vendor/three/three.module.js']:['/app.js?v=stream-search27','/workspace.js?v=activity-details15']){const link=document.createElement('link');link.rel='modulepreload';link.href=href;document.head.append(link)}
+if(tour)for(const href of ['/narration/models/mentor-portrait-surface.json?v=2','/narration/models/mentor-reference-face.png?v=2']){const link=document.createElement('link');link.rel='preload';link.as=href.includes('.png')?'image':'fetch';link.href=href;if(link.as==='fetch')link.crossOrigin='anonymous';document.head.append(link)}
+}
+</script>
+<script defer src="/page-gestures.js?v=1"></script>
+<script defer src="/startup.js?v=first-paint10" onerror="document.documentElement.classList.remove('booting');document.addEventListener('DOMContentLoaded',function(){var s=document.getElementById('startup');if(s)s.remove();})"></script>
+</head>
 <body>
 <div id="startup" role="status" aria-live="polite"><div class="boot-mark" id="boot-mark"><img src="/suda-seal.svg" alt="苏州大学校徽"></div><strong>唐秋鸣课题设计实例</strong><span id="boot-label">正在准备工作区</span><div class="boot-progress"><span class="boot-bar" id="boot-bar"></span></div><div class="boot-percent" id="boot-percent" aria-hidden="true">0%</div></div><noscript>请启用 JavaScript 以使用工作区。</noscript>
 <header class="top"><a class="brand" href="/" aria-label="课题工作台首页"><strong>唐秋鸣<span>课题设计实例</span></strong></a><div class="top-title">苏州大学钢琴演奏教学辅助系统<small>Soochow University Piano Teaching Assistant</small></div><span class="edition"><img src="/assets/suda-official.jpg" alt="苏州大学"></span></header>
@@ -57,4 +64,7 @@ html.boot-ready #startup,#startup[inert]{opacity:0;pointer-events:none}
 <section class="drum-card" id="drum-card" hidden><div class="drum-heading"><div><h3>鼓谱</h3><p id="drum-summary">Drum staff</p></div></div><div class="drum-scroll"><div class="drum-staff" id="drum-staff"></div></div></section><section class="feedback"><div class="feedback-heading"><div><h3>练习记录</h3><p id="feedback-subtitle">音符匹配与时间偏差</p></div><button id="export-button" class="small-button" disabled>导出记录</button></div><div id="events" class="events"><p class="empty-events">暂无记录</p></div></section>
 <footer class="bottom-note"><span>唐秋鸣　课题设计实例</span><small>TANG QIUMING · SUZHOU UNIVERSITY · MUSIC EDUCATION</small></footer>
 </section></main><script type="module" src="/project-entry.js?v=stream-search28"></script><script type="module" src="/campus.js?v=incremental2"></script><script type="module" src="/language-switch.js?v=incremental-translations3"></script>
-<script type="module" src="/liquid-view-switch.js"></script><script type="module" src="/workspace-ai.js?v=search-progress17"></script></body></html>
+<script type="module">
+const start=()=>{void import('/liquid-view-switch.js');void import('/workspace-ai.js?v=search-progress17')};
+if(new URLSearchParams(location.search).get('tour')==='1')window.addEventListener('tour-background-ready',start,{once:true});else start();
+</script></body></html>

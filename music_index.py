@@ -556,7 +556,9 @@ def resolve_instruments(text):
 def resolve_chord(text):
     """Map a user phrase to a chord-quality label (or None)."""
     text = str(text or '')
-    for alias, label in CHORD_ALIASES.items():
+    if re.search(r'半减七|减小七|half[- ]?dim(?:inished)?7|m7[♭b]5',text,re.I):
+        return 'half-dim7'
+    for alias, label in sorted(CHORD_ALIASES.items(), key=lambda item: len(item[0]), reverse=True):
         if alias in text:
             return label
     return None

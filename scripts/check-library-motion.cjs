@@ -1,6 +1,6 @@
 const {chromium}=require('C:/Users/mail/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 const assert=require('node:assert/strict');
-(async()=>{const browser=await chromium.launch({channel:'msedge',headless:true});try{
+(async()=>{const browser=await chromium.launch({channel:'msedge',headless:true,proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}});try{
 const page=await browser.newPage({viewport:{width:1280,height:850}});
 await page.route('**/api/scores',r=>r.fulfill({json:{scores:Array.from({length:16},(_,i)=>({id:String(i).padStart(64,'a'),title:'曲谱 '+i,ready:true}))}}));
 await page.route('**/api/cover?**',r=>r.fulfill({json:{artwork:''}}));

@@ -22,7 +22,7 @@ const CASES=[
  '分析当前小节的和弦',
 ];
 (async()=>{
-  const browser=await chromium.launch({channel:'msedge',headless:true});
+  const browser=await chromium.launch({channel:'msedge',headless:true,proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}});
   const scores=await (async()=>{const p=await browser.newPage();await p.goto('http://127.0.0.1:5173/',{waitUntil:'load'});
     const s=await p.evaluate(async()=>{const r=await fetch('/api/scores');const d=await r.json();return d.scores.map(x=>({id:x.id,title:x.title}));});await p.close();return s;})();
   for(const q of CASES){

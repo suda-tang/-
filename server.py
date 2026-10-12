@@ -230,7 +230,7 @@ def _score_list_cache_save():
         _SCORE_LIST_CACHE_DIRTY=False
     except (OSError,ValueError,TypeError):pass
 
-def _score_list_item(digest,background_active,stamps=None):
+def _score_list_item(digest,background_active,stamps=None,jobs=None):
     global _SCORE_LIST_CACHE_DIRTY
     _score_list_cache_load()
     # stamps 可由调用方在一次 scandir 里预先算好（见 /api/scores）。为 None 时退回逐文件
@@ -241,8 +241,13 @@ def _score_list_item(digest,background_active,stamps=None):
             try:
                 stat=(CACHE_DIR/(digest+suffix)).stat();stamps.append((stat.st_mtime_ns,stat.st_size))
             except OSError:stamps.append(None)
-    with LOCK:
-        jobs=[(j.get('id'),j.get('status'),j.get('progress'),j.get('stage'),j.get('error')) for j in JOBS.values() if j.get('digest')==digest]
+    if jobs is None:
+        # 退回路径：自己按 digest 过滤一次 JOBS。列表接口会传入预先分组好的结果，
+        # 否则 1885 首就是 1885 次加锁 + 1885 次全表扫描（见 /api/scores）。
+        with LOCK:
+            jobs=[(j.get('id'),j.get('status'),j.get('progress'),j.get('stage'),j.get('error')) for j in JOBS.values() if j.get('digest')==digest]
+    else:
+        jobs=[(j.get('id'),j.get('status'),j.get('progress'),j.get('stage'),j.get('error')) for j in jobs]
     signature=(tuple(stamps),repr(background_active),repr(jobs))
     hit=SCORE_LIST_CACHE.get(digest)
     if hit and hit[0]==signature:return dict(hit[1]) if hit[1] else None
@@ -599,22 +604,30 @@ def audit_bundle():
               + ', '.join(missing), flush=True)
 
 def gzip_cached(path):
-    """压缩后按 mtime 缓存一份，免得每个请求都重压一遍大文件。"""
+    """压缩后按 mtime 缓存一份，免得每个请求都重压一遍大文件。
+
+    ★ 先查缓存再读盘：原来无论命中与否都 `open().read()` 整个文件（只为了拿
+    len(raw) 做校验），首屏 88 个请求就是 88 次整文件读 —— 命中缓存也白读。
+    改成用 os.stat 的 st_size/mtime 做键，命中时一个字节都不用读。
+    """
     try:
-        mtime = os.path.getmtime(path)
+        stat = os.stat(path)
+    except OSError:
+        return None
+    if stat.st_size < 512:
+        return None                      # 太小，压了也省不出什么
+    hit = _GZIP_CACHE.get(path)
+    if hit and hit[0] == stat.st_mtime and hit[1] == stat.st_size:
+        return hit[2]
+    try:
         raw = open(path, 'rb').read()
     except OSError:
         return None
-    if len(raw) < 512:
-        return None                      # 太小，压了也省不出什么
-    hit = _GZIP_CACHE.get(path)
-    if hit and hit[0] == mtime and hit[1] == len(raw):
-        return hit[2]
     buf = io.BytesIO()
     with gzip.GzipFile(fileobj=buf, mode='wb', compresslevel=6, mtime=0) as stream:
         stream.write(raw)
     data = buf.getvalue()
-    _GZIP_CACHE[path] = (mtime, len(raw), data)
+    _GZIP_CACHE[path] = (stat.st_mtime, len(raw), data)
     return data
 
 class Handler(SimpleHTTPRequestHandler):
@@ -642,20 +655,39 @@ class Handler(SimpleHTTPRequestHandler):
         body = gzip_cached(target)
         if body is None:
             return super().send_head()
+        # ★ 条件请求：浏览器会把上次收到的 Last-Modified 原样回传，一致就直接 304。
+        #   首屏要拉 88 个资源，重复访问时这能省下几百 KB 的响应体（配合 no-cache 使用）。
+        try:
+            last_modified = self.date_time_string(int(os.path.getmtime(target)))
+        except OSError:
+            last_modified = None
+        if last_modified and self.headers.get('If-Modified-Since') == last_modified:
+            self.send_response(304)
+            self.send_header('Last-Modified', last_modified)
+            self.end_headers()
+            return None
         self.send_response(200)
         self.send_header('Content-Type', self.guess_type(target))
         self.send_header('Content-Encoding', 'gzip')
         self.send_header('Vary', 'Accept-Encoding')
+        if last_modified: self.send_header('Last-Modified', last_modified)
         self.send_header('Content-Length', str(len(body)))
         self.end_headers()
         return io.BytesIO(body)
     def end_headers(self):
         self.send_header('X-Content-Type-Options', 'nosniff')
         immutable_page=self.path.startswith('/api/scores/') and '/page/' in self.path
-        # vendor 下的第三方库版本稳定，可以长期缓存；dist 自身还在迭代，
-        # 保持 no-store，免得改了前端却因为缓存不生效。
         long_lived=self.path.startswith('/assets/piano/salamander/') or self.path.startswith('/assets/instruments/') or immutable_page or self.path.startswith('/vendor/')
-        self.send_header('Cache-Control', 'public, max-age=31536000, immutable' if long_lived else 'no-store')
+        # vendor 下的第三方库版本稳定，可以长期缓存。
+        # ★ dist 自身仍在迭代，以前一律 no-store —— 后果是**每次刷新都要重下首屏那
+        #   400 多 KB 的 JS/CSS**（URL 里的 ?v= 版本号本来是为缓存准备的，被 no-store
+        #   完全抵消）。现在改成 no-cache：浏览器允许存，但每次使用前必须回源校验；
+        #   文件没变就命中上面的 304（只回几十字节头），文件变了立刻拿到新版 ——
+        #   既不脏、重复访问又快。接口（/api/）继续 no-store，避免把动态数据当静态缓存。
+        if self.path.split('?',1)[0].startswith('/api/'):
+            self.send_header('Cache-Control', 'no-store')
+        else:
+            self.send_header('Cache-Control', 'public, max-age=31536000, immutable' if long_lived else 'no-cache')
         super().end_headers()
     def json_response(self, data, status=200):
         body = json.dumps(data, ensure_ascii=False).encode('utf-8')
@@ -720,6 +752,9 @@ class Handler(SimpleHTTPRequestHandler):
         self.wfile.write(body)
     def do_GET(self):
         if not self.allowed(): return self.json_response({'error':'仅接受本机同源请求'},403)
+        if urlparse(self.path).path.startswith('/api/classroom'):
+            import score_classroom
+            return score_classroom.handle(self)
         if urlparse(self.path).path.startswith('/api/scorestarling'):
             import scorestarling
             return scorestarling.handle(self,sys.modules[__name__])
@@ -766,6 +801,8 @@ class Handler(SimpleHTTPRequestHandler):
             with LOCK:jobs=[job_progress({k:v for k,v in j.items() if k not in ('xml','partialXml','partialPages','diagnostic')}) for j in JOBS.values()]
             import background_jobs,performance_service
             jobs+=background_jobs.tasks()
+            import score_classroom
+            jobs+=score_classroom.tasks()
             with performance_service.LOCK:perf_keys=list(performance_service.JOBS)
             jobs+=[{k:v for k,v in performance_service.status(key).items() if k!='result'} for key in perf_keys]
             import fingering_service
@@ -828,6 +865,14 @@ class Handler(SimpleHTTPRequestHandler):
             # 一次性取出所有 digest 的后台任务（避免逐首重开 SQLite 连接，原来 80 首要 2~3s）
             import background_jobs
             job_by_digest = background_jobs.latest_jobs_by_digest()
+            # 一次取全 JOBS 并按 digest 分组：以前 _score_list_item 对**每一首**各拿一次
+            # LOCK 并全表扫一遍 JOBS（1885 首 = 1885 次加锁）。后台有任务在跑时，这些
+            # 加锁会与工作线程互相等待，把整列表构建拖慢。这里改成只取一次。
+            with LOCK:
+                jobs_by_digest={}
+                for candidate in JOBS.values():
+                    key=candidate.get('digest')
+                    if key: jobs_by_digest.setdefault(key,[]).append(candidate)
             # ★ 列表级响应缓存：曲库集合 + 各文件签名 + 进行中任务状态 三者都不变时，
             # 直接回放上次构建结果，跳过对 4.4GB 缓存目录的逐首内容读取。冷构建会吃满 GIL，
             # 把 /api/health、/api/tasks 等所有动态接口拖到 16~30s 无响应（AI 开谱“卡死”根因之一）。
@@ -847,7 +892,7 @@ class Handler(SimpleHTTPRequestHandler):
                 per=stamps_by_digest.get(digest,{})
                 stamps=tuple(per.get(suffix) for suffix in tracked)
                 try:
-                    it = _score_list_item(digest, job_by_digest.get(digest), stamps)
+                    it = _score_list_item(digest, job_by_digest.get(digest), stamps, jobs_by_digest.get(digest, ()))
                 except Exception:
                     # 单首损坏绝不让整个曲库列表崩（之前会令 /api/scores 空回复）
                     continue
@@ -972,6 +1017,9 @@ class Handler(SimpleHTTPRequestHandler):
         return self.json_response({'error':'接口不存在'},404)
     def do_POST(self):
         if not self.allowed(): return self.json_response({'error':'仅接受本机同源请求'},403)
+        if urlparse(self.path).path.startswith('/api/classroom'):
+            import score_classroom
+            return score_classroom.handle(self)
         if urlparse(self.path).path.startswith('/api/scorestarling'):
             import scorestarling
             return scorestarling.handle(self,sys.modules[__name__])
@@ -1254,6 +1302,9 @@ def sources_busy():
     the cheap ones (metadata, pdf) just redo quickly and may be interrupted --
     background_jobs.start() re-queues anything left 'running' regardless.
     """
+    import score_classroom
+    with score_classroom.LOCK:
+        if score_classroom.ACTIVE:return True
     with LOCK:
         if any(j.get('status')=='running' for j in JOBS.values()): return True
     import performance_service

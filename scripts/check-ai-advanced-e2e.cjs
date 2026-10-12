@@ -7,7 +7,7 @@ const EDGE = 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
 const ORIGIN = process.env.PIANO_ORIGIN || 'http://192.168.2.6:5173';
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: EDGE, headless: true });
+  const browser = await chromium.launch({ executablePath: EDGE, headless: true,proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}});
   const passed = [];
   try {
     const page = await (await browser.newContext({ viewport: { width: 1440, height: 900 } })).newPage();

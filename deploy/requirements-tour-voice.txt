@@ -1,0 +1,2 @@
+# Install in an isolated venv; gTTS CLI's click constraint conflicts with some model runtimes.
+gTTS==2.5.4

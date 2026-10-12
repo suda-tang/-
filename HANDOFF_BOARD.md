@@ -30,6 +30,10 @@
 | 云曲库首屏流式渲染（Bug4） | ✅ 已修复并实测通过 | 本会话（2026-10-10） | 2026-10-10 |
 | 云曲库缓存优先首屏（Bug5） | ✅ 已修复并实测通过 | 本会话（2026-10-10） | 2026-10-10 |
 | AI 连续对话卡死（Bug6） | ✅ 全修：前端 3 处 + 服务端根因（/api/scores 列表级缓存 + 轮询退避）+ 重启验证 | 本会话（2026-10-11） | 2026-10-11 |
+| **AI 动作从不执行 / busy 永久卡死（Bug7）** | ✅ 已修复并实测：requestAI 收 result 即收工；音乐家 9 轮 0 失败 | 本会话（2026-10-11） | 2026-10-11 |
+| Bug7 后续：补「只答应不给动作」警告 + 修测试误报 + 补 4 个测试脚本代理绕过 | ✅ 完成；真实模型审计 5/5 轮状态全对 | 本会话（2026-10-11） | 2026-10-11 |
+| **曲谱课堂浏览器测试（score-classroom）** | ✅ 修 1 个真 Bug（流式提问尾部追加 signal timed out）；顺带全项目扫出并修掉同款 SSE 卡死 3 处 | 本会话（2026-10-11 夜） | 2026-10-11 |
+| Bug8（查不到位置就吞掉同句其它动作）/ Bug9（换曲冲掉声部） | ✅ 均已修；longflow #48 由历史 16 次全 FAIL 转 PASS | 本会话（2026-10-11） | 2026-10-11 |
 | GitHub 推送（远程落后本地大量提交） | 阻塞：138MB 经代理推不上去 | **待解决（需用户拍板）** | 2026-10-10 |
 | 建立本交接看板（多会话防互踩） | 进行中（本会话） | 2026-10-10 本会话 | 2026-10-10 |
 
@@ -150,6 +154,88 @@
   **已证伪的假设**（别再往这两个方向查）：
   - context 体积不是瓶颈：368KB 完整曲库 context 直连后端 **0.1s** 就返回且 action 正确。
   - 静态资源/OSMD 不慢：1.17MB 的 opensheetmusicdisplay.min.js 直连 0.038s(gzip)/0.065s(原样)。
+
+- **Bug7（★真正的总根因：AI 动作从不执行 + busy 永久卡死）—— ✅ 已修复并实测 9/9 轮通过（2026-10-11）**：
+  这是比 Bug6 更深一层的根因，**它解释了「AI 说了要做什么但界面毫无反应」和「busy 永远回不来」这两个现象**。
+  - **症状**：点「打开《知足》」，AI 正常流式回「打开《知足》…」，但曲名一直停在「演奏工作区」；
+    速度/静音/播放全都不动；发送按钮永远显示 ■（busy）；之后每一句都只能回「上一条还在处理，这句先排队」。
+  - **真因（dist/workspace-ai.js `requestAI`）**：读 SSE/ndjson 的循环**只在 `done`（连接关闭）时跳出**。
+    但实测这条流在浏览器里迟迟不关闭 → `reader.read()` 一直挂着 → `requestAI` **永不返回** →
+    `runActions()` 永远不被调用 → **模型返回的 actions 一个都没执行**，同时 `finally` 里的
+    `busy=false` 也永远跑不到 → busy 永久卡死。（`result` 事件其实早就带 actions 到了，只是没人跳出循环去用它。）
+  - **修复**：收到 `result` 事件即视为流终点 —— 跳出循环并 `reader.cancel()` 主动断开，不再等服务器关连接
+    （标准 SSE 客户端模式）。这是**一处改动、收益最大**的修复。
+  - **验证**：`scripts/check-ai-musician-dialogue.cjs`（音乐家 9 轮连续对话）**9/9 全过、0 失败** ——
+    轮1 真的把《知足》打开了（title=知足）、轮3 速度改到 92 并开始播放、轮4 钢琴声部真的被静音、轮9 真的停止播放。
+    探针：`scripts/diag-decisive.cjs`（抓 open 派发次数 / busy 按钮 / title 随时间变化）。
+
+  **★ Bug7 修好后暴露的下一层（同一会话续做，均已处理）**：
+  - **补代理绕过**：`audit-ai-live-dialogue / check-ai-advanced-e2e / check-ai-control-actions / check-ai-action-guard`
+    的 `chromium.launch` 原本都没带 `proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}` → Edge 把
+    127.0.0.1 当远程走 Clash、秒级 10061 假失败。**已补齐；新增浏览器测试脚本务必带这个 bypass。**
+  - **修「只答应不给动作」无提示**：模型只回话、**不发动作**、且回复是「我来处理/已打开…」承诺措辞时，
+    前端原刻意不追加提示 → 用户看到"已打开"却毫无反应且无警告。已加**保守**警告（仅此情形提示，
+    纯乐理问答不提示，避免误报）。`check-ai-action-guard.cjs` 该项 FAIL→PASS。
+  - **修测试误报**：音乐家脚本原正则 `/已停止这次请求|界面没有变化/` 太宽，会把 runActions 的**正常**
+    校验警告「子操作执行后界面没有变化」误判成"卡死"。已拆分为「已停止这次请求=真卡死」/「执行后界面没有变化=动作未生效」。
+  - **真实模型审计 5/5 轮状态全对**（`audit-ai-live-dialogue.cjs`）：切简谱/钢琴独奏、调速80/开节拍器、
+    播放+多声部静音，state 变更全部正确；轮1 模型漏发 open 被 `ensureScoreOpened` 兜底救回并成功开谱。
+  - **已知遗留（模型质量，非前端 bug）**：① 问「哪小节转调」这类"定位+回答"时，模型常只发 seek 动作、
+    不在文字里给答案；② 偶发**回复跑题/幻觉**（实测轮1 答成"古典时期奏鸣曲选曲"）。动作仍可靠（Bug7 已修），
+    但**文本质量**偶有偏差，勿与"动作没执行"混淆。
+
+  **★ longflow 60 条回归：58 PASS / 2 FAIL（Bug7 修复前几乎全灭）→ 2 个均已定位并修掉**：
+  跑法：`node scripts/check-ai-longflow.cjs`（**必须先补代理绕过**，否则 Edge 走 Clash 秒级 10061 假失败）。
+  ★ 关键手法：给 longflow 脚本加了 **SSE result 捕获**（`rec.sseActions`，用 `page.addInitScript` hook `fetch`
+  读响应克隆流），能看到后端**真实下发**的动作数组 —— 判断「界面没生效是模型没发、还是前端没执行」的决定性证据。
+  注意 `scripts/_longflow-result.jsonl` 是**累积**文件（多次运行叠加），取结果要用 `recs[-60:]` 只看最后一批。
+
+  - **Bug8（查不到位置就把同句其它动作全吞了）—— ✅ 已修**（`ai_workspace.py` 新增 `_leftover_actions`）：
+    「跳到 X 最早出现处」查不到时原本直接 `actions:[]` 一把梭，把同句里**完全能执行**的
+    「只听鼓组」「开始播放」一起丢掉，reply 还只谈"查不到位置"。现在只降级「跳转」这一项，其余照做并如实说明。
+    ★ 踩坑：`ONLY_RE` 是「只听|单独|只要|只留」四选一，**不能**用 `ONLY_RE.pattern + '(...)'` 拼捕获组 ——
+    组会落在最后一个分支之后 → `m.group(1)` 为 None → `AttributeError` → 整条请求 **502**。改为显式枚举四个词。
+  - **Bug9（★换曲把刚设好的声部冲掉）—— ✅ 已修**（`ai_workspace.py` `plan_locate`）：
+    原来 `actions.insert(0, solo)` 把独奏顶到**最前**；但命中**另一首**时 actions[0] 是 open，
+    而 open 走 `setScore()`，其中 `soloSelect.replaceChildren()`（app.js:616）会**重建整个独奏下拉框**并复位成 `all`
+    → 排在 open 后面的 solo/mute 全被冲掉。
+    实测 longflow #48 真实动作为 `[solo:P10, open:情歌王2024, seek:52, play]`（solo 在 open 前），
+    独奏被冲回 all、AI 却说"已经跳过去开始播放了"，**历史 16 次全 FAIL**。同一句话不触发换曲就正常，所以一直藏着。
+    修法：solo 排到 open **之后**；另在动作收口处加**稳定排序**兜底（任何 `open` 提到最前）。
+    验证：`node scripts/check-ai-longflow.cjs --only 48` → **1/1 PASS**，`after.solo=P10`。
+  - **longflow 判定过早（测试缺陷）**：换曲类多步用例 `open`(14s) + `seek`(最多 15s 兜底) 总耗时可达 30s，
+    脚本固定 `sleep(4500)` 就读状态 → 误判"没生效"。已改为轮询等 AI 真空闲
+    （发送按钮回 `'↑'` 且 `ai-executing` 消失，上限 40s）。
+
+## ★ 曲谱课堂浏览器测试（2026-10-11 夜，用户要求）
+
+入口：设置区折叠面板「曲谱课堂」（`dist/workspace.js:107` 懒加载 `score-classroom.js`，引擎 OpenMAIC）。
+测试：`scripts/check-score-classroom-flow.cjs`（覆盖展开全屏 / 试听暂停 / 章节习题反馈 / 流式提问 /
+练习范围配置 / 全屏与移动端布局）。**该脚本原本也没带代理绕过，已补。**
+
+- **Bug10：流式提问在完整答案后面追加「signal timed out」—— ✅ 已修**（`dist/score-classroom.js`）
+  这正是 **Bug7 的同款模式**：读取循环只在 `done`（连接关闭）时跳出，而这条流迟迟不关闭 →
+  `reader.read()` 一直挂着 → 最后撞上 `AbortSignal.timeout(120000)` → 把错误文本
+  `'\n'+error.message` 追加到**已经完整**的答案后面。
+  用户视角：**等满 2 分钟，答案出来了却跟着一句 "signal timed out"**，以为失败了。
+  修法同 Bug7：收到应用层终点 `event.done` 即收工 + `reader.cancel()`，不再等服务器关连接。
+
+- **★ 顺带全项目扫出并修掉同款 SSE 卡死（共 3 处，都是「只在 done 跳出」）**
+  排查命令：`grep -rn "if(done)break\|if(done){.*break" dist/*.js`
+  1. `dist/workspace-ai.js:501`（`/api/scores/search` 的 skill/web 搜索）→ 收到 `result` 即收工。
+  2. `dist/library.js:250`（曲库内搜索）→ 结果早收到了、但套用结果的代码在循环之后，
+     **界面一直转圈**，要等 75 秒超时才刷出结果。修时注意 **partial 是中途结果**，
+     只在「非 partial 的最终 result」到达时才 break，否则会在中途结果上提前收工。
+  3. `dist/score-classroom.js`（见 Bug10）。
+  ✅ 已确认无遗漏；`app.js:286` / `library.js:72` / `vocal-transport.js:52` 是**二进制下载**
+  （累加到流结束），写法正确，不要误改。
+
+- **测试口径过时（非回归）**：`check-ai-library-visibility.cjs` 还要求 `context.library` 曲名索引存在，
+  但该索引已于 2026-10-11 **有意移除**（前端注释：后端会整个丢掉它、模型从不读，56KB 白传）。
+  已把断言更新为守住**真正**的不变量：① library 应已停用；② scores 必须是上下文第一个键且覆盖全库、
+  id 为完整 64 位；③ 后端**全库检索**通路可用（Node 侧直打后端核对，注意响应是 ndjson 不能用 `.json()`）。
+  注：前端载荷仍有 30 万字符，但**不是**风险点——后端只把「与本次对话相关的曲目」发给模型并 20000 字符封顶
+  （`ai_workspace.py:1820` `_keep` + `1828`），且明确告知模型这不是全库、要全库检索用 `library_query`。
 
 ## 待认领（带着上下文来）
 

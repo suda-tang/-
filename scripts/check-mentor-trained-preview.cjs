@@ -1,6 +1,6 @@
 const {chromium}=require('C:/Users/mail/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 (async()=>{
- const browser=await chromium.launch({channel:'msedge',headless:true});
+ const browser=await chromium.launch({channel:'msedge',headless:true,proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}});
  try{
   const context=await browser.newContext();
   const login=await context.request.post('http://127.0.0.1:5173/api/upload/login',{data:{password:process.env.PIANO_UPLOAD_PASSWORD||'tqm'}});

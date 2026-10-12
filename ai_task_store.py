@@ -11,21 +11,38 @@ IDENT=re.compile(r'ai-[a-zA-Z0-9-]{8,80}')
 # 后端兜一道：超过 STALE_MS 没有再收到更新，就自己判失败。
 STALE_MS=10*60*1000
 STALE_DETAIL='中断：超过 10 分钟没有收到完成回报（多半是页面被关闭或网络断开）。'
+# 终态记录的保留窗口。AI 对话的**每条指令**都会留下一条任务记录（含日常试问与自动化测试），
+# 很快就堆到上限 —— 实测库里积了 200 条、任务中心一次渲染 80 行，其中绝大多数是
+# 「已中断/未完成」的旧条目，把真正要看的失败项淹掉。终态超过这个时长就丢弃。
+TERMINAL_TTL_MS=24*60*60*1000
+# 单次写入保留的最大条数（比以前的 200 收敛；保留策略才是主要手段）。
+KEEP_MAX=60
 def read():
  try:return json.loads(PATH.read_text(encoding='utf8'))
  except (OSError,ValueError):return []
 def sweep(items):
- """把长时间没更新的 running/queued 判为失败。返回 (新列表, 是否改动过)。"""
- now=time.time()*1000;changed=False
+ """① 把长时间没更新的 running/queued 判为失败；② 丢弃过期的终态记录。
+
+ 返回 (新列表, 是否改动过)。第 ② 步是为了不让任务中心被历史条目淹没 —— 详见
+ TERMINAL_TTL_MS 的注释。正在跑的条目一律保留。
+ """
+ now=time.time()*1000;changed=False;kept=[]
  for item in items:
-  if item.get('status') not in ('running','queued'):continue
+  status=item.get('status')
   try:age=now-float(item.get('updated') or 0)
-  except (TypeError,ValueError):age=STALE_MS
-  if age<=STALE_MS:continue
-  item['status']='failed';item['detail']=STALE_DETAIL
-  # updated 故意不动：那是「最后一次真的收到回报」的时刻，改了就把中断时间点抹掉了。
-  changed=True
- return items,changed
+  except (TypeError,ValueError):age=STALE_MS if status in ('running','queued') else 0
+  if status not in ('running','queued'):
+   if age>TERMINAL_TTL_MS:
+    changed=True;continue          # 过期的终态：直接丢弃
+   kept.append(item);continue
+  if age>STALE_MS:
+   item['status']='failed';item['detail']=STALE_DETAIL
+   # updated 故意不动：那是「最后一次真的收到回报」的时刻，改了就把中断时间点抹掉了。
+   changed=True
+  kept.append(item)
+ if len(kept)>KEEP_MAX:               # 条数上限：只保留最近的 KEEP_MAX 条
+  kept=kept[-KEEP_MAX:];changed=True
+ return kept,changed
 def requested_id(handler):
     """任务编号既接受请求体里的 {"id": ...}，也接受 ?id=... —— 删一条记录不该强迫调用方发 body。"""
     try:
@@ -56,9 +73,9 @@ def handle(handler):
    if not IDENT.fullmatch(ident):raise ValueError('任务编号无效')
    if item.get('status') not in ('running','complete','failed','queued','cancelled'):raise ValueError('任务状态无效')
    previous=next((x for x in items if x['id']==ident),{})
-   entry={**previous,**{k:item[k] for k in ('id','label','detail','status','progress','created','result') if k in item},'kind':'ai','updated':time.time()*1000}
+   entry={**previous,**{k:item[k] for k in ('id','label','detail','status','progress','created','result','indeterminate') if k in item},'kind':'ai','updated':time.time()*1000}
    for key,limit in [('label',500),('detail',1000),('result',30000)]:entry[key]=str(entry.get(key,''))[:limit]
    items=[x for x in items if x['id']!=ident]+[entry]
-   PATH.parent.mkdir(parents=True,exist_ok=True);write_json(PATH,items[-200:])
+   PATH.parent.mkdir(parents=True,exist_ok=True);write_json(PATH,items[-KEEP_MAX:])
    return handler.json_response(entry)
   except Exception as e:return handler.json_response({'error':str(e)},400)

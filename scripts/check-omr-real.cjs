@@ -2,7 +2,7 @@ const { chromium } = require('C:/Users/mail/.cache/codex-runtimes/codex-primary-
 const assert = require('node:assert/strict');
 
 (async () => {
-  const browser = await chromium.launch({ headless: true, channel: 'msedge', args: ['--autoplay-policy=no-user-gesture-required'] });
+  const browser = await chromium.launch({ headless: true, channel: 'msedge', args: ['--autoplay-policy=no-user-gesture-required'],proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}});
   const page = await browser.newPage({ viewport: { width: 1360, height: 1000 } });
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));

@@ -7,7 +7,7 @@ const assert=require('node:assert/strict');
 const DIGEST=process.env.DIGEST||'b6df197c607e7d7c7fea4a47051333ccc429c0309d50e00e0877307901bb737e';
 
 (async()=>{
- const browser=await chromium.launch({channel:'msedge',headless:true});
+ const browser=await chromium.launch({channel:'msedge',headless:true,proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}});
  try{
   const page=await browser.newPage({viewport:{width:1280,height:1000}}),errors=[];
   page.on('pageerror',error=>errors.push(error.message));

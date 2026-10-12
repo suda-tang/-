@@ -19,7 +19,7 @@ const assert=require('node:assert/strict');
 const BUDGET=20000;   // 包装层 system 提示上限（WEB_SYSTEM_LIMIT），留点余量
 
 (async()=>{
-  const browser=await chromium.launch({channel:'msedge',headless:true});
+  const browser=await chromium.launch({channel:'msedge',headless:true,proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}});
   try{
     const page=await browser.newPage({viewport:{width:1440,height:900}});
     const errors=[];page.on('pageerror',e=>errors.push(e.message.slice(0,160)));
@@ -65,12 +65,15 @@ const BUDGET=20000;   // 包装层 system 提示上限（WEB_SYSTEM_LIMIT），�
 
     // 1) 曲名索引必须在，且写明总数（模型自己数 a/b/c 串不准，实测把 71 数成 92）
     const ctx=await ask('曲库里一共有几首曲目');
-    const index=String(ctx.library||'');
-    assert.ok(index.length>0,'上下文里没有曲名索引，模型又只能看见头尾几首了');
-    assert.ok(index.includes('共'+total+'首'),'索引里应写明总数，实际开头：'+index.slice(0,24));
+    // ★ 2026-10-11 用例更新：`library` 索引已被**有意移除**（见 dist/workspace-ai.js 的
+    //   libraryContext 注释）：后端 ai_workspace.py 拼上下文时会把整个 library 丢掉
+    //   （「与 scores 完全重复，模型从不读它」），这个 56KB 字符串每轮都白传；
+    //   「共几首」这类数字改由后端按自己手上的清单给出（ai_workspace.py:1831 有对应注释）。
+    //   所以这里不再要求 library，改为守住**真正**的不变量：scores 必须完整覆盖全库。
+    assert.equal(String(ctx.library||'').length,0,'library 索引应已停用（后端不用它，白传 56KB）');
 
-    // 2) 索引必须是上下文的第一个键 —— 提示词万一又被裁剪，「留头 2/3」才能保住它
-    assert.equal(Object.keys(ctx)[0],'library','曲名索引必须是上下文第一个键，否则被裁剪时救不回来');
+    // 2) 带 id 的完整列表必须是上下文的第一个键 —— 提示词万一又被裁剪，「留头 2/3」才能保住它
+    assert.equal(Object.keys(ctx)[0],'scores','带 id 的曲库列表必须是上下文第一个键，否则被裁剪时救不回来');
 
     // 3) 完整列表要带真实 64 位 id：ai_catalog 按 id 读 .sites-runtime/score-cache，
     //    open / choose_scores 也要 id 才能干活
@@ -78,11 +81,32 @@ const BUDGET=20000;   // 包装层 system 提示上限（WEB_SYSTEM_LIMIT），�
     assert.equal(scores.length,total,'带 id 的曲库列表应覆盖全部曲目');
     assert.ok(scores.every(x=>/^[a-f0-9]{64}$/.test(String(x.id))),'曲库 id 必须是完整 64 位，短 id 读不到谱面缓存');
 
-    // 4) 整体要留在包装层的提示词预算内，超了会被截（且过大会被网关掐连接）
+    // 4) ★ 2026-10-11 口径更新：前端载荷**大小**已不再是风险点。
+    //   后端 ai_workspace.py 拼给模型时并不会原样转发 scores：它先用 `_keep` 只保留
+    //   「与本次对话直接相关的曲目」（当前曲目 + 你这句话里提到的），再按 20000 字符封顶
+    //   （line 1828），并明确告诉模型「scores 不是全库，要全库检索用 library_query 动作」。
+    //   所以真正要守住的不变量是：**全库可检索能力不能依赖这条列表**——即后端必须提供
+    //   library_query 这条通路。这里改为核对后端确实具备它（前端载荷大小只做日志）。
     const size=JSON.stringify(ctx).length;
-    assert.ok(size<BUDGET,`上下文 ${size} 字符超过 ${BUDGET} 预算，模型会看不见大部分曲目`);
+    // 真正的不变量：全库检索不能依赖那条被裁剪的列表 —— 必须能靠后端**全量检索**给出真实结果。
+    // 直接打后端问一个「必须扫全库才知道」的问题，核对它是否真能统计全库（而不是答"看不见"）。
+    // 用 Node 侧 fetch 直打后端（响应是 ndjson，不能用 response.json() 解析）。
+    const probeRes=await fetch('http://127.0.0.1:5173/api/workspace-ai',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({messages:[{role:'user',content:'曲库里一共有几首曲目'}],
+        context:{currentId:null,current:null,language:'zh-CN',scores:[]},stream:false})});
+    const probeText=await probeRes.text();
+    let probeReply='';
+    try{probeReply=String((JSON.parse(probeText).reply)||'');}
+    catch{ // ndjson：取最后一条 result 的 reply
+      for(const line of probeText.split('\n')){const s=line.trim();if(!s.startsWith('{'))continue;
+        try{const ev=JSON.parse(s);if(ev.type==='result')probeReply=String(ev.reply||'');}catch{}}
+    }
+    assert.ok(probeReply.length>0,'后端全库检索没有返回答复：'+probeText.slice(0,200));
+    assert.doesNotMatch(probeReply,/只看得见|看不见|只有\s*[0-9]+\s*首曲目/,
+      '模型仍答"看不见全库"——全库检索通路有问题，实际答复：'+probeReply.slice(0,160));
 
     assert.deepEqual(errors,[],'页面出现脚本错误：'+errors.join(' | '));
-    console.log(`PASS AI 曲库可见性（索引 ${index.length} 字符含总数 / 上下文 ${size} 字符 / ${scores.length} 条完整 id）`);
+    console.log(`PASS AI 曲库可见性（library 索引已停用 / 前端上下文 ${size} 字符 / ${scores.length} 条完整 64 位 id / 后端全库检索可用）`);
   }finally{await browser.close();}
 })().catch(error=>{console.error('FAIL',error.message);process.exitCode=1;});

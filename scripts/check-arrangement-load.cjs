@@ -5,7 +5,7 @@ const assert=require('node:assert/strict');
 // knew about in-memory recognition jobs and answered 404 for a queue task, so
 // the generated score was never opened. This drives the real UI path.
 (async()=>{
- const browser=await chromium.launch({channel:'msedge',headless:true,args:['--autoplay-policy=no-user-gesture-required']});
+ const browser=await chromium.launch({channel:'msedge',headless:true,args:['--autoplay-policy=no-user-gesture-required'],proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}});
  try{
   const page=await browser.newPage({viewport:{width:1280,height:900}}),errors=[];
   page.on('pageerror',e=>errors.push(e.message));

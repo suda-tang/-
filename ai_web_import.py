@@ -92,25 +92,16 @@ def search_core(query):
  for t in terms:
   if t and t not in seen:seen.add(t);uniq.append(t)
  if uniq:return ' '.join(uniq)
- return re.sub(r'^(请|帮我|我要|我想|找|找到|搜索|查找|播放|听|一下)+','',q).strip()
+ # 兜底：白名单（作曲家/乐器）都没命中时，把「请求外壳」词整段剥掉，保留中间的曲名/作曲家。
+ # 否则「我想找一份不在曲库里的久石让钢琴谱」会被原样丢给搜索引擎。
+ _WRAP=('请','帮我','我要','我想','找到','搜索','查找','播放','听一下','听','一下','来一首',
+        '一份','要一份','找一份','找','这份','到网上','去网上','网上','全网','外网','不在曲库里',
+        '曲库里','的曲子','的乐谱','的','钢琴谱','曲子','乐谱','谱子','谱')
+ for w in _WRAP:q=q.replace(w,'')
+ return q.strip() or str(query or '').strip()
 
-# IMSLP / MuseScore 是英文站：用户用中文查（「贝多芬 大提琴」）时，先把作曲家 / 乐器 /
-# 曲式翻成英文再投给站内搜索，否则英文站几乎必空。残留的中文（流行歌名等）清掉即可。
-_WESTERN={'贝多芬':'Beethoven','莫扎特':'Mozart','巴赫':'Bach','肖邦':'Chopin','舒伯特':'Schubert',
- '海顿':'Haydn','勃拉姆斯':'Brahms','布拉姆斯':'Brahms','柴可夫斯基':'Tchaikovsky','维瓦尔第':'Vivaldi',
- '亨德尔':'Handel','德彪西':'Debussy','李斯特':'Liszt','舒曼':'Schumann','门德尔松':'Mendelssohn',
- '拉威尔':'Ravel','斯特拉文斯基':'Stravinsky','马勒':'Mahler','柏辽兹':'Berlioz','普罗科菲耶夫':'Prokofiev',
- '大提琴':'cello','小提琴':'violin','中提琴':'viola','低音提琴':'double bass','钢琴':'piano','长笛':'flute',
- '双簧管':'oboe','单簧管':'clarinet','黑管':'clarinet','圆号':'horn','小号':'trumpet','长号':'trombone',
- '大号':'tuba','竖琴':'harp','吉他':'guitar','琵琶':'pipa','古筝':'guzheng','二胡':'erhu','竹笛':'dizi',
- '唢呐':'suona','萨克斯':'saxophone','手风琴':'accordion','管风琴':'organ','打击乐':'percussion',
- '奏鸣曲':'sonata','协奏曲':'concerto','交响曲':'symphony','组曲':'suite','前奏曲':'prelude','赋格':'fugue',
- '变奏曲':'variations','练习曲':'etude','夜曲':'nocturne','圆舞曲':'waltz','进行曲':'march','小曲':'piece'}
-def western_query(query):
- out=query
- for zh,en in _WESTERN.items():out=out.replace(zh,en)
- out=re.sub(r'[^\x00-\x7f]+',' ',out)
- return ' '.join(out.split())
+# 旧的 western_query（中译英词典）已移除：IMSLP / MuseScore 站内抓取因反爬被去掉后，
+# 它已无任何调用点；现在检索词由模型直接给出（已是干净中文），search_core 仅做轻量清洗。
 
 def site_search(search_url,selector,source,query,deadline,skip=None,require_match=True):
  """在单个乐谱站站内搜索，返回结果列表（空也行）。单站失败只记一笔，不拖累其它站。

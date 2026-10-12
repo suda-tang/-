@@ -12,7 +12,9 @@ export function createMentorClassroom(scene,{cinematic=false}={}){
  const font=new FontFace('Mentor Hand','url(/fonts/LXGWWenKai-Regular.ttf)');font.load().then(loaded=>{document.fonts.add(loaded);signature='';draw(state);}).catch(()=>{});
  const visitor=document.querySelector('.tour-home-intro'),visitorName=visitor?.dataset.mentor||'',institution=(visitor?.dataset.institution||'').normalize('NFKC').replace(/\s+/g,'');const visitorLogo=new Image();
  let visitorLogoFallback=false;
- const fallbackLogo=()=>{visitorLogoFallback=true;visitorLogo.src='/suda-seal.svg?v=round19';};
+ // 匹配不到真实校徽时，用校名自动生成一个首字圆章（彩色 + 校名首字），永远正确、零手动输入。
+ const generatedBadge=name=>{const norm=(name||'').normalize('NFKC').replace(/\s+/g,'');if(!norm)return null;let h=0;for(const c of norm)h=(h*31+c.charCodeAt(0))>>>0;const hue=h%360;const GEO=['中国','苏州市','上海市','南京市','北京市','苏州市工业园区','苏州工业园区','苏州','上海','南京','北京','江苏','浙江','广东','园区'];let body=norm;for(const g of GEO){if(body.startsWith(g)&&body.length>g.length){body=body.slice(g.length);break;}}const chars=body.slice(0,2)||norm.slice(0,2);const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><defs><radialGradient id="g" cx="38%" cy="32%" r="75%"><stop offset="0%" stop-color="hsl(${hue},52%,58%)"/><stop offset="100%" stop-color="hsl(${hue},46%,34%)"/></radialGradient></defs><circle cx="100" cy="100" r="92" fill="url(#g)" stroke="hsl(${hue},55%,74%)" stroke-width="5"/><text x="100" y="100" dy=".36em" text-anchor="middle" font-family="KaiTi,STKaiti,SimSun,serif" font-size="${chars.length>1?80:106}" font-weight="700" fill="#fdf7e7">${chars}</text></svg>`;return 'data:image/svg+xml,'+encodeURIComponent(svg);};
+ const fallbackLogo=()=>{const data=generatedBadge(institution);visitorLogoFallback=true;visitorLogo.src=data||'/suda-seal.svg?v=round19';};
  visitorLogo.onerror=()=>{if(!visitorLogoFallback)fallbackLogo();};
  visitorLogo.onload=()=>{signature='';draw(state);};
  // Always resolve against the current institution; old share links may contain another school's logo.
@@ -36,7 +38,7 @@ export function createMentorClassroom(scene,{cinematic=false}={}){
  if(state.intro){
   const blend=visitorName?Math.max(0,Math.min(1,state.welcomeBlend||0)):0;
   function identity(welcome,alpha){if(alpha<=0)return;ctx.globalAlpha=alpha;ctx.fillStyle='#f3eedb';ctx.textAlign='center';const logo=welcome?(visitorLogo.naturalWidth?visitorLogo:null):seal;if(logo?.complete&&logo.naturalWidth){const scale=Math.min(124/logo.naturalWidth,124/logo.naturalHeight);ctx.drawImage(logo,512-logo.naturalWidth*scale/2,160-logo.naturalHeight*scale/2,logo.naturalWidth*scale,logo.naturalHeight*scale);}
-   if(welcome&&visitorLogoFallback){ctx.font='16px \"Mentor Hand\",serif';ctx.fillText('苏州大学校徽',512,244);}
+   if(welcome&&visitorLogoFallback){ctx.font='16px \"Mentor Hand\",serif';ctx.fillText(institution||'校徽',512,244);}
    ctx.font='500 48px "Mentor Hand", serif';ctx.fillText(welcome?'欢迎'+visitorName+'老师':'苏州大学',512,293,900);
    ctx.fillText(welcome?(institution||'欢迎莅临'):'冒小瑛教授',512,373,900);
    ctx.font='30px "Mentor Hand",serif';ctx.fillText(welcome?'苏州大学冒小瑛教授':'Soochow University',512,447);

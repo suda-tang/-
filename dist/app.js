@@ -1,3 +1,4 @@
+import {afterWorkspace} from './background-work.js';
 import {practiceInstruments,defaultPracticeInstrument,instrumentEvents,instrumentFollower} from './practice-instrument.js';
 import {practiceEvidence} from './practice-evidence.js';
 import {passageBounds,scoreVersion} from './practice-session.js';
@@ -74,19 +75,19 @@ import {titleFromBlocks} from './title-candidates.js';
 import {enqueueUploads,reportTask,showTasks} from './task-center.js?v=folded-groups1';
 import {INSTRUMENTS} from './instruments.js';
 import {preloadPianoSamples} from './piano-samples.js';
-import {analyzeHarmony,detectChord} from './harmony.js';
+import {analyzeHarmony,detectChord,findChordOccurrences} from './harmony.js';
 import {registerCapabilityHost} from './capability-host.js';
 import './ai-advanced-actions.js';
-import { parseMusicXML, parseMusicXMLAsync, sampleScore, renderNotation, noteName } from './score.js?v=chunk-plan4';
+import { parseMusicXML, parseMusicXMLAsync, sampleScore, renderNotation, noteName } from './score.js';
 import {parseMidi} from './midi.js';
 import { renderSimpleNotation, renderSimpleNotationAsync, simplePlaybackTarget,activateSimpleNotation } from './simple-notation.js?v=lazy-systems4';
-import { sheetWidth,activateLazyEngraving,warmEngravingEngine } from './engraving.js?v=chunk-plan4';
+import { sheetWidth,activateLazyEngraving,warmEngravingEngine } from './engraving.js';
 import { scoreDocument } from './score-document.js?v=1';
 import './vendor/typedarray-compat.mjs';
 import { PitchListener, Follower, summarize } from './engine.js';
 import { ScorePlayer } from './player.js?v=bounded-cache2';
 import { setupScoreEditing } from './score-editing.js';
-import { initLibrary, cleanText } from './library.js?v=stream-search22';
+import { initLibrary, cleanText } from './library.js';
 import { initMediaImport } from './media-import.js';
 
 // PDF.js 5.x uses newer Web APIs that are absent in some embedded Chromium
@@ -131,7 +132,9 @@ for (const href of ['/toast.css', '/liquid.css', '/responsive-fix.css', '/ios.cs
  const link=document.createElement('link');link.rel='stylesheet';link.href=href;document.head.append(link);
 }
 const midiMixStyle=document.createElement('style');midiMixStyle.textContent='.drum-card{margin-top:34px!important;margin-bottom:28px!important}.part-mix{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:7px;margin:2px 0 4px}.part-mix label{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border:1px solid rgba(125,157,142,.24);border-radius:10px;background:rgba(255,255,255,.58);font-size:11px;cursor:pointer}.part-mix input{accent-color:#176b54}';document.head.append(midiMixStyle);
+let storedPdfWarmup=null;
 const refreshLibrary=initLibrary({openPending:openPendingScore,recognizeTitle:recognizeCloudTitle,matchCover:matchScoreCover,openPdf:async file=>{unlockForImport();await uploadPdf(file);},openScore:async (data,onProgress=()=>{})=>{
+ storedPdfWarmup?.cancel();storedPdfWarmup=null;
  if((matchMedia('(pointer:coarse)').matches||innerWidth<800)){stop();$('notation').replaceChildren();$('daw-view').replaceChildren();}
  const pendingKey=data.id||data.xml;let prepared=parsedScoreCache.get(pendingKey);
  const contentSignature=scoreFingerprintFallback(new TextEncoder().encode(data.xml+JSON.stringify(data.metadata||{})+'|canonical-midi-v1'));
@@ -144,7 +147,7 @@ const refreshLibrary=initLibrary({openPending:openPendingScore,recognizeTitle:re
  if(!notationCache.has(renderKey)){onProgress(52,'排版完整五线谱');setImportProgress(52,'正在排版完整五线谱');const staging=document.createElement('div');staging.style.cssText=`position:fixed;left:-20000px;top:0;width:${width}px;opacity:0;pointer-events:none`;const inner=document.createElement('div');staging.append(inner);document.body.append(staging);try{await renderNotation(inner,prepared);notationCache.set(renderKey,inner.cloneNode(true));while(notationCache.size>((matchMedia('(pointer:coarse)').matches||innerWidth<800)?1:4))notationCache.delete(notationCache.keys().next().value);void writeNotationCache(renderKey,inner.innerHTML);}finally{staging.remove();}}else{onProgress(86,'载入已缓存排版');setImportProgress(86,'正在载入缓存排版');}
  selectedJob=null;uploadVersion++;cancelPdfLoading();stop();player.stop();sourceFile=null;pdfDocument?.destroy();pdfDocument=null;pdfPageEls=[];storedPdfId=null;storedPdfPages=0;if(nativePdfUrl){URL.revokeObjectURL(nativePdfUrl);nativePdfUrl=null;}$('pdf-pages').replaceChildren();$('original-button').disabled=!data.hasPdf;$('retry-import').hidden=true;importing=false;
  const parsed=prepared;onProgress(91,'装入演奏位置与控件');await setScore(parsed);if(matchMedia('(pointer:coarse)').matches||innerWidth<800)notationCache.clear();$('file-info').textContent=parsed.title;onProgress(100,'载入完成');setImportProgress(100,'已从 SUPERTANG CLOUD云服务进行载入','done');message('已从 SUPERTANG CLOUD云服务进行载入');
- if(data.hasPdf) void loadStoredPdf(data.id);void loadCachedExpression(parsed);
+ if(data.hasPdf)storedPdfWarmup=afterWorkspace(()=>{if(score===parsed)return loadStoredPdf(data.id)});void loadCachedExpression(parsed);
 }});
 let paintedIndex=-1,paintedScore=null,followUntil=0;
 let scoreAutoFollow=true;
@@ -236,7 +239,8 @@ function rebuildPlaybackElements(){const pane=$('notation');if(pane._playbackEle
 
 function paintPlayback({beat,index,totalBeats}){
  vocalTrack.sync();
- if(followScore!==score||followView!==currentView||beat<followBeat-.02){followSystem=null;followScore=score;followView=currentView;}followBeat=beat;
+ const jumpedBack=followScore===score&&beat<followBeat-.02;
+ if(followScore!==score||followView!==currentView||jumpedBack){followSystem=null;followScore=score;followView=currentView;}followBeat=beat;
  daw.update(beat);
  syncDrumLane(index);
  const percent=Math.min(100,Math.round(beat/totalBeats*100));
@@ -265,7 +269,7 @@ function paintPlayback({beat,index,totalBeats}){
    const scroll=$('sheet-scroll'),b=scoreSystemBounds(target),area=scroll.getBoundingClientRect();
    if(b.anchor!==followSystem){
    followSystem=b.anchor;
-   if(b.top<area.top+12||b.bottom>area.bottom-12){const nextTop=Math.max(0,scroll.scrollTop+b.top-area.top-16);if(!player.playing||nextTop>=scroll.scrollTop-2)scroll.scrollTo({top:nextTop,behavior:'instant'});}
+   if(b.top<area.top+12||b.bottom>area.bottom-12){const nextTop=Math.max(0,scroll.scrollTop+b.top-area.top-16);if(jumpedBack||!player.playing||nextTop>=scroll.scrollTop-2)scroll.scrollTo({top:nextTop,behavior:'instant'});}
 
    }
   }
@@ -483,11 +487,14 @@ document.addEventListener('ai-seek-measure',async event=>{try{
  // 可它明明存在（测试报告 #10，483 个 measure 节点里有 69 个真小节）。
  if(index<0&&Number.isFinite(measure))index=events.findIndex(e=>Number(e.measure)>=measure);
  if(index<0)throw Error('当前曲谱没有第 '+measure+' 小节');
- await playFromNote(index);
+ const wasPlaying=player.playing;
+ if(wasPlaying)await playFromNote(index);
+ else{player.seek(index);vocalTrack.seek(events[index].beat,tempo());playbackView=true;lastPlaybackIndex=-1;refresh();controls();}
  event.detail.resolve({measure,beat:events[index].beat,landedAt:Number(events[index].measure)});
 }catch(error){event.detail.reject(error);}});
-$('notation').addEventListener('click',event=>{void playFromNote(event.target.closest('[data-index]'));});
-$('notation').addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){const target=event.target.closest('[data-index]');if(target){event.preventDefault();void playFromNote(target);}}});
+// The notation pane is replaced and cached during view switches; delegate from its stable parent.
+$('sheet-scroll').addEventListener('click',event=>{const target=event.target.closest('#notation [data-index]');if(target)void playFromNote(target);});
+$('sheet-scroll').addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){const target=event.target.closest('#notation [data-index]');if(target){event.preventDefault();void playFromNote(target);}}});
 async function autoplayImported(){if(!$('autoplay').checked)return;if(player.context?.state==='running')await playScore();else{$('play-status').textContent='琴谱已就绪，点击“播放”开始。';message('琴谱已导入。点击“播放”开始，可随时调节速度。');}}
 const tempo=()=>Number($('tempo').value)||80;
 let noticeTimer=null;
@@ -591,7 +598,7 @@ function decoratePdfCoordinates(score){
 }
 // Warm the browser HTTP cache as soon as the page is idle. AudioContext decode still waits for a user gesture, but later playback avoids the network round-trip.
 const warmPiano=()=>void preloadPianoSamples();
-if('requestIdleCallback' in window)requestIdleCallback(warmPiano,{timeout:1800});else setTimeout(warmPiano,1200);
+afterWorkspace(warmPiano,{delay:700});
 function controls(){ $('start-button').disabled=!score||running||starting||importing; $('start-button').hidden=running; $('stop-button').hidden=!running;$('stop-button').disabled=starting;$('stop-button').textContent=starting&&running?'正在处理末段…':'暂停练习'; $('reset-button').disabled=!score; $('tempo').disabled=running; $('tempo-up').disabled=running; $('tempo-down').disabled=running; $('demo-button').disabled=(running&&!demo)||starting||importing;$('demo-button').textContent=(player.playing||running&&demo)?'暂停':'试听';$('demo-button').setAttribute('aria-pressed',String(player.playing||running&&demo)); $('export-button').disabled=!records.length;$('play-button').disabled=!score||starting||importing;$('play-button').textContent=player.playing?'暂停播放':player.beat>0&&player.beat<player.totalBeats?'继续播放':'自动演奏';$('play-reset').disabled=!score||importing; }
 function view(type){if(type!==currentView&&['notation','simple'].includes(type)){$('sheet-scroll').style.overflowAnchor='none';}if(!['notation','simple'].includes(type)){$('notation').lazyEngravingObserver?.disconnect();$('notation').lazySimpleObserver?.disconnect();}currentView=type;$('daw-view').hidden=type!=='daw';$('daw-button').disabled=!score; $('notation').hidden=!['notation','simple'].includes(type)||!score; $('pdf-pages').hidden=type!=='pdf'; $('empty-score').hidden=!!score||type==='pdf'; $('simple-button').disabled=!score||importing; for(const [id,on] of [['notation-button',type==='notation'],['simple-button',type==='simple'],['original-button',type==='pdf'],['daw-button',type==='daw']]){$(id).classList.toggle('active',on);$(id).setAttribute('aria-pressed',String(on));}}
 function recognizedTempo(next){const parsed=Number(next?.tempo);if(Number.isFinite(parsed)&&parsed>=30&&parsed<=240)return Math.round(parsed);const raw=String(next?.meta?.tempo||'');const match=raw.match(/(?:[Jj♩]|每分钟)?\s*[=:：]?\s*(\d{2,3})\s*(?:BPM|拍)?/i);const value=Number(match?.[1]);return value>=30&&value<=240?Math.round(value):null;}
@@ -682,7 +689,7 @@ async function setNotationMode(mode,{preserveTransport=true}={}){
  paintedIndex=-1;paintedScore=null;lastPlaybackIndex=-1;
  if(mode==='engraved')activateLazyEngraving($('notation'),score);else activateSimpleNotation($('notation'));syncScoreMix();fitVisibleScore();refresh();
 }
-$('notation-button').onclick=()=>void setNotationMode('engraved');$('simple-button').onclick=()=>void setNotationMode('simple');$('original-button').onclick=()=>{pdfLastScrollPage=0;view('pdf');syncPdfPlayback(player.displayIndex(player.beat));};$('empty-upload').onclick=()=>$('pdf-input').click();$('drop-zone').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('pdf-input').click();}};
+$('notation-button').onclick=()=>void setNotationMode('engraved');$('simple-button').onclick=()=>void setNotationMode('simple');$('original-button').onclick=()=>{storedPdfWarmup?.run();pdfLastScrollPage=0;view('pdf');syncPdfPlayback(player.displayIndex(player.beat));};$('empty-upload').onclick=()=>$('pdf-input').click();$('drop-zone').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('pdf-input').click();}};
 async function health(){
  try{
   const data=await requestJSON('/api/health');
@@ -694,7 +701,7 @@ async function health(){
   if(!sourceFile&&!score&&!importing)message('暂时无法连接识谱服务。PDF 仍可在浏览器中预览。','warning');
   return {omr:false,connected:false};
  }
-}health();
+}afterWorkspace(health,{delay:500});
 async function requestJSON(url,options={}){
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),options.timeoutMs||25000);
  try{
@@ -998,7 +1005,7 @@ $('part-mix').onchange=event=>{const input=event.target;if(!(input instanceof HT
 let arrangementRequest=0;
 
 $('chord-toggle').onchange=()=>{$('chord-display').hidden=!$('chord-toggle').checked;};
-document.addEventListener('ai-analyze-chords',async event=>{try{if(!score)throw Error('请先打开曲谱');const pianoIds=new Set((score.midiParts||[]).filter(p=>/钢琴|piano/i.test(p.name)).map(p=>p.id));const drumIds=new Set((score.midiParts||[]).filter(p=>/鼓|drum/i.test(p.name+' '+p.instrument)).map(p=>p.id));const material={...score,events:score.events.map(e=>({...e,notes:e.notes.filter(n=>!n.percussion&&!drumIds.has(n.part)&&!/drum|鼓/i.test(n.part||'')&&(event.detail.part!=='piano'||pianoIds.size===0||pianoIds.has(n.part)))})).filter(e=>e.notes.length)};const result=new Map(),groups=new Map();for(const e of material.events){if(!groups.has(e.measure))groups.set(e.measure,[]);groups.get(e.measure).push(e);}let completed=0;for(const [measure,events] of groups){const partResult=analyzeHarmony({...material,events});result.set(measure,partResult.get(measure));completed++;event.detail.onProgress?.(completed/groups.size);if(completed%8===0)await new Promise(resolve=>requestAnimationFrame(resolve));}$('chord-toggle').checked=true;$('chord-toggle').dispatchEvent(new Event('change'));const chords=[...result].map(([measure,chord])=>({measure,name:chord?.name||null,confidence:chord?.confidence||0}));event.detail.resolve({title:score.title,chords});}catch(error){event.detail.reject(error);}});
+document.addEventListener('ai-analyze-chords',async event=>{try{if(!score)throw Error('请先打开曲谱');const pianoIds=new Set((score.midiParts||[]).filter(p=>/钢琴|piano/i.test(p.name)).map(p=>p.id));if(event.detail.part==='piano'&&pianoIds.size===0){const pianoNotes=score.events.some(e=>e.notes.some(n=>/piano|钢琴|salamander/i.test(n.instrument||'')));if(score.midiParts?.length&&!pianoNotes)throw Error('这份曲谱没有钢琴声部，不能用全部乐器代替钢琴分析');}const drumIds=new Set((score.midiParts||[]).filter(p=>/鼓|drum/i.test(p.name+' '+p.instrument)).map(p=>p.id));const material={...score,events:score.events.filter(e=>(!event.detail.from||e.measure>=event.detail.from)&&(!event.detail.to||e.measure<=event.detail.to)).map(e=>({...e,notes:e.notes.filter(n=>!n.percussion&&!drumIds.has(n.part)&&!/drum|鼓/i.test(n.part||'')&&(event.detail.part!=='piano'||pianoIds.size===0||pianoIds.has(n.part)))})).filter(e=>e.notes.length)};if(event.detail.quality){const chords=await findChordOccurrences(material.events,event.detail.quality,event.detail.onProgress);event.detail.resolve({title:score.title,quality:event.detail.quality,analyzedMeasures:new Set(material.events.map(e=>e.measure)).size,chords});return;}const result=new Map(),groups=new Map();for(const e of material.events){if(!groups.has(e.measure))groups.set(e.measure,[]);groups.get(e.measure).push(e);}let completed=0;for(const [measure,events] of groups){const partResult=analyzeHarmony({...material,events});result.set(measure,partResult.get(measure));completed++;event.detail.onProgress?.(completed/groups.size);if(completed%8===0)await new Promise(resolve=>requestAnimationFrame(resolve));}$('chord-toggle').checked=true;$('chord-toggle').dispatchEvent(new Event('change'));const chords=[...result].map(([measure,chord])=>({measure,name:chord?.name||null,confidence:chord?.confidence||0}));event.detail.resolve({title:score.title,chords});}catch(error){event.detail.reject(error);}});
 
 
 
@@ -1014,7 +1021,7 @@ function syncExpressionControls({available=expressionAvailable,applied=!!player.
  if($('expression-state'))$('expression-state').textContent=applied?'已应用演奏表情':writtenExpression(score)?'已保留原谱力度，可另行生成演奏表情':available?'尚未生成，可点上方按钮生成':'演奏模型尚未就绪';
  if(expressionLabel&&expressionLabel.lastChild)expressionLabel.lastChild.textContent=applied?' 演奏表情':' 自然演奏';
 }
-requestJSON('/api/performance').then(data=>syncExpressionControls({available:!!data.available})).catch(()=>{expressionAvailable=false;syncExpressionControls({available:false});});
+afterWorkspace(()=>requestJSON('/api/performance').then(data=>syncExpressionControls({available:!!data.available})).catch(()=>{expressionAvailable=false;syncExpressionControls({available:false});}),{delay:800});
 $('render-expression').onclick=async()=>{if(!score)return message('请先打开琴谱','warning');const original=score;const button=$('render-expression');button.disabled=true;try{let task=await requestJSON('/api/performance',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sourceId:score.serverId,bpm:tempo(),events:score.events.map(e=>({beat:e.beat,notes:e.notes.map(n=>({midi:n.midi,duration:n.duration}))}))})});while(['queued','running'].includes(task.status)){setImportProgress(task.progress||0,task.status==='queued'?'力度处理排队中':'生成力度曲线');await new Promise(r=>setTimeout(r,1800));task=await requestJSON(`/api/performance/${task.id}`);}if(task.status!=='complete')throw Error(task.error||'生成失败');if(score!==original){message('演奏结果已缓存，重新打开原曲后可载入');return;}player.setModelPerformance(task.result);syncExpressionControls({available:true,applied:true});setImportProgress(100,'力度处理已就绪','done');}catch(error){message(error.message,'error');}finally{button.disabled=false;}};
 
 // Rotating a phone swaps the usable width, and both the staff and the numbered
@@ -1101,7 +1108,7 @@ void (async()=>{
  }
 })();
 
-document.addEventListener('simple-system-ready',()=>{if(score){$('notation')._playbackElements=null;playbackElementScore=null;lastPlaybackIndex=-1;}});
+document.addEventListener('simple-system-ready',()=>{if(score){$('notation')._playbackElements=null;playbackElementScore=null;paintedIndex=-1;paintedScore=null;lastPlaybackIndex=-1;followSystem=null;if(playbackView&&currentView==='simple')requestAnimationFrame(()=>{if(currentView==='simple'&&score)paintPlayback({beat:player.beat,index:player.displayIndex(player.beat),totalBeats:player.totalBeats})});}});
 document.addEventListener('engraving-chunk-ready',()=>{if(score){$('notation')._playbackElements=null;$('notation')._mixStamp=null;playbackElementScore=null;lastPlaybackIndex=-1;syncScoreMix();if(playbackView)paintPlayback({beat:player.beat,index:player.displayIndex(player.beat),totalBeats:player.totalBeats});}});
 
 let drumResizeTimer;new ResizeObserver(()=>{clearTimeout(drumResizeTimer);drumResizeTimer=setTimeout(()=>{if(score&&!$('drum-card').hidden)refreshDrumLane();},180);}).observe($('drum-card'));
@@ -1112,7 +1119,6 @@ let drumResizeTimer;new ResizeObserver(()=>{clearTimeout(drumResizeTimer);drumRe
 //   ★ 注意：OSMD 当初就是**故意**从 index.html 里挪出来以免拖慢首屏的，
 //   所以这里先等 2.5 秒（让启动序列跑完、进度条算完账）再交给空闲回调，避免干扰启动。
 const warmEngraving=()=>{try{warmEngravingEngine();}catch{}};
-setTimeout(()=>{
-  if(typeof requestIdleCallback==='function')requestIdleCallback(warmEngraving,{timeout:3000});
-  else warmEngraving();
-},2500);
+// Use the card-to-loader transition to download the engine needed by this score.
+document.addEventListener('library-tour-loading',warmEngraving);
+afterWorkspace(warmEngraving,{delay:1800,timeout:3000});

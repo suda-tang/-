@@ -1,6 +1,6 @@
 const {chromium}=require('C:/Users/mail/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 const assert=require('node:assert/strict');
-(async()=>{const browser=await chromium.launch({headless:true,channel:'msedge'});try{
+(async()=>{const browser=await chromium.launch({headless:true,channel:'msedge',proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}});try{
  const page=await browser.newPage({viewport:{width:1360,height:1000}});await page.goto('http://127.0.0.1:5173/');
  const list=await (await page.request.get('http://127.0.0.1:5173/api/scores')).json();const parts=list.scores.filter(s=>s.title.includes('被遗忘')&&s.title.includes('识别分段'));assert.equal(parts.length,7);
  for(const part of parts){const data=await (await page.request.get(`http://127.0.0.1:5173/api/scores/${part.id}`)).json();const count=await page.evaluate(async xml=>(await import('/score.js')).parseMusicXML(xml).events.length,data.xml);assert.ok(count>0);console.log(part.title,count);}

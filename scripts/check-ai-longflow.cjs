@@ -239,7 +239,7 @@ function checkReply(rule,reply){
     console.log(`  合计   ${stat.PASS}/${rows.length} PASS  (FAIL ${stat.FAIL} / ERROR ${stat.ERROR})`);
     return;
   }
-  const browser=await chromium.launch({channel:'msedge',headless:true});
+  const browser=await chromium.launch({channel:'msedge',headless:true,proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}});
   const results=[];
   try{
     // 标题 → id（只取 ready 的）
@@ -266,6 +266,26 @@ function checkReply(rule,reply){
         page=await browser.newPage({viewport:{width:1440,height:900}});
         const errors=[];
         page.on('pageerror',e=>errors.push(String(e.message).slice(0,140)));
+        // ★ 2026-10-11：捕获 /api/workspace-ai 的 SSE result 事件，记录**真实**下发的动作数组，
+        //   用于排查"界面没生效到底是模型没发动作、还是前端没执行"（排查 longflow #48 时加的）。
+        await page.addInitScript(()=>{
+          window.__sseActions=[];
+          const origFetch=window.fetch;
+          window.fetch=async function(input,init){
+            const url=typeof input==='string'?input:(input&&input.url)||'';
+            const res=await origFetch.apply(this,arguments);
+            if(url.includes('/api/workspace-ai')&&res.body){
+              try{
+                const clone=res.clone();
+                const reader=clone.body.getReader();const dec=new TextDecoder();let buf='';
+                (async()=>{for(;;){const{done,value}=await reader.read();if(done)break;buf+=dec.decode(value||new Uint8Array(),{stream:true});
+                  for(const line of buf.split('\n')){const s=line.trim();if(!s.startsWith('{'))continue;try{const ev=JSON.parse(s);if(ev.type==='result'&&ev.actions)window.__sseActions.push(ev.actions);}catch{}}
+                  buf=buf.split('\n').pop();}})().catch(()=>{});
+              }catch{}
+            }
+            return res;
+          };
+        });
         await page.goto('http://127.0.0.1:5173/',{waitUntil:'load'});
         await page.waitForFunction(()=>document.documentElement.classList.contains('boot-ready'),null,{timeout:BOOT_TIMEOUT_MS});
 
@@ -311,6 +331,19 @@ function checkReply(rule,reply){
           // ★ 2026-10-09：动作是**逐条**执行的，is-thinking 消失后可能还有最后几步没落盘
           //   （实测 #3「只听钢琴+速度60」读早了 → 误判未生效，实际 UI 已生效）。多留 4.5s。
           await sleep(4500);
+          // ★ 2026-10-11：换曲类多步用例（open 14s + seek 最多 15s 兜底）总耗时可到 30s，
+          //   固定 4.5s 远远不够 → 实测 #48「独奏鼓组→跳通鼓最早处→播放」在 solo 生效前
+          //   就被读状态，误判成"独奏没生效"（实际 t=16s 就正确切成 P10 了）。
+          //   这里改为轮询等 AI 真正空闲（发送按钮回到 '↑' 且 ai-executing 消失），最多再等 40s。
+          await page.waitForFunction(
+            ()=>{
+              const btn=document.querySelector('dialog.ai-conversation button[type=submit]');
+              const busyText=btn&&btn.textContent==='■';
+              const exec=document.body.classList.contains('ai-executing');
+              return !busyText&&!exec;
+            },
+            null,{timeout:40000,polling:500}).catch(()=>{});
+          await sleep(800);
         }
 
         const after=await readState(page);
@@ -328,6 +361,11 @@ function checkReply(rule,reply){
           const pills=[...document.querySelectorAll('.ai-settle-pill')];
           return pills.length?pills[pills.length-1].textContent.slice(0,200):'';
         }).catch(()=>'');
+        // ★ 2026-10-11：pill 只是 UI 摘要，看不到后端**真实**下发的动作。
+        //   排查 longflow #48「独奏没生效」时需要确认真实动作数组，故额外捕获 SSE result 事件。
+        if(typeof page!=='undefined'&&page)rec.sseActions=await page.evaluate(()=>{
+          const arr=window.__sseActions||[];window.__sseActions=[];return arr;
+        }).catch(()=>[]);
 
         rec.fails=[...checkExpect(c.expect,before,after),...checkReply(c.reply,rec.reply)];
         if(errors.length)rec.fails.push('页面 JS 报错：'+errors.join(' | '));

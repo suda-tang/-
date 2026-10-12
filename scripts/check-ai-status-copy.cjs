@@ -8,7 +8,7 @@ const ORIGIN = process.env.PIANO_ORIGIN || 'http://192.168.2.6:5173';
 const TIME_PATTERNS = [/⏱/, /本次\s*[\d.]+\s*秒/, /已等待\s*\d+\s*秒/, /此阶段已等待/, /其中\s*AI\s*[\d.]+/, /已收到\s*\d+\s*个字符/];
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: EDGE, headless: true });
+  const browser = await chromium.launch({ executablePath: EDGE, headless: true,proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}});
   try {
     const page = await (await browser.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
     const errors = [];

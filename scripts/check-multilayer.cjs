@@ -1,6 +1,6 @@
 const {chromium}=require('C:/Users/mail/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 const assert=require('node:assert/strict');
-(async()=>{const b=await chromium.launch({headless:true,channel:'msedge'});try{const p=await b.newPage();await p.goto('http://127.0.0.1:5173/');const result=await p.evaluate(async()=>{
+(async()=>{const b=await chromium.launch({headless:true,channel:'msedge',proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}});try{const p=await b.newPage();await p.goto('http://127.0.0.1:5173/');const result=await p.evaluate(async()=>{
  const {ScorePlayer}=await import('/player.js');const player=new ScorePlayer();
  player.load({totalBeats:4,events:[{measure:1,offset:0,beat:0,notes:[{midi:60,duration:4}]}]});
  await player.unlock();await player.loadSamples();const samples=player.samples;

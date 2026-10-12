@@ -1,0 +1,15 @@
+{
+  "name": "suda-score-classroom",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.19"
+  },
+  "scripts": {
+    "check": "node --check generate.mjs"
+  },
+  "dependencies": {
+    "@openmaic/generation": "0.3.18",
+    "pptxgenjs": "4.0.1"
+  }
+}

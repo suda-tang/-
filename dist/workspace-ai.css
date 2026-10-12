@@ -157,3 +157,9 @@ body.studio .ai-conversation.is-morphing{transition:none;}
 
 /* Preserve the soft halo beyond the animated frame edge. */
 @supports (overflow:clip){.ai-conversation .ai-history-frame{overflow:clip;overflow-clip-margin:18px;}}
+.ai-operation-layer.is-indeterminate>span::before{width:35%;animation:ai-search-wait 1.5s ease-in-out infinite}
+#workspace-ai.is-indeterminate .ai-task-ring{animation:ai-search-ring 1.5s linear infinite}
+#workspace-ai.is-indeterminate .ai-task-ring circle{stroke-dashoffset:96}
+@keyframes ai-search-ring{to{transform:rotate(270deg)}}
+@keyframes ai-search-wait{from{transform:translateX(-110%)}to{transform:translateX(300%)}}
+@media(prefers-reduced-motion:reduce){.ai-operation-layer.is-indeterminate>span::before{animation:none;width:100%;opacity:.25}}

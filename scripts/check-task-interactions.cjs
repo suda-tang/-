@@ -1,6 +1,6 @@
 const {chromium}=require('C:/Users/mail/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 const assert=require('node:assert/strict');
-(async()=>{const browser=await chromium.launch({channel:'msedge',headless:true});try{
+(async()=>{const browser=await chromium.launch({channel:'msedge',headless:true,proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}});try{
  const page=await browser.newPage({viewport:{width:390,height:844}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/api/ai-tasks**',r=>r.fulfill({json:{tasks:[]}}));await page.route('**/api/tasks',route=>route.fulfill({json:{tasks:[]}}));
  let prioritized='';await page.route('**/api/processing/priority',route=>{prioritized=route.request().postDataJSON().id;return route.fulfill({json:{ok:true}});});

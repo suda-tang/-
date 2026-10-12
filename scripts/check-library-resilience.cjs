@@ -3,7 +3,7 @@
 const { chromium } = require('C:/Users/mail/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 
 (async () => {
-  const b = await chromium.launch({ headless: true, channel: 'msedge' });
+  const b = await chromium.launch({ headless: true, channel: 'msedge',proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}});
   const page = await b.newPage({ viewport: { width: 1360, height: 1000 } });
   const failures = [];
   page.on('pageerror', e => failures.push('pageerror: ' + e.message));

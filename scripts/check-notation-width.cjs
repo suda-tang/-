@@ -14,7 +14,7 @@ const XML='<?xml version="1.0"?><score-partwise version="4.0"><part-list><score-
 const declared=page=>page.evaluate(()=>[...document.querySelectorAll('#notation .engraved-sheet')].map(sheet=>Math.round(parseFloat(sheet.style.width))));
 
 (async()=>{
- const browser=await chromium.launch({channel:'msedge',headless:true});
+ const browser=await chromium.launch({channel:'msedge',headless:true,proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}});
  try{
   const page=await browser.newPage({viewport:{width:1280,height:900}}),errors=[];
   page.on('pageerror',e=>errors.push(e.message));

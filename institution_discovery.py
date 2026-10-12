@@ -16,7 +16,7 @@ def resolve_search_link(url):
  for _ in range(3):
   host=urlparse(url).hostname or ''
   if host.endswith('.edu.cn'):return url
-  if host not in ('www.so.com','www.sogou.com','www.bing.com','cn.bing.com'):return None
+  if host not in ('www.so.com','www.sogou.com','www.bing.com','cn.bing.com','www.baidu.com'):return None
   r=requests.get(url,headers=HEADERS,timeout=(3,5),allow_redirects=False)
   if r.is_redirect:url=urljoin(url,r.headers.get('Location',''));continue
   match=re.search(r"URL=\s*[\"']?([^\"'\s>]+)",r.text[:8000],re.I)
@@ -88,8 +88,13 @@ def discover(institution,use_directory=True):
     if len(result)>=3:break
   except requests.RequestException:pass
   return result
- with ThreadPoolExecutor(max_workers=2) as pool:
-  batches=list(pool.map(engine,[('https://www.so.com/s',{'q':institution+' 官网'}),('https://www.sogou.com/web',{'query':institution+' 官网'})]))
+ # ★ 加百度：实测搜狗对本机返回 5426 字节的拦截页（<h3> 结果数 0），360 的结果链接是
+ #   JS 跳转、resolve_search_link 解析不出来 —— 两个引擎都指望不上时，不在注册表/目录里的
+ #   学校就永远「未找到可访问官网」。百度返回的是可跟随的 302 直链（实测靠它才找到
+ #   「苏州工业园区星海实验高级中学」的候选域名）。匹配仍需过 matches() 名称校验，所以
+ #   多一个引擎只提高命中率、不会引入错误校徽。
+ with ThreadPoolExecutor(max_workers=3) as pool:
+  batches=list(pool.map(engine,[('https://www.so.com/s',{'q':institution+' 官网'}),('https://www.sogou.com/web',{'query':institution+' 官网'}),('https://www.baidu.com/s',{'wd':institution+' 官网'})]))
  links=list(dict.fromkeys(link for batch in batches for link in batch))[:5]
  def resolve(link):
   try:return resolve_search_link(link)

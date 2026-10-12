@@ -1,5 +1,5 @@
 const assert=require('node:assert/strict');const {chromium}=require('C:/Users/mail/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
-(async()=>{const b=await chromium.launch({channel:'msedge',headless:true,args:['--autoplay-policy=no-user-gesture-required']});try{const p=await b.newPage();await p.goto('http://127.0.0.1:5173/portrait-upload.html');
+(async()=>{const b=await chromium.launch({channel:'msedge',headless:true,args:['--autoplay-policy=no-user-gesture-required'],proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}});try{const p=await b.newPage();await p.goto('http://127.0.0.1:5173/portrait-upload.html');
 const result=await p.evaluate(async()=>{
  const {ScorePlayer}=await import('/player.js'),{DawView}=await import('/daw.js'),{VocalTransport}=await import('/vocal-transport.js');
  const player=new ScorePlayer();await player.unlock();const ctx=player.context;const host=document.createElement('div');document.body.append(host);

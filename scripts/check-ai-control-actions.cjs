@@ -17,7 +17,7 @@ const sse=(reply,actions)=>[
 ].join('\n')+'\n';
 
 (async()=>{
-  const browser=await chromium.launch({channel:'msedge',headless:true});
+  const browser=await chromium.launch({channel:'msedge',headless:true,proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}});
   try{
     const page=await browser.newPage({viewport:{width:1440,height:900}});
     const errors=[];page.on('pageerror',e=>errors.push(e.message.slice(0,160)));

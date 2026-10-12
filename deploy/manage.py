@@ -28,6 +28,10 @@ def setup(omr):
     if not PY.exists(): venv.create(ENV, with_pip=True)
     run([PY, '-m', 'pip', 'install', '-r', ROOT/'deploy/requirements-lock.txt'])
     run([PY, '-m', 'playwright', 'install', 'chromium'])
+    voice_env=ROOT/'.sites-runtime/tts-fallback-env'
+    voice_python=voice_env/('Scripts/python.exe' if os.name=='nt' else 'bin/python')
+    if not voice_python.exists():run([PY,'-m','venv',voice_env])
+    run([voice_python,'-m','pip','install','-r',ROOT/'deploy/requirements-tour-voice.txt'])
     if omr:
         env = environment()
         env['PATH'] = str(PY.parent) + os.pathsep + env.get('PATH', '')

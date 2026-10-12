@@ -14,7 +14,7 @@ const waitDisabledFalse=async(page,label,timeout=40000)=>{
   throw Error(label+': 刷新按钮 40s 内未复位（disabled 仍为 true，疑似死锁）');
 };
 (async()=>{
- const browser=await chromium.launch({headless:true,channel:'msedge',args:['--autoplay-policy=no-user-gesture-required']});
+ const browser=await chromium.launch({headless:true,channel:'msedge',args:['--autoplay-policy=no-user-gesture-required'],proxy:{server:'http://127.0.0.1:7897',bypass:'<-loopback>'}});
  try{
   const page=await browser.newPage({viewport:{width:1360,height:1000}});
   const errors=[];page.on('pageerror',e=>errors.push(e.message));

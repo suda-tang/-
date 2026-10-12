@@ -57,6 +57,11 @@ async function readState(page) {
       tempo: Number(document.querySelector('#tempo')?.value),
       metronome: !!document.querySelector('#metronome')?.checked,
       msgs: document.querySelectorAll('dialog.ai-conversation .ai-messages > *').length,
+      // ★ 必须单独数「助手消息」：提交新一轮时**用户消息**会先入列，若拿总消息数当基准，
+      //   循环会在「助手回复还没到、上一轮回复仍稳定」时就提前 break —— 于是把上一轮的
+      //   回复当成本轮结果（表现为「回复整体错位一轮」+ 最后一轮误判失败）。
+      assistants: [...document.querySelectorAll('dialog.ai-conversation .ai-messages > *')]
+        .filter(el => el.classList.contains('assistant')).length,
     }));
   }).catch(() => ({}));
 }
@@ -125,7 +130,7 @@ function checkExpect(expect, after) {
     const turn = SCRIPT[i];
     const errBefore = pageErrors.length;
     const before = await readState(page);
-    const beforeCount = before.msgs || 0;
+    const beforeAssistants = before.assistants || 0;
     const t0 = Date.now();
 
     await page.fill('dialog.ai-conversation input', turn.say, { timeout: 10000 }).catch(async () => {
@@ -141,20 +146,30 @@ function checkExpect(expect, after) {
     while (Date.now() < deadline) {
       await sleep(1500);
       reply = await lastReply().catch(() => '');
-      const grew = await page.evaluate(c => document.querySelectorAll('dialog.ai-conversation .ai-messages > *').length > c, beforeCount).catch(() => false);
+      const grew = await page.evaluate(c => [...document.querySelectorAll('dialog.ai-conversation .ai-messages > *')]
+        .filter(el => el.classList.contains('assistant')).length > c, beforeAssistants).catch(() => false);
       if (reply && reply === prev) { stable++; if (stable >= 2 && grew) break; }
       else stable = 0;
       prev = reply;
     }
     const ms = Date.now() - t0;
-    await sleep(600); // 让动作落地
-    const after = await readState(page);
+    // ★ 动作（尤其「打开曲谱」）落地可能要 10+ 秒：不再硬性等 600ms，而是轮询直到
+    //   expect 满足，或最多等 45 秒（避免慢打开被误判为失败）。无 expect 的轮仍短等。
+    const settleDeadline = Date.now() + 45000;
+    let after = await readState(page);
+    while (turn.expect && checkExpect(turn.expect, after).length && Date.now() < settleDeadline) {
+      await sleep(1500);
+      after = await readState(page);
+    }
 
     const why = [];
     if (!reply) why.push('没有回复');
     else if (reply.length < 2) why.push('回复过短');
-    // ★ AI 没真正干活时会回这几种固定话术，不能算"有回复就算过"
-    if (/已停止这次请求|界面没有变化/.test(reply)) why.push('AI 处于卡死状态：本次发送只起到"停止上一次请求"的作用');
+    // ★ AI 没真正干活时会回这几种固定话术，不能算"有回复就算过"。
+    //   注意只把「已停止这次请求」当卡死——之前正则里的裸「界面没有变化」会误伤
+    //   runActions 的正常校验警告（「子操作执行后界面没有变化」），把轻微问题误报成卡死。
+    if (/已停止这次请求/.test(reply)) why.push('AI 处于卡死状态：本次发送只起到"停止上一次请求"的作用');
+    if (/执行后界面没有变化|没有真正生效/.test(reply)) why.push('动作未生效：子操作执行后界面没有可见变化（模型只发了动作却没真正落实）');
     if (/请求等待超时|连接被中止|外网隧道/.test(reply)) why.push('请求被中止/超时（文案误报成外网隧道问题）');
     why.push(...checkExpect(turn.expect, after));
     if (pageErrors.length > errBefore) why.push('新 JS 报错: ' + pageErrors.slice(errBefore).join(' | ').slice(0, 160));

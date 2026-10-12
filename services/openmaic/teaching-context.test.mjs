@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';import{teachingContext}from './teaching-context.mjs';
+for(const [schoolStage,stage]of [['primary','小学'],['junior','初中'],['senior','高中']])test(stage+' keeps teaching actions and source limits',()=>{const c=teachingContext({title:'晴',mode:'classroom',schoolStage,goal:'学会听辨',level:stage,duration:40,features:['slides','quiz'],evidence:{notes:[]}});assert.equal(c.stage,stage);assert(c.requirement.includes('教师提问原话'));assert(c.requirement.includes('评价证据'));assert(c.requirement.includes('未启用联网参考'));assert(c.requirement.includes(stage+'全班音乐课'))});
+test('piano remains a distinct teaching mode',()=>{assert.equal(teachingContext({mode:'piano',evidence:{}}).school,false)});

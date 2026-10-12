@@ -7,6 +7,7 @@ const boards={
  'mentor-material':{title:'一首作品的学习过程',points:['乐谱','聆听','练习']}
 };
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const fetchOpening=(url)=>fetch(url,{signal:AbortSignal.timeout(8000)});
 export async function openingNarration(scene){
  if(!document.querySelector('link[data-mentor-cinematic]')){const style=document.createElement('link');style.rel='stylesheet';style.href='/mentor-cinematic.css?v=22';style.dataset.mentorCinematic='';document.head.append(style);}
  scene.classList.add('mentor-cinematic');scene.dataset.phase='loading';const content=scene.querySelector('.home-intro-content');content.replaceChildren();
@@ -33,23 +34,25 @@ function ensureVoiceAnim(){if(voiceAnimTimer)return;voiceAnimTimer=setInterval((
 },120);
 }
 function showEngineProgress(){voiceLoading.hidden=false;engineProgress.hidden=false;voiceTarget=voiceProgress;ensureVoiceAnim();}
- let generated=[];try{const response=await fetch('/narration/tour.json');if(response.ok)generated=await response.json();}catch{}
+ const disposeAvatar=attachNarrationAvatar(host,audio,{embedded:true,cinematic:true});
+ const avatarReady=new Promise(resolve=>{const timeout=setTimeout(()=>{observer.disconnect();resolve(false);},20000);const observer=new MutationObserver(()=>{const avatar=host.querySelector('.narration-avatar');if(avatar?.dataset.ready||avatar?.dataset.error){clearTimeout(timeout);observer.disconnect();resolve(!!avatar.dataset.ready);}});observer.observe(host,{subtree:true,attributes:true});const ready=host.querySelector('.narration-avatar');if(ready?.dataset.ready||ready?.dataset.error){clearTimeout(timeout);observer.disconnect();resolve(!!ready.dataset.ready);}});
+ let arrivalAt=0;
+ avatarReady.then(loaded=>{if(loaded){arrivalAt=performance.now();loading.hidden=true;scene.dataset.phase='arrival';}window.dispatchEvent(new CustomEvent('mentor-stage-ready',{detail:{loaded}}));});
+ let generated=[];try{const response=await fetchOpening('/narration/tour.json');if(response.ok)generated=await response.json();}catch{}
  const continueButton=document.createElement('button');continueButton.type='button';continueButton.className='mentor-greeting-continue';continueButton.textContent='先听项目介绍';continueButton.hidden=true;captionPanel.append(continueButton);let continueIntro,greetingDetached=false;const continueReady=new Promise(resolve=>{continueIntro=()=>resolve({useExisting:true});});continueButton.onclick=()=>{greetingDetached=true;voiceLoading.hidden=true;engineProgress.hidden=true;continueButton.hidden=true;continueIntro();};
- const greetingName=scene.dataset.mentor;let greetingState=null;const greetingReady=greetingName?(async()=>{while(scene.isConnected&&!greetingDetached){try{const r=await fetch('/api/mentor-greeting?name='+encodeURIComponent(greetingName));greetingState=await r.json();if(greetingState.url){voiceProgress=1;showEngineProgress();return greetingState;}if(greetingState.status==='failed'){voiceLoading.hidden=false;voiceLabel.textContent='专属前言生成失败：'+(greetingState.error||'请稍后重试');return null;}continueButton.hidden=false;voiceProgress=Number(greetingState.progress??({queued:0,loading:20,synthesizing:60,joining:90}[greetingState.status]||0))/100;showEngineProgress();}catch{voiceLoading.hidden=false;voiceLabel.textContent='专属前言连接中断，正在重试';}await wait(3000);}return null;})():Promise.resolve(null);
+ const greetingName=scene.dataset.mentor;let greetingState=null;const greetingReady=greetingName?(async()=>{while(scene.isConnected&&!greetingDetached){try{const r=await fetchOpening('/api/mentor-greeting?name='+encodeURIComponent(greetingName));greetingState=await r.json();if(greetingDetached||!scene.isConnected)return null;if(greetingState.url){voiceProgress=1;showEngineProgress();return greetingState;}if(greetingState.status==='failed'){voiceLoading.hidden=false;voiceLabel.textContent='专属前言生成失败：'+(greetingState.error||'请稍后重试');return null;}continueButton.hidden=false;voiceProgress=Number(greetingState.progress??({queued:0,loading:20,synthesizing:60,joining:90}[greetingState.status]||0))/100;showEngineProgress();}catch{voiceLoading.hidden=false;voiceLabel.textContent='专属前言连接中断，正在重试';}await wait(3000);}return null;})():Promise.resolve(null);
  const tracks=generated.filter(track=>track.role==='mentor'&&track.url);
  if(!tracks.length)tracks.push({id:'mentor-preface',url:'/narration/mentor-preface.m4a'});
  audio.src=tracks[0].url;audio.load();let arriving=true;
  const prime=()=>{if(!arriving)return;void audio.play().then(()=>{if(arriving){audio.pause();audio.currentTime=0;}}).catch(()=>{});};
  for(const event of ['pointerdown','touchend','click'])document.addEventListener(event,prime,true);
  function endArrival(){arriving=false;for(const event of ['pointerdown','touchend','click'])document.removeEventListener(event,prime,true);}
- let translations={};try{translations=await (await fetch('/narration/mentor-subtitles.json')).json();}catch{}
+ let translations={};try{translations=await (await fetchOpening('/narration/mentor-subtitles.json')).json();}catch{}
  const position=document.createElement('span'),subtitle=document.createElement('p'),actions=document.createElement('div'),skip=document.createElement('button'),exit=document.createElement('button');
  position.className='mentor-segment';subtitle.className='mentor-subtitle';subtitle.setAttribute('aria-live','off');actions.className='mentor-caption-actions';skip.type=exit.type='button';position.hidden=subtitle.hidden=actions.hidden=true;actions.append(skip,exit);captionPanel.append(position,subtitle,actions);
- const disposeAvatar=attachNarrationAvatar(host,audio,{embedded:true,cinematic:true});
- const loaded=await new Promise(resolve=>{const timeout=setTimeout(()=>{observer.disconnect();resolve(false);},20000);const observer=new MutationObserver(()=>{const avatar=host.querySelector('.narration-avatar');if(avatar?.dataset.ready||avatar?.dataset.error){clearTimeout(timeout);observer.disconnect();resolve(!!avatar.dataset.ready);}});observer.observe(host,{subtree:true,attributes:true});});
- window.dispatchEvent(new CustomEvent('mentor-stage-ready',{detail:{loaded}}));
+ const loaded=await avatarReady;
  if(!loaded){endArrival();audio.pause();disposeAvatar();return;}
- loading.hidden=true;scene.dataset.phase='arrival';await wait(matchMedia('(prefers-reduced-motion:reduce)').matches?400:5600);endArrival();const greeting=await Promise.race([greetingReady,continueReady]);continueButton.hidden=true;if(greetingName&&!greeting){continueButton.hidden=false;endArrival();audio.pause();sound.hidden=false;sound.textContent='前言生成失败，轻触重新载入';sound.onclick=async()=>{await fetch('/api/mentor-greeting?retry=1&name='+encodeURIComponent(greetingName));location.reload();};await continueReady;sound.hidden=true;continueButton.hidden=true;}if(greeting&&!greeting.useExisting){tracks[0]={...tracks[0],url:greeting.url,text:greeting.text};}scene.dataset.phase='lecture';
+ loading.hidden=true;scene.dataset.phase='arrival';await wait(Math.max(0,(matchMedia('(prefers-reduced-motion:reduce)').matches?400:5600)-(performance.now()-arrivalAt)));endArrival();const greeting=await Promise.race([greetingReady,continueReady,wait(1200).then(()=>({useExisting:true}))]);greetingDetached=true;if(voiceAnimTimer){clearInterval(voiceAnimTimer);voiceAnimTimer=null;}continueButton.hidden=true;if(greeting&&!greeting.useExisting){tracks[0]={...tracks[0],url:greeting.url,text:greeting.text};}scene.dataset.phase='lecture';
  return new Promise(resolve=>{
   let index=0,finished=false,blocked=false,frame=0,trackStart=performance.now(),lastDraw=0,revision=0;
   function captions(elapsed=0,duration=1){
@@ -75,7 +78,7 @@ function showEngineProgress(){voiceLoading.hidden=false;engineProgress.hidden=fa
   function key(event){if(event.key==='Escape')void finish();else unlock();}
   function visibility(){if(document.hidden)audio.pause();else{trackStart=performance.now()-audio.currentTime*1000;void play();}}
   for(const event of ['pointerdown','touchend','click'])document.addEventListener(event,unlock,true);document.addEventListener('keydown',key);document.addEventListener('visibilitychange',visibility);
-  skip.onclick=()=>void advance();exit.onclick=()=>void finish();captions();loading.hidden=true;engineProgress.hidden=true;voiceLoading.hidden=true;position.hidden=subtitle.hidden=actions.hidden=false;
-  audio.onended=()=>void advance();audio.onerror=()=>{const version=revision;if(!finished)setTimeout(()=>{if(version===revision)void advance();},1000);};select();update();
+  sound.onclick=event=>{event.stopPropagation();void play();};skip.onclick=()=>void advance();exit.onclick=()=>void finish();captions();loading.hidden=true;engineProgress.hidden=true;voiceLoading.hidden=true;position.hidden=subtitle.hidden=actions.hidden=false;
+  audio.onended=()=>void advance();audio.onerror=()=>{if(!finished){blocked=true;sound.hidden=false;sound.textContent='讲解未能载入，轻触重试';sound.onclick=event=>{event.stopPropagation();audio.load();void play();};}};select();update();
  });
 }
