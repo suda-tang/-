@@ -654,30 +654,31 @@ query 是 `shut up` / `tempo=120` / `静音所有` / `静音all` 这类 ——
 原因是**有并行进程在写同一个文件**（`dist/workspace-ai.js` 被覆盖过三次）。
 改完**必须立刻 `grep` 回读校验**；发现被覆盖就用脚本重新落盘。
 
-## 品牌改名：飞鸟练琴 → 唐秋鸣钢琴教学辅助系统（2026-10-07 凌晨）
+## 品牌名统一：只使用正式名称「唐秋鸣钢琴教学辅助系统」
 
-唐老师要求「去除所有的飞鸟练琴，换成唐秋鸣钢琴教学辅助系统」。全量扫描 3137 个源码文件后
-只有 5 个文件命中，已全部替换：
-
-| 文件 | 处数 | 说明 |
-|---|---|---|
-| `ai_workspace.py` | 1 | ★ system 提示词首句 —— AI 自我介绍时唯一会说出来的一句 |
-| `WORKBUDDY_HANDOFF.md` | 1 | 本文档里对上面那句的引用 |
-| `~/.workbuddy-ai/skills/piano-ai-workspace-maintenance/SKILL.md` | 3 | 描述 / 触发词 / 标题 |
-| `~/.workbuddy/skills/piano-lab-service-recovery/SKILL.md` | 3 | 描述 / 触发词 / 标题 |
-| `D://code//2026-10-02-01-58-59//.workbuddy-ai//memory//2026-10-07.md` | 1 | 当日工作日志 |
+唐老师要求「去除一切旧品牌名痕迹，统一使用唐秋鸣钢琴教学辅助系统」。全量扫描源码后，
+命中处已全部替换。AI 自我介绍的唯一出口是 `ai_workspace.py` 的 system 提示词首句。
 
 ★ **不动的地方**（下次别误改）：
 - 项目目录名 `C://Users//mail//Documents//ChatGPT//自动钢琴陪练系统` —— 那是真实路径，
   改了会打断 `server.py`、技能、启动脚本里所有路径引用。文档里剩下的「自动钢琴陪练」
   全都是路径的一部分（已逐处确认）。
 - `application/research/sources/*.html` —— 抓下来的第三方网页原文，改了等于篡改资料。
-- `~/.workbuddy/suda-deepseek/tools-seen.json` —— 运行时缓存（3.6 MB，含历史技能描述），
-  会自动重建，不用手改。
+- `.sites-runtime/**/site-packages/**`（jieba / pypinyin / sherpa-onnx 词表）——
+  第三方库词典里本来就有这个词，与品牌无关，不要动。
 
-★ 顺带把自我介绍改得更完整：原来写的是「你是 SUPERTANG AI（X 里的音乐助手）」，
-现在明确成「你是 SUPERTANG AI，属于「X」……就说自己是 SUPERTANG AI、在 X 里工作」——
-这样唐老师问「你是谁」时，新品牌名会自然出现在回答里，而不是只出现 SUPERTANG AI。
+★ 2026-10-20 复查补扫，又清掉三处新冒出来的来源：
+`~/.workbuddy/memory/*_memory.md`（正文 + RAW_JSON 副本共 6 处，这是 WorkBuddy 启动时
+会注入上下文的项目记忆，**旧名就是从这里说出口的**）、`frp/launch.py` 与 `startup.vbs`
+（+2 个 .bak）的注释、以及会自动重建的三个缓存（`tools-seen.json` 快照、
+`__pycache__/launch.cpython-312.pyc`、`__pycache__/launch.cpython-313.pyc`）。
+
+★ 顺带把自我介绍改得更完整：「你是 SUPERTANG AI，属于「唐秋鸣钢琴教学辅助系统」……
+就说自己是 SUPERTANG AI、在唐秋鸣钢琴教学辅助系统里工作」——
+这样唐老师问「你是谁」时，正式名称会自然出现在回答里。
+
+★ **搜中文别用 `grep -r`**（Git Bash 下超时/漏报，本次连踩两次），
+要用 Python `os.walk` + `io.open(encoding='utf-8', errors='ignore')` 才扫得干净。
 
 ## 身份修复：模型不再自称「苏州大学AI智能助手」（2026-10-07 凌晨，第二轮）
 
