@@ -23,6 +23,25 @@ def direct_controls(text, context):
         start,end=map(int,passage.groups());count=int(context.get('measureCount') or 0)
         if not 1<=start<=end<=count:return None
         return {'reply':f'设置第 {start}—{end} 小节的播放范围。','actions':[{'type':'set_range','value':{'from':start,'to':end,'practice':not text.startswith('播放')}}]}
+    # ★ 2026-11-20：「只练/只播最后N小节」以前没被 passage 正则认出，掉进 ai_workspace 的
+    #   数字导航被读成「跳到末小节」+ 裸 seek_measure，练习范围根本没设 —— 假闭环。
+    #   这里补上「最后/末尾 N 小节」（N 支持阿拉伯与中文数字），同样产出 set_range。
+    tail=re.fullmatch(r'(?:请|帮我)?(?:只练|只播|练习|练|反复练|循环|播放|播)\s*(?:这首(?:曲子)?的?)?(?:最后|末尾|末)\s*([0-9一二两三四五六七八九十百]+)\s*小节[。！!]?\s*',text)
+    if tail:
+        _cn={'一':1,'二':2,'两':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10}
+        raw=tail.group(1)
+        if raw.isdigit():n=int(raw)
+        elif raw=='十':n=10
+        elif '十' in raw:
+            _l,_r=raw.split('十',1);n=(_cn.get(_l,1) if _l else 1)*10+(_cn.get(_r,0) if _r else 0)
+        else:n=_cn.get(raw,0)
+        count=int(context.get('measureCount') or 0)
+        if n<1 or not count or n>count:return None
+        start,end=count-n+1,count
+        kind='set_loop' if ('循环' in text or '反复' in text) else 'set_range'
+        val={'from':start,'to':end}
+        if kind=='set_range':val['practice']=not text.startswith('播放')
+        return {'reply':f'设置第 {start}—{end} 小节（最后 {n} 小节）的{"循环" if kind=="set_loop" else "播放"}范围。','actions':[{'type':kind,'value':val}]}
     playback=re.fullmatch(r'从第?(\d+)小节(?:开始)?(?:只)?播放(.*?)[。！!]?\s*',text)
     if playback:
         number=int(playback[1]);count=int(context.get('measureCount') or 0)

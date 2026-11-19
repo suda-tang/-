@@ -43,6 +43,24 @@
 
 占锁 / 释放都改这一节。当前为空 = 暂无人在占锁。
 
+> 2026-11-20 01:55–02:05 修「只练/只播最后N小节」假闭环（本会话）；**锁已全部释放**。
+> 根因：`ai_direct_controls.direct_controls` 的 passage 正则只认「第X到Y小节」，不认「最后N小节」；
+>   于是「只练最后4小节」掉进 `ai_workspace.fast_plan`，被 `requested_measure`（见「最后」返回末小节号）
+>   读成单个数字 → 裸 `seek_measure:末小节`，练习范围根本没设 —— 假闭环。
+> ★ 走过的弯路（别重犯）：一开始在 `ai_workspace.py` 插了套 practice_range 新逻辑，回归发现
+>   项目**本来就有**范围能力在 `ai_direct_controls.py`（产出 set_range 带 practice 字段），
+>   是我重复造轮子且部分说法被早退没覆盖到 → **从备份完整还原 ai_workspace.py**，改在正确位置。
+> 修法（只改 `ai_direct_controls.py`）：passage 正则后补 tail 正则，认「只练/只播/循环/播放
+>   + 最后/末尾/末 + N(阿拉伯或中文数字) 小节」，算出 from=count-n+1,to=count，
+>   循环→set_loop、否则 set_range(带 practice)；越界/超总数返回 None 不接。
+> 验证：py_compile PASS；direct_controls 单测 8/9（唯一 FAIL 是我测试期望写错：纯「最后10小节」
+>   无动词本就不该接，got=None 正确）；既有 tests/test_ai_browser_regressions.py 4/4、
+>   test_bug_rounds.py 3/3 全过；端到端 fast_plan 三条正确；重启 5173 后活端点三条正确；
+>   **真实浏览器 `.sites-runtime/check-practice-range.cjs` 4/4**：「只练最后4小节」真派发
+>   ai-range-play{from:136,to:139}（曲谱139小节）、界面「只播第136到139小节，播完停住」，
+>   「跳到第12小节」仍 seek 未误伤，无 pageerror。
+> 备份 `.sites-runtime/ai_direct_controls.py.bak-20261120-020000`（ai_workspace 备份用完已随还原丢弃改动）。
+
 > 2026-11-18 15:20–15:3x 给全库乐理索引加「过期提醒」，防旧索引骗人（本会话）；**锁已全部释放**。
 > 根因：11-18 15:00 我曾拿 2026-10-09 的过期索引（covered=1873）断言「曲库没有人声谱」，
 >   实际重建后有人声谱 4 首 —— 索引说「没有」≠现实没有。为防复发，给检索结果附时效提醒。
