@@ -1,0 +1,5 @@
+import assert from 'node:assert/strict';
+import {classroomIntent} from '../dist/ai-classroom-intent.js';
+const make=(text,context={currentId:'id',current:'突然好想你'})=>({messages:[{role:'user',content:text}],context});
+for(const text of ['把这节课备课一下','把这节课PPT做一下','帮我备课','准备一下这节课','把教案写一下','帮我做一下这首曲子的课件'])assert.equal(classroomIntent(make(text)).actions[0].type,'create_classroom',text);
+const context={currentId:'id',current:'突然好想你',classroom:{id:'course',scoreId:'id',status:'generating',settings:{schoolStage:'junior',duration:35}}};assert.deepEqual(classroomIntent(make('把这节课PPT做一下',context)).actions.map(a=>a.value.operation),['open','status']);context.classroom.id=null;const settings=classroomIntent(make('把这节课备课一下',context)).actions[0].value;assert.equal(settings.schoolStage,'junior');assert.equal(settings.duration,35);for(const text of ['不要备课','不要做PPT','如何制作音乐课PPT','生成PPT，然后播放钢琴'])assert.equal(classroomIntent(make(text)),null,text);console.log('PASS conversational preparation, existing-task reuse, settings continuity and whole-request guards');

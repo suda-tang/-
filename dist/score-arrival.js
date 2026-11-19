@@ -10,6 +10,7 @@ const frame=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationF
 export function concealArrivingScore(){document.querySelector('.score-card')?.classList.add('score-arrival-waiting');}
 export function restoreArrivingScore(){document.querySelector('.score-card')?.classList.remove('score-arrival-waiting');}
 export async function unfoldScoreLoader(loader){
+ document.body.classList.add('score-loader-covering');
  await styles();if(reduced())return;
  const seal=loader.querySelector('.score-loading-seal'),surface=loader.querySelector('.score-loading-dialog');
  const r=seal.getBoundingClientRect(),s=surface.getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2,radius=Math.hypot(innerWidth,innerHeight);

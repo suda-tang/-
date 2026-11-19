@@ -53,7 +53,7 @@ def remaining(deadline):
 SOURCE_NAMES=(('gangqinpu.com','虫虫钢琴'),('tan8.com','弹琴吧'),('everyonepiano.cn','SUPERTANG AI 智能找谱'),
               ('everyonepiano.com','SUPERTANG AI 智能找谱'),('book118.com','原创力文档'),('doc88.com','道客巴巴'),
               ('docin.com','豆丁网'),('wenku.so.com','360文库'),('qupu123.com','中国曲谱网'),
-              ('imslp.org','IMSLP'),('musescore.com','MuseScore'))
+              ('imslp.org','IMSLP'),('musescore.com','MuseScore'),('mutopiaproject.org','Mutopia'))
 def source_name(host):
  host=(host or '').lower()
  for domain,name in SOURCE_NAMES:
@@ -148,6 +148,9 @@ def handle(handler,server=None):
   n=int(handler.headers.get('Content-Length','0'))
   if not 0<n<12000:raise ValueError('请求长度无效')
   payload=json.loads(handler.rfile.read(n))
+  if payload.get('mode')=='verification':
+   from manual_verification import complete
+   return handler.json_response(complete(str(payload.get('id','')),str(payload.get('code','')).strip()))
   if payload.get('mode')=='skills':
    query=str(payload.get('query','')).strip()[:120]
    # 空 query 以前会拿去搜 GitHub 的 " skill"，返回一堆和音乐毫无关系的热门项目（报告 C3）。
@@ -195,33 +198,44 @@ def handle(handler,server=None):
    #    并把「卡农 钢琴谱 pdf」当成单字查询**，返回一堆汉语字典页，再被 host 过滤掉 ——
    #    等于白等 15 秒还必然为空（这就是 directPdf 恒为 false 的真因）。
    #    实测 360 / 搜狗 都能返回真实相关结果，且它们的跳转链在浏览器里点得开。
-   for engine,url,params,selector in (
-    ('360 搜索','https://www.so.com/s',{'q':core+(' 钢琴独奏 视频' if recording else web_suffix(core,recording))},'.res-list a[href]'),
-    ('搜狗','https://www.sogou.com/web',{'query':core+(' 钢琴独奏 视频' if recording else web_suffix(core,recording))},'.vrwrap a[href], .rb a[href]'),
-   ):
-    if len(items)>=8 or time.monotonic()>=deadline:break
+   from concurrent.futures import ThreadPoolExecutor
+   jobs=[('360 搜索','https://www.so.com/s',{'q':core+(' 钢琴独奏 视频' if recording else web_suffix(core,recording)+' PDF')},'.res-list h3 a[href],.res-list h2 a[href]'),
+         ('搜狗','https://www.sogou.com/web',{'query':core+(' 钢琴独奏 视频' if recording else web_suffix(core,recording)+' PDF')},'.vrwrap h3 a[href],.rb h3 a[href]'),
+         ('Bing','https://cn.bing.com/search',{'q':core+(' piano performance video' if recording else web_suffix(core,recording)+' PDF')},'li.b_algo h2 a[href]')]
+   if not recording:jobs.append(('Mutopia','https://www.mutopiaproject.org/cgibin/make-table.cgi',{'searchingfor':core},'table.result-table'))
+   def search_engine(job):
+    engine,url,params,selector=job
     try:
      r=requests.get(url,params=params,timeout=remaining(deadline),headers=BROWSER_HEADERS);r.raise_for_status()
-     r.encoding=r.apparent_encoding or 'utf8'
-     soup=BeautifulSoup(r.text,'html.parser');seen={x['url'] for x in items}
-     for a in soup.select(selector):
-      title=a.get_text(' ',strip=True)
-      if len(title)<6 or not title_matches(core,title):continue
-      # ★ 噪声和「像不像曲谱页」必须在**收集阶段**就判掉：
-      #   之前放在收集之后，于是「致爱丽丝」这种 360 只给图片结果的查询，
-      #   收集时算有结果 → 不再试搜狗 → 过滤后变空 → 只剩兜底链接。
-      if (not recording and not looks_like_score(title)) or is_noise(title):continue
-      href=urljoin(url,a.get('href',''))
-      if not href.startswith('http') or href in seen:continue
-      seen.add(href);items.append({'title':title[:120],'url':href,'directPdf':False,'source':engine})
-      if len(items)>=8:break
-    except requests.RequestException:blocked.append(engine+' 连不上')
+     r.encoding=r.apparent_encoding or 'utf8';soup=BeautifulSoup(r.text,'html.parser');found=[]
+     if engine=='Mutopia':
+      for table in soup.select('table.result-table')[:4]:
+       first=table.select_one('tr');title=first.get_text(' ',strip=True) if first else ''
+       if not title:continue
+       link=table.select_one('a[href$="-a4.pdf"]')
+       if link:found.append({'title':title[:120],'url':urljoin(url,link['href']),'directPdf':True,'source':'Mutopia'})
+      return found,None
+     for link in soup.select(selector):
+      title=link.get_text(' ',strip=True);href=urljoin(url,link.get('href',''))
+      if len(title)<4 or not title_matches(core,title) or (not recording and not looks_like_score(title)) or is_noise(title):continue
+      if not href.startswith('http'):continue
+      from classroom_references import direct_link
+      href=direct_link(href)
+      found.append({'title':title[:120],'url':href,'directPdf':urlparse(href).path.lower().endswith('.pdf'),'source':engine})
+      if len(found)>=5:break
+     return found,None
+    except requests.RequestException:return [],engine+' 连不上'
+   if time.monotonic()<deadline-2:
+    with ThreadPoolExecutor(max_workers=3) as pool:
+     for found,error in pool.map(search_engine,jobs):
+      items.extend(found)
+      if error:blocked.append(error)
    # ③ 把跳转链解析成真实地址：来源才看得懂（虫虫钢琴 / 弹琴吧 / 原创力文档…），
    #    链接也更稳定（/link?m=… 可能是会话相关的）。并行解析，别串行拖慢。
    #    解析不出来就保留跳转链 —— 浏览器里照样点得开。
    if items and time.monotonic()<deadline-3:
     from concurrent.futures import ThreadPoolExecutor
-    targets=items[:8]
+    targets=items[:12]
     with ThreadPoolExecutor(max_workers=6) as pool:
      for item,final in zip(targets,pool.map(lambda x:resolve_target(x['url']),targets)):
       host=urlparse(final).hostname or ''
@@ -245,20 +259,17 @@ def handle(handler,server=None):
    if not items:items=[{'title':'在 SUPERTANG AI 智能找谱 搜索《'+query+'》','url':search_url,'directPdf':False,'source':'SUPERTANG AI 智能找谱'}]
    # ⑤ 说清楚现状（报告 #7）：这些站点基本都要登录或 VIP，别让用户以为点一下就能自动下载。
    notice=('本次自动检索受限（'+'；'.join(blocked)+'）。') if blocked else ''
-   notice+='这些页面多数需要登录或 VIP 才能下载：打开页面把 PDF 下载下来，拖进曲库就能自动识谱；也可以把文件地址发给我，我帮你导入。'
+   from score_web_download import everyone_page
+   for item in items:item['autoImport']=True
+   notice+='可点击下载并识谱，程序会自动读取可下载的 PDF；如来源要求登录或 VIP，会显示具体原因。'
    return handler.json_response({'results':items[:8],'notice':notice})
   # 非法 mode 以前会掉到最后那句 URL 校验上，于是「mode 写错」的报错是
   # 「仅接受公网网页地址」—— 文案和原因完全对不上（报告 C2）。
   if payload.get('mode') not in (None,'','import'):raise ValueError('未知的请求类型：'+str(payload.get('mode'))[:40])
   url=str(payload.get('url',''))
   if not url:raise ValueError('请提供要下载的文件地址')
-  public_url(url)
-  r=requests.get(url,timeout=(8,40),stream=True,allow_redirects=False)
-  if 300<=r.status_code<400:raise ValueError('下载地址发生跳转，请使用最终文件地址')
-  r.raise_for_status();data=bytearray()
-  for chunk in r.iter_content(65536):
-   data.extend(chunk)
-   if len(data)>50*1024*1024:raise ValueError('网络文件超过 50 MB，请手动上传')
+  from score_web_download import download
+  data,content_type,final_url=download(url,public_url,BROWSER_HEADERS)
   name=str(payload.get('title') or '网络曲谱')[:120]
   if bytes(data).startswith(b'%PDF-'):
    if server is None:raise ValueError("识谱服务没有连接，文件尚未提交")
@@ -267,7 +278,6 @@ def handle(handler,server=None):
    (server.CACHE_DIR/(digest+'.name')).write_text(name,encoding='utf8')
    result=server.enqueue_recognition(bytes(data),digest)
    return handler.json_response({'id':digest,'task':result,'status':'queued'},202)
-  content_type=r.headers.get('Content-Type','')
   if content_type.startswith(('audio/','video/')):
    from media_import import receive
    return handler.json_response(receive(io.BytesIO(data),len(data),name,media_type=content_type),202)

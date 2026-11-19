@@ -56,3 +56,24 @@
 
 .mentor-cinematic .mentor-caption-panel:not(:has(> :not([hidden]))){display:none!important}
 .studio .mentor-cinematic .mentor-sound-unlock{left:50%!important;top:46%!important;touch-action:manipulation;pointer-events:auto}
+
+.mentor-audio-buffering{display:grid;justify-items:center;gap:7px;margin:10px auto 0;width:min(220px,70%);color:inherit;font-size:12px}
+.mentor-audio-buffering[hidden]{display:none!important}
+.mentor-audio-buffering progress{appearance:none;-webkit-appearance:none;width:100%;height:3px;border:0;border-radius:999px;overflow:hidden;background:#ffffff45;accent-color:var(--mentor-accent,#782923)}
+.mentor-audio-buffering progress::-webkit-progress-bar{background:#ffffff45;border-radius:999px}
+.mentor-audio-buffering progress::-webkit-progress-value{background:var(--mentor-accent,#782923);border-radius:999px}
+.mentor-audio-buffering progress:indeterminate{background:linear-gradient(90deg,#ffffff30,#a56d7d99,#ffffff30);background-size:200% 100%;animation:mentor-buffering 1.3s linear infinite}
+@keyframes mentor-buffering{to{background-position:-200% 0}}
+@media(prefers-reduced-motion:reduce){.mentor-audio-buffering progress:indeterminate{animation:none}}
+
+/* The flight and lecturer share one full-height canvas on all devices. */
+.mentor-cinematic .avatar-3d-stage{height:100%!important}
+.mentor-cinematic[data-phase=loading] .mentor-caption-panel{display:none}
+
+/* Let the same scene extend behind the feathered header instead of meeting a second background. */
+.tour-home-intro.mentor-cinematic{inset:0!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+body:has(.mentor-cinematic) .top.tour-pinned-header:before{inset:0 0 -64px!important;background:linear-gradient(180deg,#f3eff5 0%,#f3eff5f5 30%,#f3eff5d9 50%,#f3eff58c 68%,#f3eff533 84%,#f3eff500 100%)!important}
+
+.mentor-cinematic[data-phase="doorway-reveal"]{opacity:0;transition:opacity .32s ease-in;pointer-events:none}
+
+.mentor-cinematic[data-phase="departure"] .avatar-3d-stage{height:100%!important}

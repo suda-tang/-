@@ -43,6 +43,116 @@
 
 占锁 / 释放都改这一节。当前为空 = 暂无人在占锁。
 
+> 2026-11-18 15:20–15:3x 给全库乐理索引加「过期提醒」，防旧索引骗人（本会话）；**锁已全部释放**。
+> 根因：11-18 15:00 我曾拿 2026-10-09 的过期索引（covered=1873）断言「曲库没有人声谱」，
+>   实际重建后有人声谱 4 首 —— 索引说「没有」≠现实没有。为防复发，给检索结果附时效提醒。
+> 改动：① `music_index.py` 新增 `INDEX_STALE_DAYS=7.0` + 纯函数 `index_staleness(index,library_count)`，
+>   检测 builtAt≥7 天 / covered 落后≥20 首 / building 三种信号，返回中文括注或 ''。
+>   覆盖差阈值从「有任何差」放宽到 ≥20（新鲜索引 1892 vs 曲库 1898 差 6 属正常波动，不报）。
+>   ② `ai_workspace.py` 两处调用点接入：`run_library_query`（模型结构化查询路径，1151-1157
+>   用变量名 stale，4 个返回分支全拼）、`plan_theory_search`（主路径，1299-1305 用变量名 note，
+>   top_chord/sort/无命中/翻页 4 个分支全拼）。清掉「库里没有人声谱是事实」错误注释。
+> 验证：`py_compile` PASS；`.sites-runtime/check-index-staleness.py` 8/8（含真实重建索引无误报）；
+>   `.sites-runtime/check-instrument-find-routing.py` 10/10（找谱路由未被破坏）；
+>   进程内注入过期索引 → 两个调用点回复都带「索引建于…10 天前」字样（闭环验证，非只测函数）；
+>   重启 5173（pid 75316→72504，restart.log 15:23:59）；真实浏览器
+>   `.sites-runtime/check-index-staleness-live.cjs` 4/4（新鲜索引 0 天不误报、人声检索返回
+>   亲爱的/北京欢迎你/同道/后来 4 首真实曲目、无转谱链接、无 pageerror）。
+> 备份 `.sites-runtime/music_index.py.bak-20261118-152000` 与 `ai_workspace.py.bak-20261118-152000`。
+
+> 2026-11-18 14:50–15:00 修「按乐器/声部找谱」被误判成联网找转谱链接（本会话）；**锁已全部释放**。
+> 用户实测「请找一下有人声轨道的谱子」→ AI 甩一堆转谱链接。根因在两条 web_search 通道：
+>   ① `_external_find_intent` 的「找+谱子」把按乐器筛选也判成外部找谱；
+>   ② `plan_theory_search` 0 结果时 `_find_pieces_intent` 又转联网。
+> 关键事实：`music_index.INSTRUMENT_RULES` 与 `parse_theory_spec` **本来就支持人声**
+>   （能解析成 instrument=人声）。~~真实曲库没有人声谱~~ ← **这是当时的错误结论**：
+>   当时依据的是 2026-10-09 的**过期索引**（covered=1873），实际曲库有人声谱
+>   （《同道》a6ab96d… 的 `<part-name>` 就是「人声、钢琴」）。索引已于 11-18 增量重建，见下条。
+> 改动（`ai_workspace.py`）：两处 web_search 前排除「能解析出 instrument 槽的筛选请求」，
+>   让它们走 `plan_theory_search` 用真实索引回答（库里没有就如实说没有，不甩链接）。
+>   显式外部源（网上/全网/联网）在 1195 行已优先判定，不受影响；带书名号的具体作品仍联网找。
+> 验证：py_compile + 路由回归 10/10（新增 `.sites-runtime/check-instrument-find-routing.py`）；
+>   check-ai-web-search.py PASS；check-musician-questions.py PASS；重启 5173 后真实浏览器实测：
+>   「有人声轨道」→「全库 1898 首里没有含人声声部的作品」（如实回答，无链接）、
+>   「找有钢琴的谱子」→ 真实 806 首列表、「找网上有人声的谱子」→ 仍联网找转谱（未误伤）。
+> 备份 `.sites-runtime/ai_workspace.py.bak-20261118-145000`（music_query 备份了但**未改**该文件）。
+> 注：check-theory-search.cjs 本轮耗时约 10 分钟但**最终 RC=0**（含钢琴+大三/大七和弦检索 636 首等
+>   真实结果），全库索引检索未受影响。
+>
+> **15:13 追加——真正的根因是索引过期，已重建**：15:00 时我说「库里没有人声谱」是**错误结论**，
+>   依据是 2026-10-09 的过期 theory-index（covered=1873）。实查缓存 XML：《同道》a6ab96d…
+>   的 `<part-name>` 就是 `['人声','钢琴']`。跑 `scripts/build-theory-index.py` 增量重建（5.8 分钟，
+>   covered 1873→1892、乐器标签 27→28），索引里人声谱 **4 首**（亲爱的/北京欢迎你/同道/后来）。
+>   重建后真实浏览器复测「请找一下有人声轨道的谱子」→「含人声声部的作品共 4 首：亲爱的、北京欢迎你、
+>   同道、后来」，闭环正确。**教训：拿索引/缓存当事实前先查 builtAt，工具说没有≠现实没有。**
+
+> 2026-11-17 17:15–19:05 修 set_loop/set_range 回执 undefined（本会话）；**锁已全部释放**。
+> 根因：`ai-advanced-actions.js:setLoop()` 在「取消循环 / 空值 / 退化区间」返回 `{cleared:true,had}`，
+>   没有 from/to，而 `workspace-ai.js` 三处 handler 无条件拼 `r.from/r.to` → 「第 undefined 小节」。
+> 改动：`workspace-ai.js:466-470` 三处 handler 先认 `cleared` 分支给明确回执
+>   （「已取消循环，恢复完整播放」/「当前没有设置循环」），正常分支与 tempo_curve 用
+>   `Number.isFinite` 兜底，失效时抛清晰错误，杜绝裸拼 undefined。
+> 验证：node --check + 前端语法 189 文件 PASS + action-guard PASS + control-actions PASS；
+>   专用浏览器探针 `.sites-runtime/check-loop-undefined.cjs` 4/4（正常循环 / 取消循环 /
+>   取消区间 / 正常区间播放均无 undefined，pageerror 无）。仅改前端静态文件、server 实时 serve，无需重启。
+> 备份 `.sites-runtime/workspace-ai.js.bak-20261117-171500`。
+
+> 2026-11-17 16:53–16:58 修「低八度都不行」+ 去掉 SeraEdit v1.0.0 展示标识（本会话）；**锁已全部释放**。
+> 根因两层：① AI 层 `SERA_EDITABLE_RE` 不认「移低/低八度」→ 落模型拒答；
+>   ② 规则层 `_transpose_delta` 只认「升高/降低/上移/下移 X八度」，漏「降一个八度/移低八度/低八度」。
+> 改动：`ai_workspace.py` 补八度口语正则；`rule_patch_generator.py:_transpose_delta` 补 ±12 说法
+>   并加「音量/响度/声音 + 八度」守卫（防口语误用被当移调）；`dist/sera-edit.js` 面板标题去掉
+>   `SeraEdit v1.0.0` span；`sera_bridge.py` engine 字段与 docstring 中性化；`SERA-INTEGRATION.md` 标题中性化。
+>   MIT 出处（GitHub 链接 / LICENSE / 历史流水账）按要求保留。
+> 验证：py_compile + 八度诊断 20/20（±12 全对、音量误用被挡）+ Sera 全量 PASS + 路由 33/33 +
+>   离线 0 失败 + 前端语法 189 文件 PASS；重启 5173 后活端点实测「低八度/移低八度/降一个八度」
+>   → -12 半音、「高八度」→ +12、「音量调低八度」→ unsupported；真实浏览器「低八度」「移低八度」
+>   均闭环 PASS（提案 → 应用 → 已应用修订）。status 的 engine 已显示中性化文案。
+> 备份 `.sites-runtime/*.bak-20261117-165300`。新增诊断脚本 `.sites-runtime/diag-low-octave.py`。
+> 注：status 里的纯数字 `version: 1.0.0` 保留（非品牌标识、可能被前端契约依赖，未擅删）。
+
+> 2026-11-15 02:58–03:05 修目标调正则回归（力度 ff/mf、音名 D 被当成调名 → 错误移调提案）。
+> `rule_patch_generator.py:189` 把调名后缀由「可选」改为「必须存在」。py_compile 通过、
+> 旧 E2E 3/3 PASS、离线 15/15 保住 + 8/8 挡住、重启 5173 后活端点实测：
+> 「把力度改成 ff」→ proposed「改力度」（原错成「改调号、移调 +5」）、「移调到 D调」仍 +2 半音。
+> 备份 `.sites-runtime/rule_patch_generator.py.bak-20261115-025839`。锁已释放。
+
+> 2026-11-15 03:05–03:37 补齐 100 问真实浏览器测试列出的剩余能力缺口（本会话）；**锁已全部释放**。
+> ① `ai_workspace.py`：`SERA_EDITABLE_RE` 补分数拍号自然说法（「换成 6/8 拍」「第二页也改成 3/4」）；
+>   同时把目标调分支的调名后缀由「可选」改为**必须存在** —— 这是 11-14 引入的回归在 **AI 层的残留**
+>   （规则层 03:05 已修、AI 层没修，离线实测「把第 3 小节的 C 改成 D」仍被误判成改调号意图）。
+> ② 改写 `:1421` 过时拒答文案「修改乐谱内容目前做不到」；新增「诚实能力边界」三件套：
+>   疑问式能力询问给肯定答复、渐强不误映射成 `tempo_curve`、连奏线不假装成功；
+>   **刻意不对模型开放 `edit_score`**（模型自由发改谱会把不支持的说法变成一堆 unsupported 提案）。
+> ③ `rule_patch_generator.py`：`_time_signature_value()` 补分数拍号动词；`_is_slur()` 刻意不扩展
+>   （`set_slur` 后端不落写 `<slur>`、前端 `score.js` 不解析，是假闭环）。
+> 验证：`py_compile` + Sera 全量 PASS + 路由 33/33 + 离线 0 失败 + 活端点 8/8 +
+>   真实浏览器 4 条（换成 6/8 拍 / 把力度改成 ff / 移调到 D调 均闭环 PASS，能力询问回执正确）+
+>   `check-sera-edit-ai.py` 全过 + 前端语法 189 文件 PASS + `check-ai-action-guard.cjs` PASS。
+> 重启 5173：旧 pid 63184 → 新 pid 66236。备份 `.sites-runtime/*.bak-20261115-030507`。
+> 新增工件 `.sites-runtime/verify-ai-layer-20261115.py`、`verify-live-20261115.py`。
+> 详见 `SERA-INTEGRATION.md` 与 `.sites-runtime/MUSICIAN-LOOP-FINAL-REPORT.md`。
+
+> 2026-11-12 18:20–18:40 本会话接入 SeraEdit v1.0.0（已完成并释放全部锁）。
+> 详见新文档 `SERA-INTEGRATION.md` 与回归脚本 `scripts/check-sera-edit.py`。
+
+> 2026-11-13 22:33–22:40 修 `_assert_parseable` 误杀 `<grace>` 装饰音（1 行 + 6 项守卫），
+> 全套回归 73/73 + 浏览器 E2E 8/8 复验通过，锁已全部释放。详见 `SERA-INTEGRATION.md`。
+
+> 2026-11-13 22:53–23:00 修 `_assert_parseable` 误杀 `<unpitched>` 打击乐音符，
+> 加 7 项守卫（含「真畸形音符仍被拒」安全底线）；全套 80/80 + 33/33 + E2E 8/8、
+> 线上 `LIVE UNPITCHED-FIX OK`，锁已全部释放。详见 `SERA-INTEGRATION.md`。
+
+> 2026-11-13 23:08–23:12 新增 `scripts/check-validator-parity.py` 前后端校验器契约测试
+> （浏览器 import 真实 `/score.js` 的 parseMusicXML 比对后端 _assert_parseable），
+> 19/19 通过；用修复前备份反证「契约测试确能抓到 grace/unpitched 两次历史 bug」。
+> 详见 `SERA-INTEGRATION.md`。锁已释放。
+
+> 2026-11-14 重做：action-guard 现代化（dist/workspace-ai.js 补「只答应不给动作」提示、scripts/check-ai-action-guard.cjs 改判据）+ 目标调式转调能力（rule_patch_generator.py / sera_bridge.py）。
+> 关键发现：server.py 的源码 watcher 只监视顶层 *.py + scripts/*.py，且 `sources_busy()` 在有后台任务时永久推迟重载，故嵌套的 rule_patch_generator.py 改动**不会被自动重载**；
+> 实测旧进程（pid 12560）从 11-13 起从未重载。已用项目自带 `scripts/restart-server.py` 干净重启 5173（新 pid 55108），并 POST 活端点 `/api/sera-edit/preview` 实测：
+> 「G大调谱+移调到 D调」→ proposed（调号 1→2 升号、移调 -5 半音）；「无调号谱+移调到 D调」→ unsupported+友好提示；「无调号谱+从 C 调移调到 D 调」→ proposed（+2 半音）。锁已释放。
+
 
 
 > （注：下方「本会话正在建看板…」为历史残留注释，看板早已建完并释放，此处仅作锁区。）

@@ -1,4 +1,4 @@
-import {reportTask} from './task-center.js?v=folded-groups1';
+import {reportTask} from './task-center.js?v=home-attach3';
 
 function context(){let value;document.dispatchEvent(new CustomEvent('practice-command',{detail:{action:'fingering-context',resolve:x=>value=x}}));return value;}
 export function fingeringNotes(score,part,mode='staff'){
@@ -12,7 +12,9 @@ export function mountPracticeFingering(host){
  host.append(box);const $=q=>box.querySelector(q);let current='',notes=[],fingers={},job=null,busy=false,revision=0,paintFrame=0;
  const manual=new Set();
  const key=()=>`practice-fingers-v1:${current}`;
- function remember(){try{localStorage.setItem(key(),JSON.stringify({fingers,manual:[...manual],size:$('[data-finger-size]').value,hand:$('[data-finger-hand]').value}));}catch{}}
+ function publishFingers(){if(contextScore)document.dispatchEvent(new CustomEvent('piano-fingering-updated',{detail:{score:contextScore,fingers:{...fingers}}}));}
+ document.addEventListener('piano-fingering-request',publishFingers);
+ function remember(){publishFingers();try{localStorage.setItem(key(),JSON.stringify({fingers,manual:[...manual],size:$('[data-finger-size]').value,hand:$('[data-finger-hand]').value}));}catch{}}
  function paint(){cancelAnimationFrame(paintFrame);paintFrame=requestAnimationFrame(()=>{
   const pane=document.getElementById('notation');if(!pane)return;
   const show=$('[data-finger-visible]').checked,notesById=new Map(notes.map(n=>[n.id,n]));
@@ -32,7 +34,7 @@ export function mountPracticeFingering(host){
  let contextScore=null;
  function sync(){const ctx=context(),id=ctx?.score?`${ctx.version}:${ctx.instrument}`:'';if(id===current)return;current=id;contextScore=ctx?.score;job=null;busy=false;fingers={};notes=[];manual.clear();revision++;$('.fingering-editor').hidden=true;$('.fingering-progress').hidden=true;$('.fingering-message').textContent='';$('[data-finger-generate]').disabled=!id;$('[data-finger-export]').disabled=true;
   if(id){let saved;try{saved=JSON.parse(localStorage.getItem(key())||'null');}catch{}if(saved){$('[data-finger-size]').value=saved.size||'M';$('[data-finger-hand]').value=saved.hand||'staff';fingers=saved.fingers||{};for(const id of saved.manual||[])manual.add(id);}notes=fingeringNotes(ctx.score,ctx.instrument,$('[data-finger-hand]').value);for(const n of notes)if(n.finger&&!fingers[n.id])fingers[n.id]=n.finger;$('[data-finger-export]').disabled=!Object.keys(fingers).length;}
-  paint();if(id){const original=id;void json('/api/fingering/profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({notes,size:$('[data-finger-size]').value})}).then(saved=>{if(current!==original||busy||!Object.keys(saved.fingers||{}).length)return;fingers=saved.fingers;for(const id of saved.manual||[])manual.add(id);revision++;remember();paint();$('[data-finger-export]').disabled=false;}).catch(()=>{});}
+  publishFingers();paint();if(id){const original=id;void json('/api/fingering/profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({notes,size:$('[data-finger-size]').value})}).then(saved=>{if(current!==original||busy||!Object.keys(saved.fingers||{}).length)return;fingers=saved.fingers;for(const id of saved.manual||[])manual.add(id);revision++;remember();paint();$('[data-finger-export]').disabled=false;}).catch(()=>{});}
  }
  document.addEventListener('practice-state',sync);
  const pane=document.getElementById('notation');if(pane)new MutationObserver(records=>{if(records.some(r=>[...r.addedNodes,...r.removedNodes].some(n=>n.nodeType===1&&!n.classList?.contains('practice-finger'))))paint();}).observe(pane,{childList:true,subtree:true});

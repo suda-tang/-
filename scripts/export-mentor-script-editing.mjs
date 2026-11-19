@@ -1,0 +1,24 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import assert from 'node:assert/strict';
+import {fileURLToPath} from 'node:url';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+globalThis.location={search:'?tour=1&lang=en'};
+const {openingTracks}=await import('../dist/mentor-track-list.js');
+const tracks=openingTracks().filter(t=>t.role==='mentor');
+const manifest=JSON.parse(fs.readFileSync(path.join(root,'dist/narration/tour.json'),'utf8'));
+const script=JSON.parse(fs.readFileSync(path.join(root,'dist/narration/mentor-script.json'),'utf8'));
+assert.equal(tracks.length,7);assert.equal(new Set(tracks.map(t=>t.id)).size,7);
+for(const t of tracks){assert.equal(t.text,manifest.find(r=>r.id===t.id)?.text,t.id+' runtime/manifest mismatch');assert.equal(t.text,script.find(r=>r.id===t.id)?.text,t.id+' runtime/script mismatch');}
+const out=path.join(root,'docs','导师数字人讲稿人工修改-20261025');fs.mkdirSync(out,{recursive:true});
+const intro='# 导师数字人七段讲稿｜修改稿\n\n导出日期：2026年10月25日。以下为当前七段预合成讲解对应的完整原文，未作润色或删节，不是后面的44环节功能导览。\n\n请直接改标题和正文，保留每段编号及“<!-- segment:… -->”标识，方便按段导回。标题是段落标识，不作为朗读正文。\n\n开头“某某老师您好”由来访链接的姓名另行生成，不在七段正文里，不必重复添加。此稿保留真人版的身份介绍；简体中文卡通版当前会自动隐去姓名身份句，改好后会同步处理两版。\n\n修改后需要重新合成发生变化的语音，并同步字幕和板书；本次仅导出，不更改网站或现有音频。\n\n';
+const rows=tracks.map((t,i)=>({...t,number:i+1,title:script.find(s=>s.id===t.id).title}));
+const body=rows.map(t=>`<!-- segment:${t.id} -->\n## ${String(t.number).padStart(2,'0')}｜${t.title}\n\n${t.text}\n`).join('\n');
+for(const ext of ['md','txt'])fs.writeFileSync(path.join(out,'导师数字人七段讲稿-修改稿.'+ext),'\ufeff'+intro+body,'utf8');
+const snapshot={exportedAt:new Date().toISOString(),sources:Object.fromEntries(['dist/mentor-track-list.js','dist/narration/tour.json','dist/narration/mentor-script.json'].map(f=>[f,crypto.createHash('sha256').update(fs.readFileSync(path.join(root,f))).digest('hex')])),segments:rows};
+fs.writeFileSync(path.join(out,'原始讲稿备份-请勿修改.json'),JSON.stringify(snapshot,null,2)+'\n','utf8');
+const read=fs.readFileSync(path.join(out,'导师数字人七段讲稿-修改稿.md'),'utf8');
+const parsed=[...read.matchAll(/<!-- segment:([^\s]+) -->\s*\n## (\d+)｜([^\n]+)\n\n([\s\S]*?)(?=\n<!-- segment:|$)/g)];
+assert.equal(parsed.length,7);parsed.forEach((m,i)=>{assert.equal(m[1],rows[i].id);assert.equal(m[3],rows[i].title);assert.equal(m[4].trimEnd(),rows[i].text.trimEnd());});
+console.log(JSON.stringify({directory:out,segments:rows.length,textCharacters:rows.reduce((n,t)=>n+t.text.length,0),verified:'runtime, manifest and script agree; all seven segments round-trip exactly'}));

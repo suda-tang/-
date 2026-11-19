@@ -1,0 +1,17 @@
+[
+  {
+    "label": "python",
+    "ok": true,
+    "summary": "............................................................Traceback (most recent call last):\r\n  File \"C:\\Users\\mail\\Documents\\ChatGPT\\自动钢琴陪练系统\\scorestarling.py\", line 372, in run\r\n    raise ValueError('导出费用已变化，请重新确认；尚未扣费')\r\nValueError: 导出费用已变化，请重新确认；尚未扣费\r\n.....................................\r\n----------------------------------------------------------------------\r\nRan 217 tests in 6.677s\r\n\r\nOK\r\n"
+  },
+  {
+    "label": "frontend",
+    "ok": true,
+    "summary": "ntify actual measures (0.6361ms)\n✔ history separates changed score versions (0.2873ms)\n✔ shared sample requests return independent decode buffers (22.1297ms)\n✔ global network and decode concurrency stay bounded (126.4819ms)\n✔ failed primary uses mirror and a failed request can be retried (2.2215ms)\nℹ tests 54\nℹ suites 0\nℹ pass 54\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 458.7555\n\n"
+  },
+  {
+    "label": "syntax",
+    "ok": true,
+    "summary": "PASS 前端脚本语法检查（187 个文件）\n\n"
+  }
+]

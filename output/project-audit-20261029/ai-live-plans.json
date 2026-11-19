@@ -1,0 +1,35 @@
+[
+  {
+    "message": "速度调到90",
+    "status": 200,
+    "ms": 19,
+    "actions": [
+      {
+        "type": "set_tempo",
+        "value": 90
+      }
+    ]
+  },
+  {
+    "message": "我要看简谱",
+    "status": 200,
+    "ms": 13,
+    "actions": [
+      {
+        "type": "view",
+        "value": "simple"
+      }
+    ]
+  },
+  {
+    "message": "把这节课备课一下",
+    "status": 200,
+    "ms": 2,
+    "actions": [
+      {
+        "type": "create_classroom",
+        "value": "{\"goal\": \"把这节课备课一下\", \"schoolStage\": \"senior\", \"mode\": \"classroom\", \"scope\": \"whole\"}"
+      }
+    ]
+  }
+]

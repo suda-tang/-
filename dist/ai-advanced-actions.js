@@ -154,6 +154,7 @@ function setLoop(value, { once = false } = {}) {
   if (!(range.endBeat > range.startBeat)) throw Error('这个区间里没有可播放的音符');
   const data = looseObject(value) || {};
   const repeats = Number(data.repeat ?? data.times);
+  if(data.practice){let result;document.dispatchEvent(new CustomEvent('practice-command',{detail:{action:'range',start:range.from,end:range.to,resolve:value=>{result=value;}}}));if(!result||result.error)throw Error(result?.error||'跟弹区域尚未就绪');}
   player.setLoop(range.startBeat, range.endBeat, { once, repeat: Number.isFinite(repeats) ? Math.max(1, Math.round(repeats)) : null });
   return range;
 }

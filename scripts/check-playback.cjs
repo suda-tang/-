@@ -13,7 +13,7 @@ const fs=require('node:fs');const assert=require('node:assert/strict');
  // 只拦 GET（缓存读取）；POST 的上传与提交识谱必须放行，否则整条链路走不通。
  await page.route('**/api/scores/*',r=>r.request().method()==='GET'?r.fulfill({status:404,json:{error:'No cached fixture'}}):r.continue());
  try{
- await page.goto('http://192.168.2.6:5173/');
+ await page.goto('http://127.0.0.1:5173/');
  // 示例谱等按钮被 workspace.js 搬进了默认折叠的 <details class="technical">
  // （服务控制区）：必须等工作区初始化完再展开，早了的话 closest('details')
  // 还是 null，等于没展开，按钮随后依然不可见。

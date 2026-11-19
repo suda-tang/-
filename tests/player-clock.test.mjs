@@ -2,6 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {ScorePlayer} from '../dist/player.js';
 
+// The transport is exercised without a DOM; animation frames are driven separately.
+globalThis.requestAnimationFrame=()=>1;
+globalThis.cancelAnimationFrame=()=>{};
+
 function fixture() {
   const starts=[],pulses=[];
   const player=new ScorePlayer({onPulse:(beat,time)=>pulses.push({beat,time})});

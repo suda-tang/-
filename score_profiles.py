@@ -8,7 +8,7 @@ from xml.etree import ElementTree as ET
 ROOT=Path(__file__).resolve().parent
 CACHE=ROOT/'.sites-runtime/score-cache'
 STORE=ROOT/'.sites-runtime/score-profiles'
-VERSION=1
+VERSION=3
 _LOCKS=[threading.Lock() for _ in range(32)]
 
 def number(value,default=0):
@@ -20,7 +20,11 @@ def build(xml,metadata=None):
  # Support the optional MusicXML default namespace.
  for node in root.iter():node.tag=node.tag.rsplit('}',1)[-1]
  names={p.get('id'):p.findtext('part-name','') for p in root.findall('part-list/score-part')}
- parts=[];issues=[];meters={};keys={};tempos={};measures=defaultdict(lambda:{'notes':0,'rests':0,'parts':set(),'pitchClasses':set(),'words':[],'chords':[]});dynamics=0;onsets=set();patterns=defaultdict(list)
+ counts=Counter(names.values());seen=Counter()
+ for pid,name in names.items():
+  seen[name]+=1
+  if counts[name]>1:names[pid]=f'{name} {seen[name]}'
+ parts=[];issues=[];meters={};keys={};key_modes={};pitch_weights=Counter();tempos={};measures=defaultdict(lambda:{'notes':0,'rests':0,'parts':set(),'pitchClasses':set(),'words':[],'chords':[]});dynamics=0;onsets=set();patterns=defaultdict(list)
  for part in root.findall('part'):
   pid=part.get('id');divisions=1;beats=4;beat_type=4;count=0;rests=0;pitches=[];staves=set();voices=set();ranges=[]
   part_measures=part.findall('measure')
@@ -35,7 +39,10 @@ def build(xml,metadata=None):
     if t is not None:
      beats=sum(number(x) for x in t.findtext('beats','4').split('+'));beat_type=number(t.findtext('beat-type','4'),4);meters[order]=str(t.findtext('beats','4'))+'/'+str(t.findtext('beat-type','4'))
     k=a.findtext('key/fifths')
-    if k is not None:keys[order]=k
+    if k is not None:
+     keys[order]=k
+     mode=a.findtext('key/mode')
+     if mode:key_modes[order]=mode
    m=measures[order];m['parts'].add(pid);m['words'].extend(x.text for x in measure.findall('.//words') if x.text)
    for sound in measure.findall('.//sound'):
     if number(sound.get('tempo'))>0:tempos[order]=number(sound.get('tempo'))
@@ -60,6 +67,7 @@ def build(xml,metadata=None):
     if pitch is not None:
      midi=12*(int(number(pitch.findtext('octave'),4))+1)+{'C':0,'D':2,'E':4,'F':5,'G':7,'A':9,'B':11}.get(pitch.findtext('step'),0)+number(pitch.findtext('alter'))
      pitches.append(midi);m['pitchClasses'].add(int(midi)%12);fingerprint.append((round(start,4),midi,round(duration,4)))
+     if duration>0:pitch_weights[int(midi)%12]+=duration
    nominal=beats*4/beat_type if beat_type>0 else 0
    if nominal>0 and end>nominal+.02:issues.append({'measure':order,'part':pid,'code':'overfull','message':'本声部时值超过拍号容量；可能存在拍号、连音或声部识别问题。','expectedBeats':nominal,'writtenBeats':round(end,4)})
    if nominal>0 and 0<end<nominal-.02 and measure.get('implicit')!='yes' and order!=len(part_measures):issues.append({'measure':order,'part':pid,'code':'underfull','message':'本声部记谱时值未填满小节，可能是省略休止或识别遗漏，不能直接删除空拍。','expectedBeats':nominal,'writtenBeats':round(end,4)})
@@ -70,7 +78,7 @@ def build(xml,metadata=None):
   parts.append({'value':pid,'name':names.get(pid) or pid,'notes':count,'rests':rests,'staves':sorted(staves),'voices':sorted(voices),'pitchRange':[min(pitches),max(pitches)] if pitches else None,'percussion':bool(part.findall('.//unpitched'))})
  written_tempos=[{'measure':m,'bpm':v} for m,v in sorted(tempos.items())]
  rows=[{'measure':order,**{**v,'parts':sorted(v['parts']),'pitchClasses':sorted(v['pitchClasses'])}} for order,v in sorted(measures.items())]
- return {'version':VERSION,'title':md.get('userTitle') or md.get('title') or root.findtext('work/work-title') or root.findtext('movement-title') or '', 'parts':parts,'measureCount':len(rows),'onsetGroups':len(onsets),'noteCount':sum(p['notes'] for p in parts),'tempo':md.get('tempo') or (written_tempos[0]['bpm'] if written_tempos else None),'tempoChanges':written_tempos,'timeSignatures':[{'measure':m,'value':v} for m,v in sorted(meters.items())],'keys':[{'measure':m,'fifths':v} for m,v in sorted(keys.items())],'writtenDynamics':dynamics,'measures':rows,'issues':issues,'repeatedMeasures':[{'part':pid,'measures':orders} for (pid,_),orders in patterns.items() if len(orders)>1], 'limits':['重复音型不等于曲式段落；和弦标注不等于已验证的和声分析。','时值检查仅提供疑点，不自动改写原谱。']}
+ return {'version':VERSION,'title':md.get('userTitle') or md.get('title') or root.findtext('work/work-title') or root.findtext('movement-title') or '', 'parts':parts,'measureCount':len(rows),'onsetGroups':len(onsets),'noteCount':sum(p['notes'] for p in parts),'tempo':md.get('tempo') or (written_tempos[0]['bpm'] if written_tempos else None),'tempoChanges':written_tempos,'timeSignatures':[{'measure':m,'value':v} for m,v in sorted(meters.items())],'keys':[{'measure':m,'fifths':v,**({'mode':key_modes[m]} if m in key_modes else {})} for m,v in sorted(keys.items())],'tonalEvidence':{'signatureStatus':'written' if keys else 'not-written','pitchClassDurations':[{'pitchClass':pc,'quarterBeats':round(weight,4)} for pc,weight in sorted(pitch_weights.items())],'limits':'调号未标注不等于没有调性；音级时值统计不是同时发声的和弦，也不能单独确定主调。'},'writtenDynamics':dynamics,'measures':rows,'issues':issues,'repeatedMeasures':[{'part':pid,'measures':orders} for (pid,_),orders in patterns.items() if len(orders)>1], 'limits':['重复音型不等于曲式段落；和弦标注不等于已验证的和声分析。','时值检查仅提供疑点，不自动改写原谱。']}
 
 def get_profile(ident):
  if not re.fullmatch('[a-f0-9]{64}',str(ident)):raise ValueError('无效琴谱编号')

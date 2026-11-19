@@ -1,0 +1,18 @@
+{
+  "sourceId": "f922ad0fa273a637876ad1b4d9ddbef3",
+  "sourceStartSeconds": 0.66,
+  "sourceEndSeconds": 59.22,
+  "referenceSeconds": 58.56,
+  "userApprovedOriginal": true,
+  "model": "Kim_Vocal_2.onnx",
+  "modelPurpose": "separate background music from speech",
+  "doNotMixOtherSources": true,
+  "pitchOrSpeedChanges": false,
+  "synthesisModel": "site-labelled Eleven v4, non-Turbo",
+  "status": "cloned-and-v4-preview-generated",
+  "voiceName": "冒小瑛认可讲座去背景音乐58秒",
+  "generationTaskId": "29048",
+  "reviewText": "辛苦您专门抽出时间来看唐秋鸣做的这套东西。我是苏大音乐学院的冒小瑛。秋鸣是我们学院24级的硕士，音乐教育专业，主修钢琴，现在研三了，正准备申请27年的博士。",
+  "audio": "C:/Users/mail/Documents/ChatGPT/自动钢琴陪练系统/output/audio/aixing-mentor-20261026/mentor-approved-lecture-no-music-v4-review.mp3",
+  "published": false
+}

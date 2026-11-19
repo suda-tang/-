@@ -1,0 +1,121 @@
+
+TYPE_SIZE=110
+text('SOOCHOW',22,161,TYPE_SIZE)
+text('UNIVERSITY',23,351,TYPE_SIZE)
+text('2026',23,542,TYPE_SIZE)
+text('唐秋鸣',224,1120,TYPE_SIZE,font='C:/Windows/Fonts/msyhl.ttc')
+text('TANG QIUMING',578,1120,TYPE_SIZE)
+text('课题实例',224,1290,TYPE_SIZE,font='C:/Windows/Fonts/msyhl.ttc')
+text('RESEARCH',688,1290,TYPE_SIZE)
+text('PROJECT',224,1482,TYPE_SIZE)
+# Hand-built architectural paths, measured against the source drawing.
+INK='#9b6075';DETAIL='#ad8091';LIGHT='#c4a1ae'
+def L(x1,y1,x2,y2,w=.9,color=DETAIL):line(x1,y1,x2,y2,color,w)
+def R(x,y,w,h,weight=.85,color=DETAIL):
+ c.setStrokeColor(col(color));c.setLineWidth(weight);c.rect(x,H-y-h,w,h,stroke=1,fill=0)
+def P(cmds,fill=True,width=1.4,color=INK):
+ p=c.beginPath()
+ for op,v in cmds:
+  if op=='M':p.moveTo(v[0],H-v[1])
+  elif op=='L':p.lineTo(v[0],H-v[1])
+  elif op=='C':p.curveTo(v[0],H-v[1],v[2],H-v[3],v[4],H-v[5])
+  elif op=='Z':p.close()
+ c.saveState()
+ if fill:
+  c.clipPath(p,stroke=0,fill=0,fillMode=0);c.linearGradient(0,H,1340,0,[col('#fbf9fc'),col('#e8dfe7'),col('#f4f7fa')],[0,.5,1])
+ c.restoreState();c.setStrokeColor(col(color));c.setLineWidth(width);c.drawPath(p,stroke=1,fill=0)
+ return p
+def CIRCLE(x,y,r,w=1,color=DETAIL):
+ c.setLineWidth(w);c.setStrokeColor(col(color));c.circle(x,H-y,r,stroke=1,fill=0)
+def ARCH(x,y,w,h,panes=True):
+ r=w/2
+ P([('M',(x,y+h)),('L',(x,y+r)),('C',(x,y-r*.30,x+w,y-r*.30,x+w,y+r)),('L',(x+w,y+h)),('Z',())],False,.9)
+ if panes:
+  L(x+w/2,y+2,x+w/2,y+h,.65);L(x,y+h*.57,x+w,y+h*.57,.65)
+# 01 Historic entrance pavilion
+P([('M',(138,236)),('L',(138,153)),('L',(208,153)),('L',(208,121)),('L',(272,121)),('L',(272,82)),('L',(472,82)),('L',(472,121)),('L',(538,121)),('L',(538,153)),('L',(608,153)),('L',(608,195)),('L',(640,195)),('L',(640,237)),('Z',())],True,2)
+for q in [(142,157,62,75),(212,125,57,108),(276,86,192,145),(476,125,58,108),(542,157,62,35),(609,199,27,34)]:R(*q,.65,LIGHT)
+P([('M',(210,161)),('L',(372,101)),('L',(534,161)),('L',(531,167)),('L',(372,109)),('L',(214,167)),('Z',())],True,1.4)
+P([('M',(246,160)),('L',(246,231)),('L',(255,231)),('L',(255,156))],False,.85)
+P([('M',(489,157)),('L',(489,231)),('L',(499,231)),('L',(499,160))],False,.85)
+for x in [244,253,488,497]:
+ for yy in [176,197,216]:R(x-2,yy,7,4,.65)
+R(258,144,227,81,.7)
+L(258,152,485,152,.7);L(258,227,485,227,.75)
+P([('M',(318,123)),('L',(318,144)),('L',(369,144)),('L',(369,106))],False,.8)
+P([('M',(376,106)),('L',(376,144)),('L',(425,144)),('L',(425,123))],False,.8)
+for x in [280,454]:
+ R(x,93,11,13,.7)
+ for dx in [3.7,7.3]:L(x+dx,93,x+dx,106,.5)
+ for dy in [4.3,8.6]:L(x,93+dy,x+11,93+dy,.5)
+for xa,xb in [(214,245),(500,531)]:
+ R(xa,210,xb-xa,20,.7)
+ for xx in np.arange(xa+3,xb,3):L(xx,211,xx,229,.5)
+# 02 Clock hall facade, stepped roof, rose window and three window registers
+P([('M',(129,822)),('L',(129,648)),('L',(123,646)),('L',(199,626)),('L',(337,626)),('L',(337,545)),('L',(361,545)),('L',(361,498)),('L',(391,498)),('L',(391,525)),('L',(369,525)),('L',(369,545)),('L',(402,545)),('L',(402,626)),('L',(541,626)),('L',(615,646)),('L',(610,650)),('L',(610,755)),('L',(567,755)),('L',(567,822)),('Z',())],True,2)
+R(135,653,468,162,.8)
+L(127,646,612,646,1.2);L(142,641,596,641,.8);L(198,623,543,623,1.4)
+L(201,629,539,629,.8);R(342,550,54,72,.8);R(346,555,46,44,.7)
+CIRCLE(369,578,10,1);L(369,578,369,570,.7);L(369,578,375,582,.7)
+for x in [345,361,377]:ARCH(x,608,10,15,False)
+R(366,503,19,15,.7);L(369,503,369,518,.6)
+for xx in [177,289,447]:L(xx,653,xx,815,1)
+for yy in [747,754,808]:L(134,yy,568 if yy>750 else 604,yy,1)
+# stained-glass circular window, concentric rings and radial mullions
+cx,cy,rr=210,685,29
+CIRCLE(cx,cy,rr,1.2);CIRCLE(cx,cy,rr-4,.75);CIRCLE(cx,cy,10,.75)
+for ang in np.linspace(0,2*np.pi,16,endpoint=False):
+ L(cx+10*np.cos(ang),cy+10*np.sin(ang),cx+25*np.cos(ang),cy+25*np.sin(ang),.65)
+R(180,655,60,86,.7)
+for x in [152,251]:ARCH(x,683,16,52)
+for yy,hh in [(661,35),(710,32),(766,38)]:
+ for x in [298,327,356,385,414]:
+  ARCH(x,yy,21,hh)
+  L(x+5,yy+12,x+5,yy+hh,.5);L(x+16,yy+12,x+16,yy+hh,.5)
+for yy in [661,713]:
+ for x in [466,495,524,553,582]:
+  R(x,yy,16,25,.85);L(x+8,yy,x+8,yy+25,.6);L(x,yy+8,x+16,yy+8,.6)
+for x in [153,184,215,247,466,496,526,552]:
+ R(x,770,16,25,.85);L(x+8,770,x+8,795,.6);L(x,778,x+16,778,.6)
+L(289,703,446,703,.9);L(289,758,446,758,.9)
+# 03 Three-arch ceremonial gate, negative openings stay transparent.
+P([('M',(480,1007)),('L',(480,852)),('C',(510,855,544,849,551,826)),('L',(563,823)),('L',(563,771)),('L',(556,765)),('L',(556,754)),('L',(773,754)),('L',(773,766)),('L',(767,773)),('L',(767,823)),('L',(780,825)),('C',(788,847,820,854,852,851)),('L',(852,1007)),('L',(813,1007)),('L',(813,927)),('C',(813,881,766,882,766,927)),('L',(766,1007)),('L',(720,1007)),('L',(720,904)),('C',(720,822,609,822,609,904)),('L',(609,1007)),('L',(562,1007)),('L',(562,927)),('C',(562,881,516,882,516,927)),('L',(516,1007)),('Z',())],True,2.1)
+# 04 Curved contemporary library: clipped meridians and horizontal glazing bands
+lib=P([('M',(859,1297)),('C',(851,1261,855,1235,865,1202)),('L',(922,1202)),('L',(927,1181)),('L',(1005,1181)),('L',(1000,1204)),('L',(1108,1204)),('L',(1102,1183)),('L',(1164,1186)),('L',(1173,1204)),('L',(1227,1204)),('C',(1250,1270,1237,1345,1185,1405)),('L',(900,1405)),('C',(881,1374,865,1333,859,1297)),('Z',())],True,1.7)
+c.saveState();c.clipPath(lib,stroke=0,fill=0)
+for yy in [1215,1230,1250,1276,1300,1325,1350,1377,1400]:
+ P([('M',(850,yy)),('C',(976,yy+7,1110,yy+6,1240,yy))],False,.8)
+for xx in np.arange(865,1231,22):
+ shift=(1043-xx)*.15
+ P([('M',(xx,1202)),('C',(xx-15+shift,1260,xx+shift,1345,xx+shift,1410))],False,.8)
+for a,b in [(869,919),(935,995),(1116,1158),(1182,1224)]:
+ for yy in np.arange(1206,1230,3):L(a,yy,b,yy,.55)
+c.restoreState()
+# Figures are isolated from their dark original outlines before contour fitting.
+im=cv2.imread('J:/3/image.jpeg');hsv=cv2.cvtColor(im,cv2.COLOR_BGR2HSV);sx=W/im.shape[1];sy=H/im.shape[0]
+figure_boxes=[(233,174,359,376),(876,500,1023,657),(777,1337,933,1460),(230,1488,318,1684),(312,1488,399,1684),(402,1488,496,1684),(490,1488,584,1684)]
+def contour_path(contours,dx,dy):
+ p=c.beginPath()
+ for cnt in contours:
+  aa=cv2.approxPolyDP(cnt,.45,True).reshape(-1,2)
+  if len(aa)<3:continue
+  pts=[((float(a[0])+dx)*sx,H-(float(a[1])+dy)*sy) for a in aa]
+  p.moveTo(*pts[0])
+  for v in pts[1:]:p.lineTo(*v)
+  p.close()
+ return p
+for x0,y0,x1,y1 in figure_boxes:
+ x0,y0,x1,y1=int(x0/sx),int(y0/sy),int(x1/sx),int(y1/sy)
+ hh=hsv[y0:y1,x0:x1];dark=((hh[:,:,0]>45)&(hh[:,:,0]<89)&(hh[:,:,1]>85)).astype('uint8')*255
+ dark=cv2.morphologyEx(dark,cv2.MORPH_CLOSE,np.ones((3,3),np.uint8))
+ cs,_=cv2.findContours(dark,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+ cs=[q for q in cs if cv2.contourArea(q)>250]
+ silhouette=np.zeros_like(dark);cv2.drawContours(silhouette,cs,-1,255,-1)
+ body=((hh[:,:,1]>85)&(silhouette>0)).astype('uint8')*255
+ cs,_=cv2.findContours(body,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
+ cs=[q for q in cs if cv2.contourArea(q)>16]
+ p=contour_path(cs,x0,y0)
+ c.saveState();c.clipPath(p,stroke=0,fill=0,fillMode=0);c.linearGradient(0,H,1340,0,[col('#e8cbd5'),col('#bf92a4'),col('#ead6df')],[0,.5,1]);c.restoreState()
+ cs,_=cv2.findContours(dark,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
+ cs=[q for q in cs if cv2.contourArea(q)>10]
+ p=contour_path(cs,x0,y0);c.setFillColor(col('#87485f'));c.drawPath(p,stroke=0,fill=1,fillMode=0)

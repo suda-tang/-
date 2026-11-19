@@ -1,0 +1,8 @@
+{
+  "status": "complete",
+  "bodyUrl": "/narration/mentor-preface.cartoon.eleven-v4-20261027.m4a",
+  "model": "ZipVoice distill INT8",
+  "synthesisSeconds": 5.47,
+  "newBodyJoined": true,
+  "nameOnlyLightweightModelUnchanged": true
+}

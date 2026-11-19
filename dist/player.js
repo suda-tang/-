@@ -74,16 +74,21 @@ export class ScorePlayer {
   scheduledTime(beat){return this.clockTime+this.timeAtBeat(beat)-this.timeAtBeat(this.clockBeat);}
   advance(){const now=this.context.currentTime;this.beat=this.beatAtTime(this.timeAtBeat(this.clockBeat)+Math.max(0,now-this.clockTime));this.lastTime=now;}
   async loadSamples(){
-    const needed=new Map();for(const e of this.score.events)for(const n of e.notes){const name=n.instrument||this.instrument;if(!needed.has(name))needed.set(name,[]);needed.get(name).push(n.midi);}
-    retainInstrumentSamples(this.context,needed);for(const name of this.instrumentBanks.keys())if(!needed.has(name))this.instrumentBanks.delete(name);if(!needed.has('salamander'))releasePianoSamples(this.context);
-    let completed=0;for(const [name,notes] of needed){if(name!=='salamander'){this.instrumentBanks.set(name,await loadInstrument(this.context,name,notes,(done,total)=>this.onLoad(completed+done/total,needed.size)));}completed++;}
-    if(!needed.has('salamander')){this.onLoad(1,1);return;}
-    if(this.samples)return;
-    if(!this.samplePromise)this.samplePromise=(async()=>{
-      const score=this.score;const pairs=await loadPianoSamples(this.context,score,this.onLoad);
-      if(this.score===score)this.samples=pairs;
-    })().catch(error=>{this.samplePromise=null;throw error;});
-    await this.samplePromise;
+    const score=this.score,context=this.context;if(!score)return;
+    if(this.bankLoad?.score===score&&this.bankLoad.context===context)return this.bankLoad.promise;
+    const needed=new Map();for(const e of score.events)for(const n of e.notes){const name=n.instrument||this.instrument;if(!needed.has(name))needed.set(name,new Set());needed.get(name).add(n.midi);}
+    const current=()=>this.score===score&&this.context===context;
+    retainInstrumentSamples(context,needed);for(const name of this.instrumentBanks.keys())if(!needed.has(name))this.instrumentBanks.delete(name);if(!needed.has('salamander'))releasePianoSamples(context);
+    const instruments=[...needed.keys()];const fractions=new Map(instruments.map(name=>[name,0]));
+    const progress=(name,done,total)=>{if(!current())return;fractions.set(name,total?done/total:1);this.onLoad([...fractions.values()].reduce((sum,value)=>sum+value,0),Math.max(1,needed.size),{instruments,active:name});};
+    const work={score,context,promise:null};
+    work.promise=Promise.all([...needed].map(async([name,notes])=>{
+      if(name==='salamander'){
+        if(!this.samples){const pairs=await loadPianoSamples(context,score,(done,total)=>progress(name,done,total));if(current())this.samples=pairs;}
+      }else{const bank=await loadInstrument(context,name,[...notes],(done,total)=>progress(name,done,total));if(current())this.instrumentBanks.set(name,bank);}
+      progress(name,1,1);
+    })).then(()=>{if(current())this.onLoad(1,1,{instruments,active:null});}).finally(()=>{if(this.bankLoad===work)this.bankLoad=null;});
+    this.bankLoad=work;return work.promise;
   }
   seek(index){
     if(!this.score)return;

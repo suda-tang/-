@@ -1,0 +1,54 @@
+import cv2,numpy as np,os
+from reportlab.pdfgen import canvas
+from reportlab.lib.colors import HexColor,Color
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from fontTools.ttLib import TTFont as FTFont
+from fontTools.pens.basePen import BasePen
+import fitz
+ROOT=r'C:/Users/mail/Documents/ChatGPT/自动钢琴陪练系统'
+OUT=ROOT+'/output/pdf/唐秋鸣课题实例2026-矢量封面.pdf'
+W,H=1340,1888
+c=canvas.Canvas(OUT,pagesize=(595.276,838.704),pageCompression=1)
+c.setTitle('唐秋鸣课题实例2026');c.setAuthor('唐秋鸣');c.scale(595.276/W,838.704/H)
+def col(v):return HexColor(v)
+def rect(x,y,w,h,fill):
+ c.setFillColor(col(fill));c.rect(x,H-y-h,w,h,stroke=0,fill=1)
+def line(x1,y1,x2,y2,color,width):
+ c.setStrokeColor(col(color));c.setLineWidth(width);c.line(x1,H-y1,x2,H-y2)
+# pearlescent substrate, all PDF vector shadings
+c.linearGradient(0,H,W,0,[col('#fbf8fa'),col('#f2eff3'),col('#edf2f5')],[0,.52,1])
+# original modular grid
+xs=[3,191,380,570,761,953,1144,1336];ys=[3,189,378,567,756,945,1134,1323,1512,1701,1884]
+for x in xs:line(x,3,x,1884,'#e3dfe3',6)
+for y in ys:line(3,y,1336,y,'#e3dfe3',6)
+cells=[(5,0,0),(1,1,1),(2,2,1),(4,2,1),(0,3,0),(5,3,0),(4,4,1),(1,5,1),(2,6,0),(0,7,0),(2,8,1),(5,8,0),(3,9,1)]
+for ix,iy,vertical in cells:
+ x0,x1=xs[ix]+4,xs[ix+1]-4;y0,y1=ys[iy]+4,ys[iy+1]-4
+ if vertical:
+  for x in np.arange(x0+5,x1,9):line(x,y0,x,y1,'#c9c5cd',.7)
+ else:
+  for y in np.arange(y0+5,y1,9):line(x0,y,x1,y,'#c9c5cd',.7)
+for ix in range(1,7):
+ for iy in range(1,10):
+  if (ix+iy)%3!=0:
+   x,y=xs[ix],ys[iy];line(x-23,y,x+23,y,'#d9bcc5',6);line(x,y-23,x,y+23,'#d9bcc5',6)
+# vector typography clipped to pearlescent rose gradient
+class PathPen(BasePen):
+ def __init__(self,g,p,ox,oy,s):super().__init__(g);self.p=p;self.ox=ox;self.oy=oy;self.s=s
+ def _moveTo(self,v):self.p.moveTo(self.ox+v[0]*self.s,self.oy+v[1]*self.s)
+ def _lineTo(self,v):self.p.lineTo(self.ox+v[0]*self.s,self.oy+v[1]*self.s)
+ def _curveToOne(self,a,b,d):self.p.curveTo(self.ox+a[0]*self.s,self.oy+a[1]*self.s,self.ox+b[0]*self.s,self.oy+b[1]*self.s,self.ox+d[0]*self.s,self.oy+d[1]*self.s)
+ def _closePath(self):self.p.close()
+fonts={}
+def text(t,x,baseline,size,maxwidth=None,font='C:/Windows/Fonts/segoeuil.ttf'):
+ if font not in fonts:fonts[font]=FTFont(font,fontNumber=0)
+ f=fonts[font];g=f.getGlyphSet();cm=f.getBestCmap();units=f['head'].unitsPerEm
+ wid=sum(f['hmtx'][cm[ord(ch)]][0] for ch in t)/units*size
+ sx=min(1,maxwidth/wid) if maxwidth else 1
+ c.saveState();c.translate(x,H-baseline);c.scale(sx,1);p=c.beginPath();px=0
+ for ch in t:
+  name=cm[ord(ch)];g[name].draw(PathPen(g,p,px,0,size/units));px+=f['hmtx'][name][0]*size/units
+ c.clipPath(p,stroke=0,fill=0)
+ c.linearGradient(0,size,wid,-size*.2,[col('#b67b8a'),col('#8f3c50'),col('#b48291'),col('#753247')],[0,.40,.64,1])
+ c.restoreState()

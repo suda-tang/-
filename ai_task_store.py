@@ -74,6 +74,8 @@ def handle(handler):
    if item.get('status') not in ('running','complete','failed','queued','cancelled'):raise ValueError('任务状态无效')
    previous=next((x for x in items if x['id']==ident),{})
    entry={**previous,**{k:item[k] for k in ('id','label','detail','status','progress','created','result','indeterminate') if k in item},'kind':'ai','updated':time.time()*1000}
+   if previous.get('label'):entry['label']=previous['label']
+   if previous.get('created') is not None:entry['created']=previous['created']
    for key,limit in [('label',500),('detail',1000),('result',30000)]:entry[key]=str(entry.get(key,''))[:limit]
    items=[x for x in items if x['id']!=ident]+[entry]
    PATH.parent.mkdir(parents=True,exist_ok=True);write_json(PATH,items[-KEEP_MAX:])

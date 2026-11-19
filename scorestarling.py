@@ -16,6 +16,13 @@ from urllib.parse import parse_qs, urlencode, urlparse
 import requests
 from storage import write_json
 
+# 只重试「传输层抖动」——连接器本身没坏，只是这次请求卡住了。
+# 只对幂等调用重试：MCP 初始化、以及只读工具（见 SAFE_CALLS）。
+# 有副作用的调用（transcribe_link 会建云端任务、unlock_score 会扣积分）**绝不重试**。
+TRANSIENT = (requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout,
+             requests.exceptions.ConnectionError, requests.exceptions.ChunkedEncodingError)
+SAFE_CALLS = {'check_link', 'get_upload_status', 'export_score'}
+
 ROOT = Path(__file__).resolve().parent
 PRIVATE = ROOT / '.sites-runtime' / 'scorestarling-private'
 ENDPOINT = 'https://mcp.scorestarling.com/mcp'
@@ -116,9 +123,16 @@ def access_token(sid):
         if data.get('expires', 0) < time.time() + 60:
             if not token.get('refresh_token'):
                 raise ValueError('SUPERTANG AI智能转谱 授权已过期，请重新连接')
-            r = network().post(ISSUER + '/oauth/token', data={
-                'grant_type': 'refresh_token', 'refresh_token': token['refresh_token'],
-                'client_id': data['client_id']}, timeout=25)
+            for attempt in range(1, 3):
+                try:
+                    r = network().post(ISSUER + '/oauth/token', data={
+                        'grant_type': 'refresh_token', 'refresh_token': token['refresh_token'],
+                        'client_id': data['client_id']}, timeout=25)
+                    break
+                except TRANSIENT:
+                    if attempt >= 2:
+                        raise
+                    time.sleep(1.2 * attempt)
             if not r.ok:
                 raise ValueError('SUPERTANG AI智能转谱 授权已过期，请重新连接')
             refreshed = r.json()
@@ -134,14 +148,14 @@ class MCP:
         self.session = network()
         self.headers = {'Accept': 'application/json, text/event-stream', 'Content-Type': 'application/json'}
         self.counter = 0
-        initialized = self.rpc('initialize', {'protocolVersion': '2025-03-26', 'capabilities': {},
+        initialized = self.rpc_safe('initialize', {'protocolVersion': '2025-03-26', 'capabilities': {},
                                 'clientInfo': {'name': 'SuDa Piano Teaching', 'version': '1.0'}})
         self.headers['MCP-Protocol-Version'] = initialized.get('protocolVersion', '2025-03-26')
-        self.rpc('notifications/initialized', notification=True)
+        self.rpc_safe('notifications/initialized', notification=True)
         self.tools = {}
         cursor = None
         for _ in range(20):
-            page = self.rpc('tools/list', {'cursor': cursor} if cursor else {})
+            page = self.rpc_safe('tools/list', {'cursor': cursor} if cursor else {})
             self.tools.update({t['name']: t for t in page.get('tools', [])})
             cursor = page.get('nextCursor')
             if not cursor:
@@ -175,8 +189,27 @@ class MCP:
                         message = json.loads('\n'.join(chunks)); chunks = []
                         if message.get('id') == self.counter:
                             return self.result(message)
+                # Some gateways close after the final data line without a blank separator.
+                if chunks:
+                    message = json.loads('\n'.join(chunks))
+                    if message.get('id') == self.counter:
+                        return self.result(message)
                 raise ValueError('SUPERTANG AI智能转谱 响应中断，没有收到操作结果')
             return self.result(r.json())
+
+    def rpc_safe(self, method, params=None, notification=False, attempts=2):
+        """Retry an idempotent RPC on transient transport faults only.
+
+        A one-off stall (proxy hiccup, slow connector backend) shouldn't fail the
+        whole transcription. Side-effecting calls must use rpc() directly.
+        """
+        for attempt in range(1, attempts + 1):
+            try:
+                return self.rpc(method, params, notification=notification)
+            except TRANSIENT:
+                if attempt >= attempts:
+                    raise
+                time.sleep(1.2 * attempt)
 
     @staticmethod
     def result(message):
@@ -194,7 +227,8 @@ class MCP:
         missing = set(schema.get('required', [])) - values.keys()
         if missing:
             raise ValueError('连接器参数需要适配：' + name + ' 缺少 ' + ', '.join(sorted(missing)))
-        raw = self.rpc('tools/call', {'name': name, 'arguments': values})
+        runner = self.rpc_safe if name in SAFE_CALLS else self.rpc
+        raw = runner('tools/call', {'name': name, 'arguments': values})
         result = raw.get('structuredContent')
         if not isinstance(result, dict):
             text = '\n'.join(c.get('text', '') for c in raw.get('content', []) if c.get('type') == 'text')
@@ -237,35 +271,48 @@ def report(ident, title, status, progress, detail, result=''):
 
 def download_xml(url):
     from ai_web_import import public_url
-    for _ in range(5):
+    redirects = faults = 0
+    while True:
         public_url(url)
-        with network().get(url, stream=True, allow_redirects=False, timeout=(15, 45)) as r:
-            if 300 <= r.status_code < 400:
-                from urllib.parse import urljoin
-                url = urljoin(url, r.headers['Location'])
-                continue
-            r.raise_for_status()
-            data = bytearray()
-            for chunk in r.iter_content(65536):
-                data.extend(chunk)
-                if len(data) > 20*1024*1024:
-                    raise ValueError('导出的 MusicXML 超过 20 MB')
-            text = bytes(data).decode('utf-8-sig')
-            if '<!DOCTYPE' in text or '<!ENTITY' in text:
-                # Standard external MusicXML doctypes aren't needed for rendering.
-                import re
-                text = re.sub(r'<!DOCTYPE[^>]*>', '', text)
-                if '<!ENTITY' in text:
-                    raise ValueError('MusicXML 含不支持的实体定义')
-            root = ET.fromstring(text)
-            if root.tag != 'score-partwise':
-                raise ValueError('连接器没有返回有效的分声部 MusicXML')
-            return '<?xml version="1.0" encoding="UTF-8"?>\n' + ET.tostring(root, encoding='unicode')
-    raise ValueError('MusicXML 下载重定向过多')
+        try:
+            with network().get(url, stream=True, allow_redirects=False, timeout=(15, 45)) as r:
+                if 300 <= r.status_code < 400:
+                    from urllib.parse import urljoin
+                    url = urljoin(url, r.headers['Location'])
+                    redirects += 1
+                    if redirects > 5:
+                        raise ValueError('MusicXML 下载重定向过多')
+                    continue
+                r.raise_for_status()
+                data = bytearray()
+                for chunk in r.iter_content(65536):
+                    data.extend(chunk)
+                    if len(data) > 20*1024*1024:
+                        raise ValueError('导出的 MusicXML 超过 20 MB')
+                text = bytes(data).decode('utf-8-sig')
+                if '<!DOCTYPE' in text or '<!ENTITY' in text:
+                    # Standard external MusicXML doctypes aren't needed for rendering.
+                    import re
+                    text = re.sub(r'<!DOCTYPE[^>]*>', '', text)
+                    if '<!ENTITY' in text:
+                        raise ValueError('MusicXML 含不支持的实体定义')
+                try:
+                    root = ET.fromstring(text)
+                except ET.ParseError:
+                    raise ValueError('连接器返回的 MusicXML 无法解析')
+                if root.tag != 'score-partwise':
+                    raise ValueError('连接器没有返回有效的分声部 MusicXML')
+                return '<?xml version="1.0" encoding="UTF-8"?>\n' + ET.tostring(root, encoding='unicode')
+        except TRANSIENT:
+            faults += 1
+            if faults > 2:
+                raise
+            time.sleep(1.2 * faults)
 
 
 def run(sid, ident, server):
     data = load(sid); job = data['jobs'][ident]; title = job['title']
+    stage = '连接 SUPERTANG AI智能转谱'
     def progress(value, detail):
         report(ident, title, 'running', value, detail)
     try:
@@ -276,16 +323,19 @@ def run(sid, ident, server):
             remote_job = job.get('remoteJob')
             if not remote_job:
                 progress(12, '检查音视频链接是否可读取')
+                stage = '检查来源链接'
                 checked = mcp.call('check_link', url=job['url'], link=job['url'], instrument='piano')
                 if find(checked, 'recording_error'):
                     raise ValueError(str(find(checked, 'recording_error')))
                 progress(20, '提交钢琴转录')
+                stage = '提交转录'
                 started = mcp.call('transcribe_link', url=job['url'], link=job['url'], provider='piano', title=title)
                 remote_job = find(started, 'job_id')
                 score_id = find(started, 'score_id')
                 with LOCK:
                     data = load(sid); data['jobs'][ident].update(remoteJob=remote_job, remoteScore=score_id); save(sid, data)
             if remote_job:
+                stage = '等待云端转录'
                 deadline = time.monotonic() + 1800
                 while time.monotonic() < deadline:
                     state = mcp.call('get_upload_status', job_id=remote_job, wait_seconds=20)
@@ -309,6 +359,7 @@ def run(sid, ident, server):
             with LOCK:
                 data = load(sid); data['jobs'][ident]['remoteScore'] = score_id; save(sid, data)
         progress(88, '获取 MusicXML 总谱')
+        stage = '导出总谱'
         exported = mcp.call('export_score', score_id=score_id, format='musicxml')
         if find(exported, 'locked') or find(exported, 'status') == 'locked':
             credits = find(exported, 'unlock_credits')
@@ -325,6 +376,7 @@ def run(sid, ident, server):
         if not url:
             raise ValueError('连接器未返回 MusicXML 下载地址')
         progress(94, '下载总谱并保存到云曲库')
+        stage = '下载总谱'
         xml = download_xml(url)
         digest = hashlib.sha256(('scorestarling:' + str(score_id)).encode()).hexdigest()
         server.write_cached_score(digest, xml, {'title': title, 'userTitle': title, 'sourceType': 'scorestarling',
@@ -334,7 +386,13 @@ def run(sid, ident, server):
             data = load(sid); data['jobs'][ident]['digest'] = digest; save(sid, data)
         report(ident, title, 'complete', 100, '已导入云曲库', digest)
     except Exception as exc:
-        detail = str(exc)[:500] if isinstance(exc, ValueError) else '连接器网络或服务异常：' + type(exc).__name__ + '；可重试，不会重复创建已取得的曲谱'
+        import traceback
+        traceback.print_exc()
+        if isinstance(exc, ValueError):
+            detail = str(exc)[:500]
+        else:
+            detail = ('连接器网络或服务异常：' + type(exc).__name__ + '（' + stage + ' 阶段）；'
+                      '可重试，不会重复创建已取得的曲谱')
         import ai_task_store
         old = next((r for r in ai_task_store.read() if r['id'] == ident), {})
         report(ident, title, 'failed', old.get('progress', 0), detail)

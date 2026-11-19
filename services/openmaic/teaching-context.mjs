@@ -16,7 +16,9 @@ export function teachingContext(input){
 约${input.duration<=20?5:input.duration>=90?12:8}个环节，允许slide、quiz、interactive、pbl。已选功能：${features.join(',')}。slides要生成真正的PPT课件，包括标题、图示、音乐关系图和聆听问题，留足空白，不能堆成文章。quiz可单选、多选、开放回答，考查音乐理解与证据。interactive是无需联网可操作的HTML活动，如聆听记录、音乐要素比较、节奏互动或结构假设排序。一个活动只围绕一个学习难点，HTML代码不超过8000字符，避免做复杂小游戏引擎；不伪装成真实音轨分离工具。
 ${features.includes('pbl')?'必须有一个pbl小组项目，明确问题、角色、阶段任务、作品要求和评价依据。':'不生成pbl。'}${features.includes('interactive')?'必须有一个interactive。':'不生成interactive。'}${features.includes('quiz')?'必须有一个quiz。':'不生成quiz。'}
 不要宣传语、emoji、套话或骨架、锚点、定心丸等比喻。教师自然说话，不朗读程序字段。区分谱面事实、聆听任务和待验证的判断；抽样谱面不能证明完整曲式或和声。音符时值以四分音符为1，弱起不能补成四拍。`;
+ const OPENCLASS_NOTE=input.openClass?`
+【公开课提质要求（须达到可对外观摩水准）】①目标写成可观测的学生音乐行为，并给出成功标准；②每环节须含板书设计(boardDesign)、逐字讲稿(script)与小组协作探究任务(collaboration)，并嵌入形成性评价(assessment)；③须设一个真实情境驱动问题(drivingQuestion)与可公开展示的产出物(deliverable/publicShowcase)；④课件、板书、讲稿三者一致，讲稿须可直接用于公开课试讲，并安排公开展示与同伴互评环节。`:'';
  const evidence=input.evidence||{},measures=evidence.measures||[],notes=evidence.notes||[],stride=Math.max(1,Math.ceil(notes.length/240));
  const compact={...evidence,measures:measures.filter((m,i)=>i%Math.max(1,Math.ceil(measures.length/64))===0||i===measures.length-1),notes:notes.filter((n,i)=>i%stride===0),repeatedMeasures:(evidence.repeatedMeasures||[]).slice(0,16),issues:(evidence.issues||[]).slice(0,24),limits:[...(evidence.limits||[]),'模型逐音上下文经过全曲抽样，未提供的音符与段落不得补写。']};
- return {school,stage,features,requirement,evidence:compact};
+ return {school,stage,features,requirement:requirement+OPENCLASS_NOTE,evidence:compact,openClass:!!input.openClass};
 }

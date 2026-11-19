@@ -1,3 +1,4 @@
+import {uniquePartLabels} from './part-labels.js';
 // ★ 2026-10-10：以前每次调用都把整份 score.xml 重新 DOMParser 一遍，只为读声部名。
 //   大谱 XML 18MB、解析一次约 1.3 秒；而这个函数被 publishPractice() 调用，
 //   refresh()（练习刷新 / 播放 / 改速度都会触发）每次都会走到 —— 一次打开里反复解析，
@@ -18,7 +19,7 @@ export function practiceInstruments(score){
  for(const entry of xmlScoreParts(score))if(!known.has(entry.id))known.set(entry.id,entry);
  const parts=new Map();
  for(const e of score?.events||[])for(const n of e.notes||[]){if(n.percussion)continue;const id=String(n.part||'__unassigned');if(!parts.has(id))parts.set(id,{id,name:known.get(id)?.name||n.instrument||'钢琴',instrument:known.get(id)?.instrument||n.instrument||''});}
- return [...parts.values()];
+ return uniquePartLabels([...parts.values()]);
 }
 export function defaultPracticeInstrument(parts){return parts.find(p=>/piano|salamander|grand|钢琴/i.test(p.name+' '+p.instrument))?.id||parts[0]?.id||'';}
 export function instrumentEvents(events,id){return events.map(e=>{const notes=(e.notes||[]).filter(n=>!n.percussion&&(!id||String(n.part||'__unassigned')===id));return {...e,notes,pitches:[...new Set(notes.map(n=>n.midi))]};});}

@@ -9,3 +9,7 @@ imageio-ffmpeg>=0.5,<1
 PyYAML>=6,<7
 rapidocr-onnxruntime>=1.4,<2
 edge-tts>=7,<8
+
+# Optional CPU image-verification worker: install into its own venv.
+# python -m venv --system-site-packages .sites-runtime/captcha-env
+# .sites-runtime/captcha-env/Scripts/python -m pip install -r deploy/captcha-requirements.txt

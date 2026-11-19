@@ -9,6 +9,15 @@ def report(**fields):
  state.update(fields,updated=time.time());tmp=request.with_suffix('.tmp');tmp.write_text(json.dumps(state,ensure_ascii=False),encoding='utf-8');tmp.replace(request)
 report(status='loading',started=time.time())
 greeting=request.with_suffix('.greeting.wav')
+# Reuse the same spoken name even when the precomposed body changes.
+if not greeting.exists():
+ import shutil
+ for prior in request.parent.glob('*.json'):
+  if prior==request:continue
+  try:
+   old=json.loads(prior.read_text(encoding='utf-8'));clip=prior.with_suffix('.greeting.wav')
+   if old.get('greeting')==state.get('greeting') and clip.exists():shutil.copyfile(clip,greeting);break
+  except (OSError,ValueError):pass
 if greeting.exists():
  from types import SimpleNamespace
  samples,rate=sf.read(greeting,dtype='float32');generated=SimpleNamespace(samples=samples,sample_rate=rate);start=time.monotonic()
@@ -20,8 +29,9 @@ else:
  if not len(generated.samples):raise RuntimeError('称呼没有生成有效声音')
  greeting=request.with_suffix('.greeting.wav');sf.write(greeting,generated.samples,generated.sample_rate,subtype='PCM_16')
 report(status='joining',audioSeconds=len(generated.samples)/generated.sample_rate,synthesisSeconds=round(time.monotonic()-start,2))
-original=ROOT/'dist/narration/mentor-preface.m4a';boundary=ROOT/'.sites-runtime/tour-synthesis/preface-greeting-boundary.json'
-if boundary.exists():cut=json.loads(boundary.read_text())['cut']
+original=ROOT/'dist'/state.get('bodyUrl','/narration/mentor-preface.m4a').lstrip('/');boundary=ROOT/'.sites-runtime/tour-synthesis/preface-greeting-boundary.json'
+if not state.get('trimOriginalGreeting',True):cut=0
+elif boundary.exists():cut=json.loads(boundary.read_text())['cut']
 else:
  # Detect the start of the existing 谢谢, rather than guessing a fixed trim time.
  from faster_whisper import WhisperModel

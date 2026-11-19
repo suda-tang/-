@@ -1,0 +1,52 @@
+[
+  {
+    "url": "http://127.0.0.1:5173/",
+    "status": 200,
+    "bytes": 41195
+  },
+  {
+    "url": "http://127.0.0.1:5173/api/health",
+    "status": 200,
+    "bytes": 73
+  },
+  {
+    "url": "http://127.0.0.1:5173/classroom-request.js",
+    "status": 200,
+    "bytes": 2012
+  },
+  {
+    "url": "http://127.0.0.1:5173/catalog-request.js",
+    "status": 200,
+    "bytes": 1184
+  },
+  {
+    "url": "http://127.0.0.1:5173/player.js",
+    "status": 200,
+    "bytes": 21336
+  },
+  {
+    "url": "https://suzhou.super-tang.com/",
+    "status": 200,
+    "bytes": 41227
+  },
+  {
+    "url": "https://suzhou.super-tang.com/api/health",
+    "status": 200,
+    "bytes": 73
+  },
+  {
+    "url": "https://suzhou.super-tang.com/classroom-request.js",
+    "status": 200,
+    "bytes": 2012
+  },
+  {
+    "url": "https://suzhou.super-tang.com/catalog-request.js",
+    "status": 200,
+    "bytes": 1184
+  },
+  {
+    "url": "https://suzhou.super-tang.com/player.js",
+    "status": 200,
+    "bytes": 21336
+  }
+]

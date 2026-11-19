@@ -1,0 +1,34 @@
+{
+  "date": "2026-10-27",
+  "release": "flow133",
+  "routes": {
+    "fixtureSegments": 6,
+    "allCollisionChecksPassed": true,
+    "browserChapters": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "boatReturnedAshore": true,
+    "transitionErrors": []
+  },
+  "character": {
+    "source": "Quaternius Animated Women CC0",
+    "fileBytes": 586108,
+    "meshCount": 12,
+    "groundingFeet": 2,
+    "skeletonSnapshotIndependent": true
+  },
+  "publicModelHTTP": 200,
+  "voice": {
+    "recordings": "Existing V4 recordings preserved; segment 6 previous recording retained",
+    "preloadUpdated": true,
+    "localAutoPlayback": true,
+    "externalFirstVisitRequiresBrowserGesture": true,
+    "externalPlaybackVerified": true
+  }
+}

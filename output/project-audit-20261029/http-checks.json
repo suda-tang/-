@@ -1,0 +1,75 @@
+[
+  {
+    "route": "/api/health",
+    "status": 200,
+    "ms": 23,
+    "keys": [
+      "omr",
+      "version",
+      "audio"
+    ]
+  },
+  {
+    "route": "/api/scores",
+    "status": 200,
+    "ms": 124,
+    "keys": [
+      "scores"
+    ]
+  },
+  {
+    "route": "/api/ai-tasks",
+    "status": 200,
+    "ms": 4,
+    "keys": [
+      "tasks"
+    ]
+  },
+  {
+    "route": "/api/import-capabilities",
+    "status": 200,
+    "ms": 2,
+    "keys": [
+      "pdf",
+      "photos",
+      "media",
+      "engine",
+      "maxMediaMB",
+      "maxMinutes",
+      "maxPhotoPages"
+    ]
+  },
+  {
+    "route": "/api/arrangement-capabilities",
+    "status": 200,
+    "ms": 5,
+    "keys": [
+      "styles",
+      "programs",
+      "presets",
+      "meterAdapter"
+    ]
+  },
+  {
+    "route": "/api/scores/classify",
+    "status": 200,
+    "ms": 24,
+    "keys": [
+      "state",
+      "percent",
+      "categories",
+      "warning"
+    ]
+  },
+  {
+    "route": "/api/scorestarling",
+    "status": 200,
+    "ms": 2347,
+    "keys": [
+      "connected",
+      "scope",
+      "endpoint",
+      "error"
+    ]
+  }
+]

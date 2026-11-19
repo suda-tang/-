@@ -1,0 +1,63 @@
+{
+  "publicManifestMatchesLocal": true,
+  "normalAndCartoon": true,
+  "media": [
+    {
+      "url": "/narration/mentor-preface.eleven-v4-20261027.m4a",
+      "rangeStatus": 206,
+      "bytes": 1024
+    },
+    {
+      "url": "/narration/mentor-context.eleven-v4-20261027.m4a",
+      "rangeStatus": 206,
+      "bytes": 1024
+    },
+    {
+      "url": "/narration/mentor-material.eleven-v4-20261027.m4a",
+      "rangeStatus": 206,
+      "bytes": 1024
+    },
+    {
+      "url": "/narration/mentor-listening.eleven-v4-20261027.m4a",
+      "rangeStatus": 206,
+      "bytes": 1024
+    },
+    {
+      "url": "/narration/mentor-arrangement.eleven-v4-20261027.m4a",
+      "rangeStatus": 206,
+      "bytes": 1024
+    },
+    {
+      "url": "/narration/mentor-learning.voxcpm.clean.m4a",
+      "rangeStatus": 206,
+      "bytes": 1024
+    },
+    {
+      "url": "/narration/mentor-handoff.eleven-v4-20261027.m4a",
+      "rangeStatus": 206,
+      "bytes": 1024
+    },
+    {
+      "url": "/narration/mentor-preface.cartoon.eleven-v4-20261027.m4a",
+      "rangeStatus": 206,
+      "bytes": 1024
+    }
+  ],
+  "mouthEnvelopes": true,
+  "oldBackupVerified": true,
+  "pendingAudioUnchanged": true,
+  "release": {
+    "status": "partial",
+    "completed": 6,
+    "total": 7,
+    "published": true,
+    "pending": [
+      "mentor-learning"
+    ],
+    "reason": "Available character quota; existing recording retained",
+    "model": "Eleven v4",
+    "turbo": false,
+    "release": "eleven-v4-20261027",
+    "updated": 1793037776.3377328
+  }
+}

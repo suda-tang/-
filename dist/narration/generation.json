@@ -1,1 +1,14 @@
-{"status": "failed", "completed": 0, "total": 15, "current": "加载语音模型", "updated": 1790764019.6316319, "error": "页面文件太小，无法完成操作。 (os error 1455)"}
+{
+  "status": "partial",
+  "completed": 6,
+  "total": 7,
+  "published": true,
+  "pending": [
+    "mentor-learning"
+  ],
+  "reason": "Available character quota; existing recording retained",
+  "model": "Eleven v4",
+  "turbo": false,
+  "release": "eleven-v4-20261027",
+  "updated": 1793037776.3377328
+}

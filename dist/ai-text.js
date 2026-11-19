@@ -31,7 +31,7 @@ function inline(parent,text,depth=0){
 }
 
 export function renderAssistantText(target,value){
- const source=decodeEntities(value).replace(/\r\n?/g,'\n').replace(/\\([*#_>-])/g,'$1').replace(/\*{4,}/g,'**')
+ const source=decodeEntities(value).replace(/找到到列出来/g,'找到后列出来').replace(/\r\n?/g,'\n').replace(/\\([*#_>-])/g,'$1').replace(/\*{4,}/g,'**')
   .replace(/([：:])\s*-\s+(?=\S)/g,'$1\n- ').replace(/([。？！；])\s*-\s+(?=\S)/g,'$1\n- ');
  const fragment=document.createDocumentFragment();let paragraph=null,list=null,listType='',fence=false,code=null;
  for(const line of source.split('\n')){

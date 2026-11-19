@@ -1,0 +1,29 @@
+# Rebuild rectangular campus building from original facade proportions
+bx,by=511,1635
+outline=[(0,0),(502,0),(502,7),(495,7),(495,24),(502,24),(502,57),(493,57),(493,68),(502,68),(502,79),(495,79),(495,95),(502,95),(502,105),(495,105),(495,119),(502,119),(502,130),(499,130),(499,157),(0,157),(0,126),(-4,126),(-4,118),(2,118),(2,104),(-4,104),(-4,95),(2,95),(2,79),(-4,79),(-4,69),(2,69),(2,55),(-4,55),(-4,47),(2,47),(2,32),(-4,32),(-4,24),(2,24),(2,7),(-4,7),(-4,0)]
+p=c.beginPath();p.moveTo(bx+outline[0][0],H-by-outline[0][1])
+for xx,yy in outline[1:]:p.lineTo(bx+xx,H-by-yy)
+p.close()
+c.saveState();c.clipPath(p,stroke=0,fill=0);c.linearGradient(bx,H-by,bx+502,H-by-157,[col('#fcfafc'),col('#e5dbe3'),col('#f8fafc')],[0,.55,1]);c.restoreState()
+c.setStrokeColor(col('#a57385'));c.setLineWidth(1.8);c.drawPath(p,fill=0,stroke=1)
+def bl(x1,y1,x2,y2,width=.65,color='#ae8997'):line(bx+x1,by+y1,bx+x2,by+y2,color,width)
+def pane(x,y,w,h,spacing):
+ for xx,yy,xx2,yy2 in [(x,y,x+w,y),(x,y+h,x+w,y+h),(x,y,x,y+h),(x+w,y,x+w,y+h)]:bl(xx,yy,xx2,yy2)
+ for xx in np.arange(x+spacing,x+w-.5,spacing):
+  bl(xx,y,xx,y+h,.55);bl(xx+1.2,y,xx+1.2,y+h,.35,'#c7acb7')
+for yy in [0,24,47,69,95,118]:
+ bl(-2,yy+2,500,yy+2,.85);bl(-2,yy+5,500,yy+5,.55,'#c1a3ae')
+pane(5,7,212,16,7);pane(270,7,223,16,7)
+pane(5,32,212,14,7);pane(270,32,152,14,8);pane(425,30,69,17,100)
+pane(5,56,120,12,8);pane(167,56,326,12,8)
+pane(5,80,324,14,7);pane(351,80,142,14,8)
+pane(5,105,155,12,7);pane(220,105,273,12,8)
+pane(3,131,157,25,23);pane(220,131,276,25,24)
+for yy in [7,17,24,32,40,46]:bl(221,yy,266,yy,.7)
+bl(219,6,219,47,.9);bl(268,6,268,47,.9)
+for yy in [56,61,68]:bl(129,yy,163,yy,.7)
+bl(127,54,127,69,.9);bl(165,54,165,69,.9)
+bl(333,80,347,80);bl(333,87,347,87);bl(333,94,347,94);bl(332,79,332,95);bl(349,79,349,95)
+pane(166,105,49,51,12)
+bl(166,114,215,114,.9);bl(166,135,215,135,.9)
+for yy in [1,25,48,70,96,119]:bl(-1,yy,500,yy,.45,'#ffffff')

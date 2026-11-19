@@ -1,18 +1,37 @@
+const prohibitsListening=text=>/(?:不要|不必|无需|不需要|暂不)[^。！？]{0,12}(?:听|播放)/.test(String(text||'').replace(/<[^>]*>/g,''));
 export function listeningInstruction(text){
  const source=String(text||'').replace(/<[^>]*>/g,'');
- if(/(?:不要|不必|无需|不需要|暂不)[^。！？]{0,12}(?:听|播放)/.test(source))return null;
+ if(prohibitsListening(source))return null;
  const match=source.match(/(?:聆听|试听|播放|听一听|听)(?:[^。！？；]{0,36}?)(\d+(?:\.\d+)?|[一二两三四五六七八九十百]+)\s*(秒钟?|分钟)/i);
  const range=source.match(/第\s*(\d+)\s*(?:[—–~～至到-]\s*第?\s*(\d+)\s*)?小节/);
  const full=/(?:请(?:大家|同学们)?|现在|接下来|再次|再来)[^。！？；]{0,18}(?:聆听|播放|听一遍|听一听)[^。！？；]{0,8}全曲|(?:完整聆听全曲)/.test(source);
  const rangeCommand=range&&/(?:请(?:大家|同学们)?)[^。！？；]{0,12}(?:聆听|播放|听一听)/.test(source);
- if(!match&&!full&&!rangeCommand)return null;
+ const invitation=/(?:请(?:大家|同学们)?|现在|接下来|我们先|让我们|一起来|下面|首先|先|一起|开始)[^。！？；]{0,18}(?:聆听|播放|听一遍|听一听|欣赏)/.test(source);
+ if(!match&&!full&&!rangeCommand&&!invitation)return null;
  const number=value=>{if(/^\d/.test(value))return Number(value);const digits={'一':1,'二':2,'两':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9};let sum=0,n=0;for(const char of value){if(char==='十'||char==='百'){sum+=(n||1)*(char==='十'?10:100);n=0}else n=digits[char]||0}return sum+n};
  const seconds=match?number(match[1])*(match[2].startsWith('分')?60:1):0;if(match&&!(seconds>0&&seconds<=1800))return null;
- return{type:'music-listen',seconds,...(full?{wholeScore:true}:{}),...(range?{startMeasure:Number(range[1]),endMeasure:Number(range[2]||range[1])}:{})};
+ const whole=full||invitation&&/全曲|完整听|完整地听|完整欣赏|完整聆听/.test(source);
+ return{type:'music-listen',seconds:seconds||(!whole&&!range?30:0),...(whole?{wholeScore:true}:{}),...(range?{startMeasure:Number(range[1]),endMeasure:Number(range[2]||range[1])}:{})};
 }
 export function lessonActions(actions=[],elements=[]){
- const output=[];let cue=null,cueUsed=false;const texts=new Map(elements.map(e=>[e.id,e.content||e.text||'']));
- for(let i=0;i<actions.length;i++){const action=actions[i];output.push(action);if(action.type==='spotlight'||action.type==='laser'){cue=action.elementId;cueUsed=false}if(action.type==='speech'){const listen=listeningInstruction(action.text)||(!cueUsed&&listeningInstruction(texts.get(cue)));if(listen){cueUsed=true;if(!['music-listen','listen','play_music'].includes(actions[i+1]?.type))output.push(listen)}}}
+ const output=[];let cue=null,cueUsed=false,discussionAdded=false;const texts=new Map(elements.map(e=>[e.id,e.content||e.text||'']));
+ for(let i=0;i<actions.length;i++){
+  const action=actions[i];output.push(action);
+  if(action.type==='spotlight'||action.type==='laser'){cue=action.elementId;cueUsed=false}
+  if(action.type!=='speech')continue;
+  const prohibited=prohibitsListening(action.text);
+  if(prohibited)cueUsed=true;
+  const listen=!prohibited&&(listeningInstruction(action.text)||(!cueUsed&&listeningInstruction(texts.get(cue))));
+  if(listen){
+   cueUsed=true;
+   // A highlight may sit between the spoken invitation and its existing player action.
+   let next=i+1;
+   while(['spotlight','laser'].includes(actions[next]?.type))next++;
+   if(!['music-listen','listen','play_music'].includes(actions[next]?.type))output.push(listen);
+  }else if(!discussionAdded&&elements.length&&/[？?]\s*$/.test(String(action.text))&&/(你觉得|你认为|谁愿意|说说|为什么)/.test(String(action.text))&&actions[i+1]?.type!=='discussion'){
+   output.push({type:'discussion',topic:String(action.text).split(/[。！!]/).filter(Boolean).at(-1)});discussionAdded=true;
+  }
+ }
  return output;
 }
 

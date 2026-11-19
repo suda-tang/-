@@ -1,0 +1,3112 @@
+{
+ "generated_at": "2026-11-08 18:54:16",
+ "folders": {
+  "personal-release.pre-migration.bak": {
+   "path": "C:\\Users\\mail\\Documents\\ChatGPT\\自动钢琴陪练系统\\.sites-runtime\\personal-release.pre-migration.bak",
+   "total_bytes": 7466239622,
+   "file_count": 26,
+   "files": [
+    {
+     "rel": "project-data-01.zip",
+     "size": 124466110
+    },
+    {
+     "rel": "project-data-02.zip",
+     "size": 635303394
+    },
+    {
+     "rel": "project-data-03.zip",
+     "size": 604323158
+    },
+    {
+     "rel": "project-data-04.zip",
+     "size": 635304128
+    },
+    {
+     "rel": "project-data-05.zip",
+     "size": 604327599
+    },
+    {
+     "rel": "project-data-06.zip",
+     "size": 491
+    },
+    {
+     "rel": "project-data-07.zip",
+     "size": 634972267
+    },
+    {
+     "rel": "project-data-08.zip",
+     "size": 635496748
+    },
+    {
+     "rel": "project-data-09.zip",
+     "size": 634508551
+    },
+    {
+     "rel": "project-data-10.zip",
+     "size": 635997213
+    },
+    {
+     "rel": "project-data-11.zip",
+     "size": 635551133
+    },
+    {
+     "rel": "project-data-12.zip",
+     "size": 539095653
+    },
+    {
+     "rel": "project-data-13.zip",
+     "size": 178624393
+    },
+    {
+     "rel": "project-data-14.zip",
+     "size": 101274435
+    },
+    {
+     "rel": "project-data-15.zip",
+     "size": 72383066
+    },
+    {
+     "rel": "project-data-16.zip",
+     "size": 136384432
+    },
+    {
+     "rel": "project-data-17.zip",
+     "size": 72602020
+    },
+    {
+     "rel": "project-data-18.zip",
+     "size": 112239517
+    },
+    {
+     "rel": "project-data-19.zip",
+     "size": 91131243
+    },
+    {
+     "rel": "project-data-20.zip",
+     "size": 248621841
+    },
+    {
+     "rel": "project-data-21.zip",
+     "size": 90059044
+    },
+    {
+     "rel": "project-data-22.zip",
+     "size": 42612781
+    },
+    {
+     "rel": "release-upload.stderr.log",
+     "size": 594
+    },
+    {
+     "rel": "release-upload.stdout.log",
+     "size": 3410
+    },
+    {
+     "rel": "runtime-inventory.json",
+     "size": 948186
+    },
+    {
+     "rel": "runtime-manifest.json",
+     "size": 8215
+    }
+   ]
+  },
+  "voice-reference.pre-migration.bak": {
+   "path": "C:\\Users\\mail\\Documents\\ChatGPT\\自动钢琴陪练系统\\.sites-runtime\\voice-reference.pre-migration.bak",
+   "total_bytes": 6822705356,
+   "file_count": 469,
+   "files": [
+    {
+     "rel": "1a25e89d017f79ff971997a8df699e41.json",
+     "size": 627
+    },
+    {
+     "rel": "1a25e89d017f79ff971997a8df699e41.mp4",
+     "size": 1944762
+    },
+    {
+     "rel": "3a681c110b54f0cf4eb2eb67cda13228.json",
+     "size": 706
+    },
+    {
+     "rel": "3a681c110b54f0cf4eb2eb67cda13228.m4a",
+     "size": 414738
+    },
+    {
+     "rel": "62ebafd3dfe212b997fdd12122cfece4.json",
+     "size": 628
+    },
+    {
+     "rel": "62ebafd3dfe212b997fdd12122cfece4.mp4",
+     "size": 30802983
+    },
+    {
+     "rel": "7046fbec5a59634d80c32285c496f190.json",
+     "size": 740
+    },
+    {
+     "rel": "7046fbec5a59634d80c32285c496f190.m4a",
+     "size": 429047
+    },
+    {
+     "rel": "9bbc40259f4c1ae598f28edef7c0c60f.json",
+     "size": 753
+    },
+    {
+     "rel": "9bbc40259f4c1ae598f28edef7c0c60f.m4a",
+     "size": 460817
+    },
+    {
+     "rel": "access-key",
+     "size": 43
+    },
+    {
+     "rel": "active-mentor-reference",
+     "size": 32
+    },
+    {
+     "rel": "dataset\\manifest.json",
+     "size": 17828
+    },
+    {
+     "rel": "dataset\\mentor\\1a25e89d017f79ff971997a8df699e41-000.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\1a25e89d017f79ff971997a8df699e41-001.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\1a25e89d017f79ff971997a8df699e41-002.wav",
+     "size": 452092
+    },
+    {
+     "rel": "dataset\\mentor\\62ebafd3dfe212b997fdd12122cfece4-000.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\62ebafd3dfe212b997fdd12122cfece4-001.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\62ebafd3dfe212b997fdd12122cfece4-002.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\62ebafd3dfe212b997fdd12122cfece4-003.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\62ebafd3dfe212b997fdd12122cfece4-004.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\62ebafd3dfe212b997fdd12122cfece4-005.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\62ebafd3dfe212b997fdd12122cfece4-006.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\62ebafd3dfe212b997fdd12122cfece4-007.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\62ebafd3dfe212b997fdd12122cfece4-008.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\62ebafd3dfe212b997fdd12122cfece4-009.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\62ebafd3dfe212b997fdd12122cfece4-010.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\62ebafd3dfe212b997fdd12122cfece4-011.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\62ebafd3dfe212b997fdd12122cfece4-012.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\62ebafd3dfe212b997fdd12122cfece4-013.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\62ebafd3dfe212b997fdd12122cfece4-014.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\62ebafd3dfe212b997fdd12122cfece4-015.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\62ebafd3dfe212b997fdd12122cfece4-016.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\62ebafd3dfe212b997fdd12122cfece4-017.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\62ebafd3dfe212b997fdd12122cfece4-018.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\62ebafd3dfe212b997fdd12122cfece4-019.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\62ebafd3dfe212b997fdd12122cfece4-020.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\62ebafd3dfe212b997fdd12122cfece4-021.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\62ebafd3dfe212b997fdd12122cfece4-022.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\62ebafd3dfe212b997fdd12122cfece4-023.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\62ebafd3dfe212b997fdd12122cfece4-024.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\62ebafd3dfe212b997fdd12122cfece4-025.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\62ebafd3dfe212b997fdd12122cfece4-026.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\62ebafd3dfe212b997fdd12122cfece4-027.wav",
+     "size": 173350
+    },
+    {
+     "rel": "dataset\\mentor\\f922ad0fa273a637876ad1b4d9ddbef3-000.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\f922ad0fa273a637876ad1b4d9ddbef3-001.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\f922ad0fa273a637876ad1b4d9ddbef3-002.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\f922ad0fa273a637876ad1b4d9ddbef3-003.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\f922ad0fa273a637876ad1b4d9ddbef3-004.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\f922ad0fa273a637876ad1b4d9ddbef3-005.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\mentor\\f922ad0fa273a637876ad1b4d9ddbef3-006.wav",
+     "size": 560326
+    },
+    {
+     "rel": "dataset\\tang\\3a681c110b54f0cf4eb2eb67cda13228-000.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\tang\\3a681c110b54f0cf4eb2eb67cda13228-001.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\tang\\3a681c110b54f0cf4eb2eb67cda13228-002.wav",
+     "size": 161678
+    },
+    {
+     "rel": "dataset\\tang\\7046fbec5a59634d80c32285c496f190-000.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\tang\\7046fbec5a59634d80c32285c496f190-001.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\tang\\7046fbec5a59634d80c32285c496f190-002.wav",
+     "size": 201614
+    },
+    {
+     "rel": "dataset\\tang\\9bbc40259f4c1ae598f28edef7c0c60f-000.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\tang\\9bbc40259f4c1ae598f28edef7c0c60f-001.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\tang\\9bbc40259f4c1ae598f28edef7c0c60f-002.wav",
+     "size": 299918
+    },
+    {
+     "rel": "dataset\\tang\\ddbaeca4c9704c390bf1dc50d26b7eb6-000.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\tang\\ddbaeca4c9704c390bf1dc50d26b7eb6-001.wav",
+     "size": 576078
+    },
+    {
+     "rel": "dataset\\tang\\ddbaeca4c9704c390bf1dc50d26b7eb6-002.wav",
+     "size": 153486
+    },
+    {
+     "rel": "ddbaeca4c9704c390bf1dc50d26b7eb6.json",
+     "size": 704
+    },
+    {
+     "rel": "ddbaeca4c9704c390bf1dc50d26b7eb6.m4a",
+     "size": 414851
+    },
+    {
+     "rel": "f922ad0fa273a637876ad1b4d9ddbef3.json",
+     "size": 627
+    },
+    {
+     "rel": "f922ad0fa273a637876ad1b4d9ddbef3.mp4",
+     "size": 6756983
+    },
+    {
+     "rel": "hq-check.wav",
+     "size": 4809
+    },
+    {
+     "rel": "processed\\1a25e89d017f79ff971997a8df699e41\\reference-clean.wav",
+     "size": 1570490
+    },
+    {
+     "rel": "processed\\1a25e89d017f79ff971997a8df699e41\\transcript.json",
+     "size": 1055
+    },
+    {
+     "rel": "processed\\62ebafd3dfe212b997fdd12122cfece4\\mentor-preface-trial.wav",
+     "size": 541620
+    },
+    {
+     "rel": "processed\\62ebafd3dfe212b997fdd12122cfece4\\reference-best.wav",
+     "size": 662478
+    },
+    {
+     "rel": "processed\\62ebafd3dfe212b997fdd12122cfece4\\reference-clean.wav",
+     "size": 15271750
+    },
+    {
+     "rel": "processed\\62ebafd3dfe212b997fdd12122cfece4\\sample-0.json",
+     "size": 579
+    },
+    {
+     "rel": "processed\\62ebafd3dfe212b997fdd12122cfece4\\sample-0.wav",
+     "size": 1440078
+    },
+    {
+     "rel": "processed\\62ebafd3dfe212b997fdd12122cfece4\\transcript.json",
+     "size": 10067
+    },
+    {
+     "rel": "processed\\ddbaeca4c9704c390bf1dc50d26b7eb6\\reference-short.wav",
+     "size": 508878
+    },
+    {
+     "rel": "processed\\ddbaeca4c9704c390bf1dc50d26b7eb6\\reference.wav",
+     "size": 1271886
+    },
+    {
+     "rel": "processed\\ddbaeca4c9704c390bf1dc50d26b7eb6\\self-narration-trial.wav",
+     "size": 721182
+    },
+    {
+     "rel": "processed\\f922ad0fa273a637876ad1b4d9ddbef3\\mentor-cosy-longref.log",
+     "size": 123
+    },
+    {
+     "rel": "processed\\f922ad0fa273a637876ad1b4d9ddbef3\\mentor-preface-cosy-longref.wav",
+     "size": 44
+    },
+    {
+     "rel": "processed\\f922ad0fa273a637876ad1b4d9ddbef3\\mentor-preface-cosy.m4a",
+     "size": 34745
+    },
+    {
+     "rel": "processed\\f922ad0fa273a637876ad1b4d9ddbef3\\mentor-preface-cosy.wav",
+     "size": 211244
+    },
+    {
+     "rel": "processed\\f922ad0fa273a637876ad1b4d9ddbef3\\mentor-preface-full.wav",
+     "size": 299564
+    },
+    {
+     "rel": "processed\\f922ad0fa273a637876ad1b4d9ddbef3\\mentor-preface-hq.wav",
+     "size": 404524
+    },
+    {
+     "rel": "processed\\f922ad0fa273a637876ad1b4d9ddbef3\\mentor-preface-trained.wav",
+     "size": 299564
+    },
+    {
+     "rel": "processed\\f922ad0fa273a637876ad1b4d9ddbef3\\mentor-preface-trial.wav",
+     "size": 404524
+    },
+    {
+     "rel": "processed\\f922ad0fa273a637876ad1b4d9ddbef3\\reference-clean.wav",
+     "size": 3915520
+    },
+    {
+     "rel": "processed\\f922ad0fa273a637876ad1b4d9ddbef3\\reference-clip.wav",
+     "size": 326478
+    },
+    {
+     "rel": "processed\\f922ad0fa273a637876ad1b4d9ddbef3\\reference-long-clean.wav",
+     "size": 801678
+    },
+    {
+     "rel": "processed\\f922ad0fa273a637876ad1b4d9ddbef3\\transcript.json",
+     "size": 3118
+    },
+    {
+     "rel": "quality-check.wav",
+     "size": 541620
+    },
+    {
+     "rel": "self-check.wav",
+     "size": 721182
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\best.pt",
+     "size": 64276
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\comparison-tokens.pt",
+     "size": 1756
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\dataset.json",
+     "size": 41894
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\1a25e89d017f79ff971997a8df699e41-0.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\1a25e89d017f79ff971997a8df699e41-1.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\1a25e89d017f79ff971997a8df699e41-2.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\1a25e89d017f79ff971997a8df699e41-3.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\1a25e89d017f79ff971997a8df699e41-4.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\1a25e89d017f79ff971997a8df699e41-5.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\1a25e89d017f79ff971997a8df699e41-6.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-0.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-1.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-10.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-11.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-12.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-13.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-14.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-15.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-16.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-17.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-18.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-19.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-2.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-20.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-21.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-22.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-23.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-24.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-25.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-26.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-27.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-28.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-29.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-3.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-30.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-31.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-32.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-33.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-34.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-35.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-36.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-37.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-38.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-39.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-4.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-40.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-41.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-42.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-43.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-44.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-45.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-46.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-47.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-48.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-49.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-5.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-50.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-51.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-52.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-53.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-54.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-55.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-56.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-57.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-58.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-59.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-6.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-60.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-61.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-62.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-63.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-64.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-65.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-66.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-67.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-68.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-69.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-7.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-70.pt",
+     "size": 102868
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-8.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-9.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-0.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-1.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-10.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-11.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-12.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-13.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-14.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-15.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-16.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-17.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-2.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-3.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-4.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-5.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-6.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-7.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-8.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-9.pt",
+     "size": 146388
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\last.pt",
+     "size": 189180
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\1a25e89d017f79ff971997a8df699e41-0.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\1a25e89d017f79ff971997a8df699e41-1.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\1a25e89d017f79ff971997a8df699e41-2.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\1a25e89d017f79ff971997a8df699e41-3.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\1a25e89d017f79ff971997a8df699e41-4.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\1a25e89d017f79ff971997a8df699e41-5.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\1a25e89d017f79ff971997a8df699e41-6.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-0.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-1.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-10.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-11.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-12.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-13.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-14.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-15.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-16.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-17.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-18.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-19.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-2.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-20.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-21.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-22.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-23.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-24.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-25.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-26.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-27.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-28.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-29.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-3.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-30.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-31.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-32.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-33.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-34.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-35.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-36.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-37.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-38.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-39.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-4.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-40.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-41.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-42.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-43.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-44.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-45.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-46.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-47.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-48.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-49.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-5.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-50.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-51.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-52.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-53.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-54.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-55.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-56.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-57.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-58.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-59.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-6.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-60.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-61.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-62.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-63.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-64.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-65.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-66.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-67.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-68.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-69.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-7.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-70.wav",
+     "size": 151716
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-8.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\62ebafd3dfe212b997fdd12122cfece4-9.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\f922ad0fa273a637876ad1b4d9ddbef3-0.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\f922ad0fa273a637876ad1b4d9ddbef3-1.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\f922ad0fa273a637876ad1b4d9ddbef3-10.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\f922ad0fa273a637876ad1b4d9ddbef3-11.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\f922ad0fa273a637876ad1b4d9ddbef3-12.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\f922ad0fa273a637876ad1b4d9ddbef3-13.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\f922ad0fa273a637876ad1b4d9ddbef3-14.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\f922ad0fa273a637876ad1b4d9ddbef3-15.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\f922ad0fa273a637876ad1b4d9ddbef3-16.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\f922ad0fa273a637876ad1b4d9ddbef3-17.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\f922ad0fa273a637876ad1b4d9ddbef3-2.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\f922ad0fa273a637876ad1b4d9ddbef3-3.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\f922ad0fa273a637876ad1b4d9ddbef3-4.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\f922ad0fa273a637876ad1b4d9ddbef3-5.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\f922ad0fa273a637876ad1b4d9ddbef3-6.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\f922ad0fa273a637876ad1b4d9ddbef3-7.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\f922ad0fa273a637876ad1b4d9ddbef3-8.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\segments\\f922ad0fa273a637876ad1b4d9ddbef3-9.wav",
+     "size": 216044
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\selected.pt",
+     "size": 64660
+    },
+    {
+     "rel": "training\\mentor-acoustic-v1\\synthesis.log",
+     "size": 25822
+    },
+    {
+     "rel": "training\\mentor-full-v1\\acoustic-smoke.json",
+     "size": 391
+    },
+    {
+     "rel": "training\\mentor-full-v1\\acoustic-smoke.log",
+     "size": 759
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\1a25e89d017f79ff971997a8df699e41-0.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\1a25e89d017f79ff971997a8df699e41-1.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\1a25e89d017f79ff971997a8df699e41-2.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\1a25e89d017f79ff971997a8df699e41-3.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\1a25e89d017f79ff971997a8df699e41-4.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\1a25e89d017f79ff971997a8df699e41-5.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\1a25e89d017f79ff971997a8df699e41-6.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-0.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-1.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-10.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-11.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-12.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-13.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-14.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-15.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-16.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-17.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-18.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-19.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-2.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-20.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-21.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-22.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-23.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-24.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-25.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-26.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-27.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-28.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-29.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-3.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-30.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-31.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-32.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-33.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-34.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-35.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-36.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-37.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-38.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-39.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-4.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-40.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-41.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-42.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-43.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-44.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-45.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-46.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-47.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-48.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-49.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-5.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-50.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-51.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-52.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-53.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-54.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-55.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-56.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-57.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-58.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-59.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-6.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-60.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-61.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-62.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-63.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-64.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-65.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-66.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-67.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-68.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-69.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-7.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-70.pt",
+     "size": 53452
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-8.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\62ebafd3dfe212b997fdd12122cfece4-9.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-0.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-1.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-10.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-11.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-12.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-13.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-14.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-15.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-16.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-17.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-2.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-3.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-4.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-5.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-6.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-7.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-8.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\features\\f922ad0fa273a637876ad1b4d9ddbef3-9.pt",
+     "size": 75404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\flow-candidate.pt",
+     "size": 1329171358
+    },
+    {
+     "rel": "training\\mentor-full-v1\\flow-smoke.pt",
+     "size": 1329171294
+    },
+    {
+     "rel": "training\\mentor-full-v1\\full-preview.log",
+     "size": 23454
+    },
+    {
+     "rel": "training\\mentor-full-v1\\full-training.log",
+     "size": 17182
+    },
+    {
+     "rel": "training\\mentor-full-v1\\pagefile-change.json",
+     "size": 529
+    },
+    {
+     "rel": "training\\mentor-full-v1\\pagefile-original.json",
+     "size": 275
+    },
+    {
+     "rel": "training\\mentor-full-v1\\preflight.json",
+     "size": 514
+    },
+    {
+     "rel": "training\\mentor-full-v1\\resume.pt",
+     "size": 3987505444
+    },
+    {
+     "rel": "training\\mentor-full-v1\\training.json",
+     "size": 770
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances.json",
+     "size": 24486
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\1a25e89d017f79ff971997a8df699e41-0.wav",
+     "size": 616364
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\1a25e89d017f79ff971997a8df699e41-1.wav",
+     "size": 463724
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\1a25e89d017f79ff971997a8df699e41-2.wav",
+     "size": 490456
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-0.wav",
+     "size": 420488
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-1.wav",
+     "size": 489644
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-10.wav",
+     "size": 214124
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-11.wav",
+     "size": 237164
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-12.wav",
+     "size": 438764
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-13.wav",
+     "size": 272684
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-14.wav",
+     "size": 539564
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-15.wav",
+     "size": 154604
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-16.wav",
+     "size": 498284
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-17.wav",
+     "size": 565484
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-18.wav",
+     "size": 248684
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-19.wav",
+     "size": 191084
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-2.wav",
+     "size": 491564
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-20.wav",
+     "size": 212890
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-21.wav",
+     "size": 173804
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-22.wav",
+     "size": 181484
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-23.wav",
+     "size": 220844
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-24.wav",
+     "size": 173804
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-25.wav",
+     "size": 264044
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-26.wav",
+     "size": 191084
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-27.wav",
+     "size": 192044
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-28.wav",
+     "size": 484844
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-29.wav",
+     "size": 133484
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-3.wav",
+     "size": 378284
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-30.wav",
+     "size": 478124
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-31.wav",
+     "size": 351404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-32.wav",
+     "size": 266924
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-33.wav",
+     "size": 605804
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-34.wav",
+     "size": 637484
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-35.wav",
+     "size": 514604
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-36.wav",
+     "size": 126764
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-37.wav",
+     "size": 164204
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-38.wav",
+     "size": 499244
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-39.wav",
+     "size": 260204
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-4.wav",
+     "size": 130604
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-40.wav",
+     "size": 541484
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-41.wav",
+     "size": 299564
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-42.wav",
+     "size": 109484
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-43.wav",
+     "size": 438764
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-44.wav",
+     "size": 522276
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-5.wav",
+     "size": 141164
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-6.wav",
+     "size": 317804
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-7.wav",
+     "size": 432044
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-8.wav",
+     "size": 591404
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\62ebafd3dfe212b997fdd12122cfece4-9.wav",
+     "size": 455084
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\f922ad0fa273a637876ad1b4d9ddbef3-0.wav",
+     "size": 472430
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\f922ad0fa273a637876ad1b4d9ddbef3-1.wav",
+     "size": 569324
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\f922ad0fa273a637876ad1b4d9ddbef3-2.wav",
+     "size": 620204
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\f922ad0fa273a637876ad1b4d9ddbef3-3.wav",
+     "size": 505004
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\f922ad0fa273a637876ad1b4d9ddbef3-4.wav",
+     "size": 604844
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\f922ad0fa273a637876ad1b4d9ddbef3-5.wav",
+     "size": 490604
+    },
+    {
+     "rel": "training\\mentor-full-v1\\utterances\\f922ad0fa273a637876ad1b4d9ddbef3-6.wav",
+     "size": 643460
+    },
+    {
+     "rel": "training\\voxcpm-mentor-lora-v1\\dataset.json",
+     "size": 25804
+    },
+    {
+     "rel": "training\\voxcpm-mentor-lora-v1\\lora_config.json",
+     "size": 305
+    },
+    {
+     "rel": "training\\voxcpm-mentor-lora-v1\\lora_weights.ckpt",
+     "size": 420931
+    },
+    {
+     "rel": "training\\voxcpm-mentor-lora-v1\\progress.json",
+     "size": 451
+    },
+    {
+     "rel": "trial-fetch-test.wav",
+     "size": 404524
+    },
+    {
+     "rel": "voxcpm-all-materials\\1a25e89d017f79ff971997a8df699e41.transcript.json",
+     "size": 1901
+    },
+    {
+     "rel": "voxcpm-all-materials\\1a25e89d017f79ff971997a8df699e41.wav",
+     "size": 1047020
+    },
+    {
+     "rel": "voxcpm-all-materials\\62ebafd3dfe212b997fdd12122cfece4.transcript.json",
+     "size": 20679
+    },
+    {
+     "rel": "voxcpm-all-materials\\62ebafd3dfe212b997fdd12122cfece4.wav",
+     "size": 10181192
+    },
+    {
+     "rel": "voxcpm-all-materials\\f922ad0fa273a637876ad1b4d9ddbef3.transcript.json",
+     "size": 5875
+    },
+    {
+     "rel": "voxcpm-all-materials\\f922ad0fa273a637876ad1b4d9ddbef3.wav",
+     "size": 2610372
+    },
+    {
+     "rel": "voxcpm-all-materials\\profile.json",
+     "size": 2322
+    },
+    {
+     "rel": "voxcpm-all-materials\\progress.json",
+     "size": 133
+    },
+    {
+     "rel": "voxcpm-all-materials\\reference-multisource.wav",
+     "size": 782764
+    },
+    {
+     "rel": "zipvoice-selftest.wav",
+     "size": 275500
+    }
+   ]
+  },
+  "SadTalker.pre-migration.bak": {
+   "path": "C:\\Users\\mail\\Documents\\ChatGPT\\自动钢琴陪练系统\\.sites-runtime\\SadTalker.pre-migration.bak",
+   "total_bytes": 1329017000,
+   "file_count": 276,
+   "files": [
+    {
+     "rel": ".git\\HEAD",
+     "size": 21
+    },
+    {
+     "rel": ".git\\config",
+     "size": 308
+    },
+    {
+     "rel": ".git\\description",
+     "size": 73
+    },
+    {
+     "rel": ".git\\hooks\\applypatch-msg.sample",
+     "size": 478
+    },
+    {
+     "rel": ".git\\hooks\\commit-msg.sample",
+     "size": 896
+    },
+    {
+     "rel": ".git\\hooks\\fsmonitor-watchman.sample",
+     "size": 4726
+    },
+    {
+     "rel": ".git\\hooks\\post-update.sample",
+     "size": 189
+    },
+    {
+     "rel": ".git\\hooks\\pre-applypatch.sample",
+     "size": 424
+    },
+    {
+     "rel": ".git\\hooks\\pre-commit.sample",
+     "size": 1649
+    },
+    {
+     "rel": ".git\\hooks\\pre-merge-commit.sample",
+     "size": 416
+    },
+    {
+     "rel": ".git\\hooks\\pre-push.sample",
+     "size": 1374
+    },
+    {
+     "rel": ".git\\hooks\\pre-rebase.sample",
+     "size": 4898
+    },
+    {
+     "rel": ".git\\hooks\\pre-receive.sample",
+     "size": 544
+    },
+    {
+     "rel": ".git\\hooks\\prepare-commit-msg.sample",
+     "size": 1492
+    },
+    {
+     "rel": ".git\\hooks\\push-to-checkout.sample",
+     "size": 2783
+    },
+    {
+     "rel": ".git\\hooks\\sendemail-validate.sample",
+     "size": 2308
+    },
+    {
+     "rel": ".git\\hooks\\update.sample",
+     "size": 3650
+    },
+    {
+     "rel": ".git\\index",
+     "size": 20480
+    },
+    {
+     "rel": ".git\\info\\exclude",
+     "size": 240
+    },
+    {
+     "rel": ".git\\logs\\HEAD",
+     "size": 190
+    },
+    {
+     "rel": ".git\\logs\\refs\\heads\\main",
+     "size": 190
+    },
+    {
+     "rel": ".git\\logs\\refs\\remotes\\origin\\HEAD",
+     "size": 190
+    },
+    {
+     "rel": ".git\\objects\\pack\\pack-9b67bf897edc20b1cd8ff802b41f4cc3fb26b3eb.idx",
+     "size": 7232
+    },
+    {
+     "rel": ".git\\objects\\pack\\pack-9b67bf897edc20b1cd8ff802b41f4cc3fb26b3eb.pack",
+     "size": 70589512
+    },
+    {
+     "rel": ".git\\objects\\pack\\pack-9b67bf897edc20b1cd8ff802b41f4cc3fb26b3eb.rev",
+     "size": 932
+    },
+    {
+     "rel": ".git\\packed-refs",
+     "size": 112
+    },
+    {
+     "rel": ".git\\refs\\heads\\main",
+     "size": 41
+    },
+    {
+     "rel": ".git\\refs\\remotes\\origin\\HEAD",
+     "size": 30
+    },
+    {
+     "rel": ".git\\shallow",
+     "size": 41
+    },
+    {
+     "rel": ".gitignore",
+     "size": 3379
+    },
+    {
+     "rel": "LICENSE",
+     "size": 11901
+    },
+    {
+     "rel": "README.md",
+     "size": 17422
+    },
+    {
+     "rel": "app_sadtalker.py",
+     "size": 5950
+    },
+    {
+     "rel": "checkpoints\\SadTalker_V0.0.2_256.safetensors",
+     "size": 725066984
+    },
+    {
+     "rel": "checkpoints\\SadTalker_V0.0.2_256.safetensors.download.json",
+     "size": 131
+    },
+    {
+     "rel": "checkpoints\\mapping_00229-model.pth.tar",
+     "size": 155521183
+    },
+    {
+     "rel": "checkpoints\\mapping_00229-model.pth.tar.download.json",
+     "size": 126
+    },
+    {
+     "rel": "cog.yaml",
+     "size": 1150
+    },
+    {
+     "rel": "docs\\FAQ.md",
+     "size": 2214
+    },
+    {
+     "rel": "docs\\best_practice.md",
+     "size": 5436
+    },
+    {
+     "rel": "docs\\changlelog.md",
+     "size": 2259
+    },
+    {
+     "rel": "docs\\example_crop.gif",
+     "size": 1548875
+    },
+    {
+     "rel": "docs\\example_crop_still.gif",
+     "size": 1247001
+    },
+    {
+     "rel": "docs\\example_full.gif",
+     "size": 1460241
+    },
+    {
+     "rel": "docs\\example_full_crop.gif",
+     "size": 836970
+    },
+    {
+     "rel": "docs\\example_full_enhanced.gif",
+     "size": 5782360
+    },
+    {
+     "rel": "docs\\face3d.md",
+     "size": 1459
+    },
+    {
+     "rel": "docs\\free_view_result.gif",
+     "size": 5611296
+    },
+    {
+     "rel": "docs\\install.md",
+     "size": 1274
+    },
+    {
+     "rel": "docs\\resize_good.gif",
+     "size": 1728710
+    },
+    {
+     "rel": "docs\\resize_no.gif",
+     "size": 2138585
+    },
+    {
+     "rel": "docs\\sadtalker_logo.png",
+     "size": 34349
+    },
+    {
+     "rel": "docs\\using_ref_video.gif",
+     "size": 8111572
+    },
+    {
+     "rel": "docs\\webui_extension.md",
+     "size": 2119
+    },
+    {
+     "rel": "examples\\driven_audio\\RD_Radio31_000.wav",
+     "size": 512044
+    },
+    {
+     "rel": "examples\\driven_audio\\RD_Radio34_002.wav",
+     "size": 512044
+    },
+    {
+     "rel": "examples\\driven_audio\\RD_Radio36_000.wav",
+     "size": 512044
+    },
+    {
+     "rel": "examples\\driven_audio\\RD_Radio40_000.wav",
+     "size": 512044
+    },
+    {
+     "rel": "examples\\driven_audio\\bus_chinese.wav",
+     "size": 652276
+    },
+    {
+     "rel": "examples\\driven_audio\\chinese_news.wav",
+     "size": 1536078
+    },
+    {
+     "rel": "examples\\driven_audio\\chinese_poem1.wav",
+     "size": 262734
+    },
+    {
+     "rel": "examples\\driven_audio\\chinese_poem2.wav",
+     "size": 460878
+    },
+    {
+     "rel": "examples\\driven_audio\\deyu.wav",
+     "size": 2694784
+    },
+    {
+     "rel": "examples\\driven_audio\\eluosi.wav",
+     "size": 1786672
+    },
+    {
+     "rel": "examples\\driven_audio\\fayu.wav",
+     "size": 1940428
+    },
+    {
+     "rel": "examples\\driven_audio\\imagine.wav",
+     "size": 1618510
+    },
+    {
+     "rel": "examples\\driven_audio\\itosinger1.wav",
+     "size": 500012
+    },
+    {
+     "rel": "examples\\driven_audio\\japanese.wav",
+     "size": 2622712
+    },
+    {
+     "rel": "examples\\ref_video\\WDA_AlexandriaOcasioCortez_000.mp4",
+     "size": 2257667
+    },
+    {
+     "rel": "examples\\ref_video\\WDA_KatieHill_000.mp4",
+     "size": 3548230
+    },
+    {
+     "rel": "examples\\source_image\\art_0.png",
+     "size": 750139
+    },
+    {
+     "rel": "examples\\source_image\\art_1.png",
+     "size": 489361
+    },
+    {
+     "rel": "examples\\source_image\\art_10.png",
+     "size": 569012
+    },
+    {
+     "rel": "examples\\source_image\\art_11.png",
+     "size": 488957
+    },
+    {
+     "rel": "examples\\source_image\\art_12.png",
+     "size": 721100
+    },
+    {
+     "rel": "examples\\source_image\\art_13.png",
+     "size": 632028
+    },
+    {
+     "rel": "examples\\source_image\\art_14.png",
+     "size": 650288
+    },
+    {
+     "rel": "examples\\source_image\\art_15.png",
+     "size": 673057
+    },
+    {
+     "rel": "examples\\source_image\\art_16.png",
+     "size": 1480263
+    },
+    {
+     "rel": "examples\\source_image\\art_17.png",
+     "size": 2092096
+    },
+    {
+     "rel": "examples\\source_image\\art_18.png",
+     "size": 117636
+    },
+    {
+     "rel": "examples\\source_image\\art_19.png",
+     "size": 472941
+    },
+    {
+     "rel": "examples\\source_image\\art_2.png",
+     "size": 831523
+    },
+    {
+     "rel": "examples\\source_image\\art_20.png",
+     "size": 710209
+    },
+    {
+     "rel": "examples\\source_image\\art_3.png",
+     "size": 1353396
+    },
+    {
+     "rel": "examples\\source_image\\art_4.png",
+     "size": 3625669
+    },
+    {
+     "rel": "examples\\source_image\\art_5.png",
+     "size": 1228028
+    },
+    {
+     "rel": "examples\\source_image\\art_6.png",
+     "size": 100895
+    },
+    {
+     "rel": "examples\\source_image\\art_7.png",
+     "size": 521425
+    },
+    {
+     "rel": "examples\\source_image\\art_8.png",
+     "size": 3119298
+    },
+    {
+     "rel": "examples\\source_image\\art_9.png",
+     "size": 1262963
+    },
+    {
+     "rel": "examples\\source_image\\full3.png",
+     "size": 632218
+    },
+    {
+     "rel": "examples\\source_image\\full4.jpeg",
+     "size": 26845
+    },
+    {
+     "rel": "examples\\source_image\\full_body_1.png",
+     "size": 125282
+    },
+    {
+     "rel": "examples\\source_image\\full_body_2.png",
+     "size": 137283
+    },
+    {
+     "rel": "examples\\source_image\\happy.png",
+     "size": 110422
+    },
+    {
+     "rel": "examples\\source_image\\happy1.png",
+     "size": 44033
+    },
+    {
+     "rel": "examples\\source_image\\people_0.png",
+     "size": 244061
+    },
+    {
+     "rel": "examples\\source_image\\sad.png",
+     "size": 110307
+    },
+    {
+     "rel": "examples\\source_image\\sad1.png",
+     "size": 44796
+    },
+    {
+     "rel": "gfpgan\\weights\\alignment_WFLW_4HG.pth",
+     "size": 193670248
+    },
+    {
+     "rel": "gfpgan\\weights\\alignment_WFLW_4HG.pth.download.json",
+     "size": 114
+    },
+    {
+     "rel": "gfpgan\\weights\\detection_Resnet50_Final.pth",
+     "size": 109497761
+    },
+    {
+     "rel": "gfpgan\\weights\\detection_Resnet50_Final.pth.download.json",
+     "size": 120
+    },
+    {
+     "rel": "inference.py",
+     "size": 7755
+    },
+    {
+     "rel": "launcher.py",
+     "size": 7242
+    },
+    {
+     "rel": "predict.py",
+     "size": 6673
+    },
+    {
+     "rel": "quick_demo.ipynb",
+     "size": 7140
+    },
+    {
+     "rel": "req.txt",
+     "size": 328
+    },
+    {
+     "rel": "requirements.txt",
+     "size": 298
+    },
+    {
+     "rel": "requirements3d.txt",
+     "size": 308
+    },
+    {
+     "rel": "scripts\\download_models.sh",
+     "size": 2795
+    },
+    {
+     "rel": "scripts\\extension.py",
+     "size": 6754
+    },
+    {
+     "rel": "scripts\\test.sh",
+     "size": 876
+    },
+    {
+     "rel": "src\\__pycache__\\generate_batch.cpython-310.pyc",
+     "size": 3574
+    },
+    {
+     "rel": "src\\__pycache__\\generate_facerender_batch.cpython-310.pyc",
+     "size": 4099
+    },
+    {
+     "rel": "src\\__pycache__\\test_audio2coeff.cpython-310.pyc",
+     "size": 3945
+    },
+    {
+     "rel": "src\\audio2exp_models\\__pycache__\\audio2exp.cpython-310.pyc",
+     "size": 1320
+    },
+    {
+     "rel": "src\\audio2exp_models\\__pycache__\\networks.cpython-310.pyc",
+     "size": 2185
+    },
+    {
+     "rel": "src\\audio2exp_models\\audio2exp.py",
+     "size": 1294
+    },
+    {
+     "rel": "src\\audio2exp_models\\networks.py",
+     "size": 3051
+    },
+    {
+     "rel": "src\\audio2pose_models\\__pycache__\\audio2pose.cpython-310.pyc",
+     "size": 2892
+    },
+    {
+     "rel": "src\\audio2pose_models\\__pycache__\\audio_encoder.cpython-310.pyc",
+     "size": 2208
+    },
+    {
+     "rel": "src\\audio2pose_models\\__pycache__\\cvae.cpython-310.pyc",
+     "size": 4667
+    },
+    {
+     "rel": "src\\audio2pose_models\\__pycache__\\discriminator.cpython-310.pyc",
+     "size": 2494
+    },
+    {
+     "rel": "src\\audio2pose_models\\__pycache__\\networks.cpython-310.pyc",
+     "size": 4627
+    },
+    {
+     "rel": "src\\audio2pose_models\\__pycache__\\res_unet.cpython-310.pyc",
+     "size": 1950
+    },
+    {
+     "rel": "src\\audio2pose_models\\audio2pose.py",
+     "size": 3906
+    },
+    {
+     "rel": "src\\audio2pose_models\\audio_encoder.py",
+     "size": 2809
+    },
+    {
+     "rel": "src\\audio2pose_models\\cvae.py",
+     "size": 6221
+    },
+    {
+     "rel": "src\\audio2pose_models\\discriminator.py",
+     "size": 2744
+    },
+    {
+     "rel": "src\\audio2pose_models\\networks.py",
+     "size": 4386
+    },
+    {
+     "rel": "src\\audio2pose_models\\res_unet.py",
+     "size": 2293
+    },
+    {
+     "rel": "src\\config\\auido2exp.yaml",
+     "size": 1267
+    },
+    {
+     "rel": "src\\config\\auido2pose.yaml",
+     "size": 1146
+    },
+    {
+     "rel": "src\\config\\facerender.yaml",
+     "size": 1132
+    },
+    {
+     "rel": "src\\config\\facerender_still.yaml",
+     "size": 1132
+    },
+    {
+     "rel": "src\\config\\similarity_Lm3D_all.mat",
+     "size": 994
+    },
+    {
+     "rel": "src\\face3d\\__pycache__\\extract_kp_videos_safe.cpython-310.pyc",
+     "size": 4959
+    },
+    {
+     "rel": "src\\face3d\\data\\__init__.py",
+     "size": 4700
+    },
+    {
+     "rel": "src\\face3d\\data\\base_dataset.py",
+     "size": 4804
+    },
+    {
+     "rel": "src\\face3d\\data\\flist_dataset.py",
+     "size": 4218
+    },
+    {
+     "rel": "src\\face3d\\data\\image_folder.py",
+     "size": 2025
+    },
+    {
+     "rel": "src\\face3d\\data\\template_dataset.py",
+     "size": 3583
+    },
+    {
+     "rel": "src\\face3d\\extract_kp_videos.py",
+     "size": 4023
+    },
+    {
+     "rel": "src\\face3d\\extract_kp_videos_safe.py",
+     "size": 5856
+    },
+    {
+     "rel": "src\\face3d\\models\\__init__.py",
+     "size": 3157
+    },
+    {
+     "rel": "src\\face3d\\models\\__pycache__\\__init__.cpython-310.pyc",
+     "size": 3307
+    },
+    {
+     "rel": "src\\face3d\\models\\__pycache__\\base_model.cpython-310.pyc",
+     "size": 12501
+    },
+    {
+     "rel": "src\\face3d\\models\\__pycache__\\networks.cpython-310.pyc",
+     "size": 17100
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\README.md",
+     "size": 8761
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\backbones\\__init__.py",
+     "size": 846
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\backbones\\__pycache__\\__init__.cpython-310.pyc",
+     "size": 902
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\backbones\\__pycache__\\iresnet.cpython-310.pyc",
+     "size": 5388
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\backbones\\__pycache__\\mobilefacenet.cpython-310.pyc",
+     "size": 5475
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\backbones\\iresnet.py",
+     "size": 7336
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\backbones\\iresnet2060.py",
+     "size": 6884
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\backbones\\mobilefacenet.py",
+     "size": 5024
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\configs\\3millions.py",
+     "size": 542
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\configs\\3millions_pfc.py",
+     "size": 542
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\configs\\__init__.py",
+     "size": 0
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\configs\\base.py",
+     "size": 1684
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\configs\\glint360k_mbf.py",
+     "size": 673
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\configs\\glint360k_r100.py",
+     "size": 674
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\configs\\glint360k_r18.py",
+     "size": 673
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\configs\\glint360k_r34.py",
+     "size": 673
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\configs\\glint360k_r50.py",
+     "size": 673
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\configs\\ms1mv3_mbf.py",
+     "size": 677
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\configs\\ms1mv3_r18.py",
+     "size": 677
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\configs\\ms1mv3_r2060.py",
+     "size": 678
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\configs\\ms1mv3_r34.py",
+     "size": 677
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\configs\\ms1mv3_r50.py",
+     "size": 677
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\configs\\speed.py",
+     "size": 542
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\dataset.py",
+     "size": 3992
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\docs\\eval.md",
+     "size": 686
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\docs\\install.md",
+     "size": 1663
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\docs\\modelzoo.md",
+     "size": 0
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\docs\\speed_benchmark.md",
+     "size": 5758
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\eval\\__init__.py",
+     "size": 0
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\eval\\verification.py",
+     "size": 16499
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\eval_ijbc.py",
+     "size": 17767
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\inference.py",
+     "size": 1068
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\losses.py",
+     "size": 1179
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\onnx_helper.py",
+     "size": 10672
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\onnx_ijbc.py",
+     "size": 10588
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\partial_fc.py",
+     "size": 9714
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\requirement.txt",
+     "size": 45
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\run.sh",
+     "size": 262
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\torch2onnx.py",
+     "size": 2424
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\train.py",
+     "size": 6164
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\utils\\__init__.py",
+     "size": 0
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\utils\\plot.py",
+     "size": 2294
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\utils\\utils_amp.py",
+     "size": 3374
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\utils\\utils_callbacks.py",
+     "size": 5155
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\utils\\utils_config.py",
+     "size": 586
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\utils\\utils_logging.py",
+     "size": 1151
+    },
+    {
+     "rel": "src\\face3d\\models\\arcface_torch\\utils\\utils_os.py",
+     "size": 0
+    },
+    {
+     "rel": "src\\face3d\\models\\base_model.py",
+     "size": 13484
+    },
+    {
+     "rel": "src\\face3d\\models\\bfm.py",
+     "size": 12679
+    },
+    {
+     "rel": "src\\face3d\\models\\facerecon_model.py",
+     "size": 11063
+    },
+    {
+     "rel": "src\\face3d\\models\\losses.py",
+     "size": 4284
+    },
+    {
+     "rel": "src\\face3d\\models\\networks.py",
+     "size": 21291
+    },
+    {
+     "rel": "src\\face3d\\models\\template_model.py",
+     "size": 6072
+    },
+    {
+     "rel": "src\\face3d\\options\\__init__.py",
+     "size": 137
+    },
+    {
+     "rel": "src\\face3d\\options\\base_options.py",
+     "size": 7662
+    },
+    {
+     "rel": "src\\face3d\\options\\inference_options.py",
+     "size": 1194
+    },
+    {
+     "rel": "src\\face3d\\options\\test_options.py",
+     "size": 851
+    },
+    {
+     "rel": "src\\face3d\\options\\train_options.py",
+     "size": 3797
+    },
+    {
+     "rel": "src\\face3d\\util\\BBRegressorParam_r.mat",
+     "size": 22019
+    },
+    {
+     "rel": "src\\face3d\\util\\__init__.py",
+     "size": 117
+    },
+    {
+     "rel": "src\\face3d\\util\\__pycache__\\__init__.cpython-310.pyc",
+     "size": 330
+    },
+    {
+     "rel": "src\\face3d\\util\\__pycache__\\load_mats.cpython-310.pyc",
+     "size": 3015
+    },
+    {
+     "rel": "src\\face3d\\util\\__pycache__\\my_awing_arch.cpython-310.pyc",
+     "size": 9603
+    },
+    {
+     "rel": "src\\face3d\\util\\__pycache__\\preprocess.cpython-310.pyc",
+     "size": 3378
+    },
+    {
+     "rel": "src\\face3d\\util\\detect_lm68.py",
+     "size": 4139
+    },
+    {
+     "rel": "src\\face3d\\util\\generate_list.py",
+     "size": 1380
+    },
+    {
+     "rel": "src\\face3d\\util\\html.py",
+     "size": 3309
+    },
+    {
+     "rel": "src\\face3d\\util\\load_mats.py",
+     "size": 4564
+    },
+    {
+     "rel": "src\\face3d\\util\\my_awing_arch.py",
+     "size": 12881
+    },
+    {
+     "rel": "src\\face3d\\util\\nvdiffrast.py",
+     "size": 4753
+    },
+    {
+     "rel": "src\\face3d\\util\\preprocess.py",
+     "size": 3439
+    },
+    {
+     "rel": "src\\face3d\\util\\skin_mask.py",
+     "size": 5458
+    },
+    {
+     "rel": "src\\face3d\\util\\test_mean_face.txt",
+     "size": 3617
+    },
+    {
+     "rel": "src\\face3d\\util\\util.py",
+     "size": 6796
+    },
+    {
+     "rel": "src\\face3d\\util\\visualizer.py",
+     "size": 10712
+    },
+    {
+     "rel": "src\\face3d\\visualize.py",
+     "size": 1767
+    },
+    {
+     "rel": "src\\facerender\\__pycache__\\animate.cpython-310.pyc",
+     "size": 6983
+    },
+    {
+     "rel": "src\\facerender\\animate.py",
+     "size": 11786
+    },
+    {
+     "rel": "src\\facerender\\modules\\__pycache__\\dense_motion.cpython-310.pyc",
+     "size": 3961
+    },
+    {
+     "rel": "src\\facerender\\modules\\__pycache__\\generator.cpython-310.pyc",
+     "size": 6477
+    },
+    {
+     "rel": "src\\facerender\\modules\\__pycache__\\keypoint_detector.cpython-310.pyc",
+     "size": 4895
+    },
+    {
+     "rel": "src\\facerender\\modules\\__pycache__\\make_animation.cpython-310.pyc",
+     "size": 4788
+    },
+    {
+     "rel": "src\\facerender\\modules\\__pycache__\\mapping.cpython-310.pyc",
+     "size": 1728
+    },
+    {
+     "rel": "src\\facerender\\modules\\__pycache__\\util.cpython-310.pyc",
+     "size": 16354
+    },
+    {
+     "rel": "src\\facerender\\modules\\dense_motion.py",
+     "size": 5987
+    },
+    {
+     "rel": "src\\facerender\\modules\\discriminator.py",
+     "size": 2962
+    },
+    {
+     "rel": "src\\facerender\\modules\\generator.py",
+     "size": 11747
+    },
+    {
+     "rel": "src\\facerender\\modules\\keypoint_detector.py",
+     "size": 6866
+    },
+    {
+     "rel": "src\\facerender\\modules\\make_animation.py",
+     "size": 6971
+    },
+    {
+     "rel": "src\\facerender\\modules\\mapping.py",
+     "size": 1631
+    },
+    {
+     "rel": "src\\facerender\\modules\\util.py",
+     "size": 20736
+    },
+    {
+     "rel": "src\\facerender\\sync_batchnorm\\__init__.py",
+     "size": 461
+    },
+    {
+     "rel": "src\\facerender\\sync_batchnorm\\__pycache__\\__init__.cpython-310.pyc",
+     "size": 439
+    },
+    {
+     "rel": "src\\facerender\\sync_batchnorm\\__pycache__\\batchnorm.cpython-310.pyc",
+     "size": 12833
+    },
+    {
+     "rel": "src\\facerender\\sync_batchnorm\\__pycache__\\comm.cpython-310.pyc",
+     "size": 4913
+    },
+    {
+     "rel": "src\\facerender\\sync_batchnorm\\__pycache__\\replicate.cpython-310.pyc",
+     "size": 3526
+    },
+    {
+     "rel": "src\\facerender\\sync_batchnorm\\batchnorm.py",
+     "size": 13288
+    },
+    {
+     "rel": "src\\facerender\\sync_batchnorm\\comm.py",
+     "size": 4586
+    },
+    {
+     "rel": "src\\facerender\\sync_batchnorm\\replicate.py",
+     "size": 3320
+    },
+    {
+     "rel": "src\\facerender\\sync_batchnorm\\unittest.py",
+     "size": 864
+    },
+    {
+     "rel": "src\\generate_batch.py",
+     "size": 4573
+    },
+    {
+     "rel": "src\\generate_facerender_batch.py",
+     "size": 5893
+    },
+    {
+     "rel": "src\\gradio_demo.py",
+     "size": 6819
+    },
+    {
+     "rel": "src\\test_audio2coeff.py",
+     "size": 5516
+    },
+    {
+     "rel": "src\\utils\\__pycache__\\audio.cpython-310.pyc",
+     "size": 4646
+    },
+    {
+     "rel": "src\\utils\\__pycache__\\croper.cpython-310.pyc",
+     "size": 4134
+    },
+    {
+     "rel": "src\\utils\\__pycache__\\face_enhancer.cpython-310.pyc",
+     "size": 3673
+    },
+    {
+     "rel": "src\\utils\\__pycache__\\hparams.cpython-310.pyc",
+     "size": 2813
+    },
+    {
+     "rel": "src\\utils\\__pycache__\\init_path.cpython-310.pyc",
+     "size": 1639
+    },
+    {
+     "rel": "src\\utils\\__pycache__\\paste_pic.cpython-310.pyc",
+     "size": 1862
+    },
+    {
+     "rel": "src\\utils\\__pycache__\\preprocess.cpython-310.pyc",
+     "size": 5504
+    },
+    {
+     "rel": "src\\utils\\__pycache__\\safetensor_helper.cpython-310.pyc",
+     "size": 431
+    },
+    {
+     "rel": "src\\utils\\__pycache__\\videoio.cpython-310.pyc",
+     "size": 1452
+    },
+    {
+     "rel": "src\\utils\\audio.py",
+     "size": 4654
+    },
+    {
+     "rel": "src\\utils\\croper.py",
+     "size": 6246
+    },
+    {
+     "rel": "src\\utils\\face_enhancer.py",
+     "size": 4559
+    },
+    {
+     "rel": "src\\utils\\hparams.py",
+     "size": 6215
+    },
+    {
+     "rel": "src\\utils\\init_path.py",
+     "size": 2653
+    },
+    {
+     "rel": "src\\utils\\model2safetensor.py",
+     "size": 6167
+    },
+    {
+     "rel": "src\\utils\\paste_pic.py",
+     "size": 2459
+    },
+    {
+     "rel": "src\\utils\\preprocess.py",
+     "size": 7060
+    },
+    {
+     "rel": "src\\utils\\safetensor_helper.py",
+     "size": 205
+    },
+    {
+     "rel": "src\\utils\\text2speech.py",
+     "size": 509
+    },
+    {
+     "rel": "src\\utils\\videoio.py",
+     "size": 1495
+    },
+    {
+     "rel": "webui.bat",
+     "size": 291
+    },
+    {
+     "rel": "webui.sh",
+     "size": 3886
+    }
+   ]
+  }
+ },
+ "total_bytes": 15617961978,
+ "total_files": 771
+}

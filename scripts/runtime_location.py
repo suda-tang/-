@@ -7,4 +7,4 @@ def cosyvoice_runtime(prefer_local=False):
     if override:return Path(override).expanduser()
     local=Path(__file__).resolve().parents[1]/'.sites-runtime/cosyvoice'
     if prefer_local or local.exists():return local
-    return Path('C:/PianoCoachRuntime/cosyvoice')
+    return Path('D:/PianoCoachRuntime/cosyvoice')

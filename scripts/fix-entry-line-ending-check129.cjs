@@ -1,0 +1,1 @@
+const fs=require('fs'),p='scripts/check-mentor122.cjs';let s=fs.readFileSync(p,'utf8').replace("b.toString('utf8').replace(/<meta property=\"og:url\"[^>]*>/g,'')","b.toString('utf8').replace(/\\r\\n/g,'\\n').replace(/<meta property=\"og:url\"[^>]*>/g,'')");fs.writeFileSync(p,s);

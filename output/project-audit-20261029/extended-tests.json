@@ -1,0 +1,87 @@
+[
+  {
+    "file": "check-frontend-syntax.cjs",
+    "ok": true,
+    "output": "PASS 前端脚本语法检查（187 个文件）\n"
+  },
+  {
+    "file": "check-bug-round-core.mjs",
+    "ok": true,
+    "output": "PASS stable distinct part IDs/names; requested practice endpoints applied before playback range\n"
+  },
+  {
+    "file": "check-ai-action-state.mjs",
+    "ok": true,
+    "output": "PASS 13 action target-state checks\n"
+  },
+  {
+    "file": "check-ai-verification-recovery.mjs",
+    "ok": true,
+    "output": "PASS failed verification repairs once; repeated failure stays failed, never completed\n"
+  },
+  {
+    "file": "check-classroom-agent-intent.mjs",
+    "ok": true,
+    "output": "PASS 21 classroom intent checks\nPASS classroom parameter normalization and empty-update rejection\n"
+  },
+  {
+    "file": "check-chord-occurrences.mjs",
+    "ok": true,
+    "output": "PASS: separate chord types, multiple onsets per measure, held bass across onsets\n"
+  },
+  {
+    "file": "check-classroom-preparation.mjs",
+    "ok": true,
+    "output": "PASS conversational preparation, existing-task reuse, settings continuity and whole-request guards\n"
+  },
+  {
+    "file": "check-mentor-startup135.mjs",
+    "ok": true,
+    "output": "{\"ok\":true,\"partialBytes\":250000,\"unneededPortraitExcluded\":true,\"realDownloadCompletes\":true}\n"
+  },
+  {
+    "file": "check-mentor-rig135.mjs",
+    "ok": true,
+    "output": "Head bounded over 1800 frames: 0.16044696646686057\n{\"ok\":true,\"meshes\":12,\"groundedFeet\":2,\"independentSnapshot\":true}\n"
+  },
+  {
+    "file": "check-mentor-stream135.mjs",
+    "ok": true,
+    "output": "{\"ok\":true,\"mobileTwoTileWarmup\":true,\"retryRecovered\":true,\"nextGardenReady\":true,\"cleanup\":true}\n"
+  },
+  {
+    "file": "check-mentor-slow-stream136.mjs",
+    "ok": true,
+    "output": "{\"ok\":true,\"mobileTwoTileWarmup\":true,\"retryRecovered\":true,\"continuousSlowTransferNotAborted\":true,\"nextGardenReady\":true,\"cleanup\":true}\n"
+  },
+  {
+    "file": "check-mentor-framing136.mjs",
+    "ok": true,
+    "output": "{\"name\":\"yiyuan\",\"samples\":1001,\"blocked\":0,\"preservedSurveyedCamera\":true}\n{\"name\":\"zhuozhengyuan\",\"samples\":1001,\"blocked\":0,\"preservedSurveyedCamera\":true}\n"
+  },
+  {
+    "file": "check-mentor-previews135.mjs",
+    "ok": true,
+    "output": "{\"ok\":true,\"previewModels\":4,\"allBufferViewsValid\":true,\"allTexturesPresent\":true}\n"
+  },
+  {
+    "file": "check-mentor-sequencing134.mjs",
+    "ok": true,
+    "output": "{\"ok\":true,\"staleAudioEventsIgnored\":true,\"manualSkipRetained\":true,\"departureStartsBeforeWorkspaceReady\":true}\n"
+  },
+  {
+    "file": "check-mentor-worker138.mjs",
+    "ok": true,
+    "output": "{\"ok\":true,\"transitions\":2,\"workerCreated\":1,\"workerReleased\":1}\n"
+  },
+  {
+    "file": "check-mentor-cancel138.mjs",
+    "ok": true,
+    "output": "{\"ok\":true,\"cancelledWorkerRetired\":true,\"staleErrorIgnored\":true,\"newRouteUsedWorker\":true,\"allWorkersReleased\":true}\n"
+  },
+  {
+    "file": "check-mentor-timeout138.mjs",
+    "ok": true,
+    "output": "{\"ok\":true,\"timedOutWorkerReleased\":true,\"validatedFallbackCompleted\":true,\"nextWorkerCanStart\":true}\n"
+  }
+]

@@ -87,9 +87,11 @@ def drum_pattern(score,bars):
   for k in range(max(1,round(b['length']/subdivision))):hit(42,k*subdivision,(42 if k%2==0 else 29)+lift)
   # Add a restrained human-style layer: off-beat open hats and ghost snares
   # create forward motion without tying a hit to every piano note.
-  if not compound and b['length']>=3:
+  if not compound and b['length']>=3 and phrase in (2, 4, 6):
    for offset in (pulse*.5,pulse*1.5,pulse*2.5,pulse*3.5):
-    if offset<b['length']:hit(46,offset,24+lift//3,.16)
+    if offset<b['length']:
+     hits=[n for n in hits if not (abs(n['beat']-(start+offset))<1e-6 and n['midi']==42)]
+     hit(46,offset,24+lift//3,.16)
    if count>=4:
     for offset in (1.5,3.5):
      if offset<b['length']:hit(38,offset,25+lift//4,.12)

@@ -1,4 +1,7 @@
 export const dictionary={
+'待确认的练习建议':'Practice plan for review','当前段':'Current passage','先练一小段，再按实际情况调整':'Start with a short passage and adjust after reviewing your playing','先核对这一段的音高和节奏，再慢速连起来。':'Check the pitches and rhythm, then play the passage slowly without stopping.','完整练三遍，听一听有没有停顿。':'Play the passage three times and listen for unintended pauses.','选此段':'Select passage','起始':'Start','结束':'End','遍数':'Repetitions','确认应用，准备第一段':'Apply and prepare the first passage','应用本段设置':'Apply passage settings','暂不采用':'Dismiss plan','结束分段练习':'Finish passage practice','当前控件与建议不同，应用本段设置后再统计遍数':'Apply the suggested passage settings to count repetitions','显示测试导入':'Show test imports',
+'3D 手型示范':'3D hand demonstration','正在加载手型':'Loading hands','手型预览；指法计算未完成':'Hand preview; fingering is not ready',
+'真实键盘图示':'Live piano keyboard','左手':'Left hand','右手':'Right hand',
 '重新分类':'Recategorize','打开分类':'Open categories','正在提交分类…':'Submitting categorization…','分类服务未连接，请点击重新分类重试。':'Categorization is unavailable. Select Recategorize to retry.',
 '分类':'Categories','分类曲谱':'Categorize scores','全部曲谱':'All scores','未就绪曲谱':'Pending scores','AI 任务':'AI tasks','流行歌曲':'Popular songs','古典作品':'Classical music','影视音乐':'Film & television','民族民歌':'Folk music','爵士与蓝调':'Jazz & blues','儿童与练习':'Children & studies','节庆与合唱':'Celebrations & choir','游戏与动漫':'Games & animation','其他作品':'Other works','待分类':'Uncategorized','正在分类…':'Categorizing…','部分作品暂未完成分类，已放入待分类卡堆。':'Some scores are still uncategorized.','暂未完成分类，可再次点击分类重试。':'Categorization is unavailable. Select Categories to retry.',
 
@@ -44,4 +47,4 @@ const patterns=[
  [/^处理失败：(.+)。任务已停止，其他后台任务不会受影响；可以点击“重试”重新处理。$/,m=>`Task failed: ${dictionary[m[1]]||m[1]}. Other tasks will continue. Select Retry to try again.`],
  [/^(.+)老师，您好。$/,m=>`Welcome, Professor ${m[1]}.`]
 ];
-export function translateDynamic(text){for(const [pattern,render] of patterns){const match=text.match(pattern);if(match)return render(match);}return null;}
+export function translateDynamic(text){let match;if(match=text.match(/^第 (\d+) 段 · 已完整练习 (\d+) \/ (\d+) 遍(.*)$/))return `Passage ${match[1]} · ${match[2]} / ${match[3]} repetitions completed${match[4]?' · Review the checkpoint before continuing':''}`;if(match=text.match(/^(\d+)–(\d+) 小节 · (\d+) BPM · (\d+) 遍$/))return `Measures ${match[1]}–${match[2]} · ${match[3]} BPM · ${match[4]} repetitions`;if(text.startsWith('检查点：'))return 'Check: '+(dictionary[text.slice(4)]||text.slice(4));for(const [pattern,render] of patterns){const match=text.match(pattern);if(match)return render(match);}return null;}

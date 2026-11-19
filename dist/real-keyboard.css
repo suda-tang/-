@@ -1,0 +1,22 @@
+.real-keyboard-card{margin:24px 0 28px;min-width:0;overflow:hidden;border:1px solid rgba(100,110,120,.16);border-radius:18px;background:rgba(255,255,255,.65)}
+.real-keyboard-card[hidden]{display:none}.real-keyboard-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px}.real-keyboard-heading h3{margin:0;font-size:15px}.real-keyboard-hands{display:flex;gap:16px;font-size:12px}.real-keyboard-hands span:before{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;background:#2dd4a8}.real-keyboard-hands span:last-child:before{background:#f5a623}.real-keyboard-card canvas{display:block;width:100%;height:180px;touch-action:pan-y}.real-keyboard-toggle{flex-basis:100%;}
+.has-real-keyboard #notation [data-keyboard-hand=L]{color:#0b9978!important;fill:#0b9978!important;stroke:#0b9978!important}.has-real-keyboard #notation [data-keyboard-hand=R]{color:#cb830c!important;fill:#cb830c!important;stroke:#cb830c!important}.has-real-keyboard #notation [data-keyboard-hand] path:not(.score-hit){fill:currentColor!important;stroke:currentColor!important}.has-real-keyboard #notation .score-hit{fill:transparent!important;stroke:none!important}
+@media(max-width:600px){.real-keyboard-card canvas{height:132px}.real-keyboard-heading{padding:10px 12px}.real-keyboard-card{border-radius:14px;margin:16px 0 22px}}
+
+.studio .playback-switches{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;margin:16px 0;min-width:0}.studio .playback-switches>label{display:flex!important;align-items:center;gap:10px;margin:0!important;padding:0!important;min-height:30px;font-size:13px;font-weight:500;line-height:1.5;white-space:normal}.studio .playback-switches>label input[type=checkbox]{margin:0!important;flex:0 0 36px;width:36px;height:22px}
+
+.keyboard-finger{display:none;pointer-events:none;font-family:system-ui,sans-serif;font-weight:700}.has-real-keyboard .keyboard-finger{display:initial}.has-real-keyboard #notation .keyboard-finger[data-hand=L]{fill:#0b7a5e!important;color:#0b7a5e!important;stroke:none!important}.has-real-keyboard #notation .keyboard-finger[data-hand=R]{fill:#9a5c00!important;color:#9a5c00!important;stroke:none!important}.simple-pitches>span{position:relative}.simple-pitches .keyboard-finger{position:absolute;left:50%;top:-13px;font-size:10px;line-height:1;transform:translateX(-50%)}
+body:not(.has-real-keyboard) .keyboard-finger{display:none!important}
+
+/* Hand colours must never suppress the transport's current-note indicator. */
+.has-real-keyboard #notation .note-event.current[data-keyboard-hand=L]{color:#05664f!important;fill:#05664f!important;stroke:#05664f!important}
+.has-real-keyboard #notation .note-event.current[data-keyboard-hand=R]{color:#8a5100!important;fill:#8a5100!important;stroke:#8a5100!important}
+.has-real-keyboard #notation .note-event.current[data-keyboard-hand] .score-hit{fill:rgba(154,83,106,.18)!important;stroke:#9a536a!important;stroke-width:1.5px!important;opacity:1!important}
+.has-real-keyboard #notation .note-event.current[data-keyboard-hand=L] .score-hit{fill:rgba(45,212,168,.22)!important;stroke:#0b9978!important}
+.has-real-keyboard #notation .note-event.current[data-keyboard-hand=R] .score-hit{fill:rgba(245,166,35,.24)!important;stroke:#cb830c!important}
+.has-real-keyboard #notation .simple-event.current[data-keyboard-hand]{background:rgba(154,83,106,.16)!important;box-shadow:inset 0 0 0 2px #9a536a!important;border-radius:8px}
+.has-real-keyboard #notation .note-event.correct[data-keyboard-hand]{color:#208361!important}.has-real-keyboard #notation .note-event.wrong[data-keyboard-hand]{color:#cf685a!important}
+
+.real-keyboard-surface{position:relative;isolation:isolate;overflow:hidden}.real-keyboard-card .piano-hands-canvas{position:absolute;inset:0;width:100%!important;height:100%!important;pointer-events:none;z-index:1}.piano-hands-status{font-size:11px;color:#806c78;margin-left:auto}.piano-hands-status:empty{display:none}.real-keyboard-heading{flex-wrap:wrap}
+
+.real-keyboard-surface.has-piano-hands{padding-bottom:64px;background:linear-gradient(#f1edf0,#e7dce2)}

@@ -7,8 +7,15 @@ FACETS = {
  'form': r'单三部|复三部|三段体|二部曲式|奏鸣曲式|回旋曲式|变奏曲式|曲式|赋格|对位|复调',
  'instrumentation': r'钢琴独奏|钢琴四手|双钢琴|管风琴|弦乐|小提琴|大提琴|木管|铜管|室内乐|无伴奏',
  'practical': r'分钟|时长|八度|跨度|手小|初学|中级|高级|考级|踏板|难度',
- 'style': r'风格|感觉|抒情|爵士|舞曲|像巴赫|巴赫.*(?:对位|复调)|印象派',
+ 'style': r'风格|感觉|抒情|爵士|蓝调|布鲁斯|blues|jazz|摇滚|民谣|乡村|舞曲|像巴赫|巴赫.*(?:对位|复调)|印象派',
 }
+
+
+def library_discovery_request(text):
+ """Simple repertoire requests must produce a real search, not a promise."""
+ text=str(text or '')
+ if re.search(r'联网|网上|网络|库外|曲库没有|不要|别找|不用找|不需要|排除|不含|不要播放|只听|静音|独奏|第.{0,5}小节|调速|节拍器|改编|和弦|分析|解释|是什么|什么意思',text,re.I):return False
+ return bool(re.search(r'找|搜|推荐|挑|有没有|来一首|来点|来个|find|recommend',text,re.I) and re.search(r'音乐|歌曲|曲子|作品|曲谱|首歌|风格|蓝调|布鲁斯|blues|jazz|爵士|摇滚|民谣|乡村|music|song|piece',text,re.I) and not constrained_query(text))
 
 
 def query_facets(text):

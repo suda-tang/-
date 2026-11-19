@@ -72,7 +72,7 @@ class BridgeTests(unittest.TestCase):
         with self.assertRaises(ValueError):m.call('test')
     def test_locked_export_is_not_discarded_as_error(self):
         m=bridge.MCP.__new__(bridge.MCP);m.tools={'export_score':{'inputSchema':{}}}
-        m.rpc=lambda *args:{'isError':True,'structuredContent':{'status':'locked','unlock_credits':15}}
+        m.rpc=lambda *args,**kwargs:{'isError':True,'structuredContent':{'status':'locked','unlock_credits':15}}
         self.assertEqual(m.call('export_score')['unlock_credits'],15)
     def test_nested_result(self):
         self.assertEqual(bridge.find({'result':[{'score_id':'123'}]},'score_id'),'123')

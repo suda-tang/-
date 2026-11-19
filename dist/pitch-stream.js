@@ -8,7 +8,9 @@ export function groupOnsets(notes,offset,from,to,window=.085,minimumConfidence=.
  // Piano harmonics may produce a brief, weak octave at the exact same attack.
  // Only suppress when amplitude AND duration are much lower; retain sustained
  // octaves and independent attacks. This is a conservative heuristic, not proof.
- const valid=candidates.filter(n=>!candidates.some(base=>base.pitch===n.pitch-12&&Math.abs(base.start-n.start)<.025&&n.confidence<.4&&n.confidence<base.confidence*.65&&n.duration<base.duration*.65)).sort((a,b)=>a.start-b.start),groups=[];
+ const byPitch=new Map();for(const note of candidates){let bucket=byPitch.get(note.pitch);if(!bucket)byPitch.set(note.pitch,bucket=[]);bucket.push(note);}for(const bucket of byPitch.values())bucket.sort((a,b)=>a.start-b.start);
+ const weakOctave=n=>{if(n.confidence>=.4)return false;const bucket=byPitch.get(n.pitch-12)||[];let lo=0,hi=bucket.length;while(lo<hi){const mid=(lo+hi)>>1;if(bucket[mid].start<n.start-.026)lo=mid+1;else hi=mid;}for(let i=lo;i<bucket.length&&bucket[i].start<n.start+.026;i++){const base=bucket[i];if(Math.abs(base.start-n.start)<.025&&n.confidence<base.confidence*.65&&n.duration<base.duration*.65)return true;}return false;};
+ const valid=candidates.filter(n=>!weakOctave(n)).sort((a,b)=>a.start-b.start),groups=[];
  for(const n of valid){let g=groups.at(-1);if(!g||n.start-g.start>window){g={start:n.start,time:offset+n.start,pitches:[],confidence:1};groups.push(g);}if(!g.pitches.includes(n.pitch))g.pitches.push(n.pitch);g.confidence=Math.min(g.confidence,n.confidence);}
  return groups.filter(g=>g.start>=from&&g.start<to).map(g=>({...g,pitches:g.pitches.sort((a,b)=>a-b)}));
 }

@@ -24,6 +24,21 @@ def resolve_search_link(url):
   break
  return None
 
+def global_sites(institution):
+ """Exact multilingual Wikidata labels/aliases, followed by official-site identity checks."""
+ try:
+  r=requests.get('https://www.wikidata.org/w/api.php',params={'action':'wbsearchentities','search':institution,'language':'zh' if re.search(r'[\u4e00-\u9fff]',institution) else 'en','format':'json','limit':4},headers=HEADERS,timeout=(3,6));r.raise_for_status()
+  for hit in r.json().get('search',[]):
+   entity=requests.get('https://www.wikidata.org/wiki/Special:EntityData/'+hit['id']+'.json',headers=HEADERS,timeout=(3,6));entity.raise_for_status();item=entity.json()['entities'][hit['id']]
+   names=[v['value'] for v in item.get('labels',{}).values()]+[v['value'] for values in item.get('aliases',{}).values() for v in values]
+   if normalize(institution) not in {normalize(n) for n in names}:continue
+   urls=[c.get('mainsnak',{}).get('datavalue',{}).get('value') for c in item.get('claims',{}).get('P856',[])]
+   urls=[u for u in urls if isinstance(u,str) and urlparse(u).scheme=='https' and urlparse(u).hostname and not urlparse(u).username]
+   if urls:
+    CACHE.mkdir(parents=True,exist_ok=True);path=CACHE/(hashlib.sha256(institution.encode()).hexdigest()+'.aliases.json');path.write_text(json.dumps(names,ensure_ascii=False),encoding='utf-8');return urls[:3]
+ except (requests.RequestException,ValueError,KeyError):pass
+ return []
+
 def directory_sites(institution):
  """Refresh public university-domain data automatically, then verify on the actual site."""
  CACHE.mkdir(parents=True,exist_ok=True);path=CACHE/'directory.json'
@@ -68,7 +83,8 @@ def directory_logo(institution):
  except (requests.RequestException,ValueError):return None
 
 def discover(institution,use_directory=True):
- directory=directory_sites(institution) if use_directory else []
+ directory=global_sites(institution) if use_directory else []
+ if not directory:directory=directory_sites(institution) if use_directory else []
  if directory:return directory
  CACHE.mkdir(parents=True,exist_ok=True)
  receipt=CACHE/(hashlib.sha256(institution.encode()).hexdigest()+'.json')
@@ -109,4 +125,8 @@ def matches(institution,html):
  soup=BeautifulSoup(html,'html.parser');name=normalize(institution)
  title=normalize(soup.title.get_text() if soup.title else '')
  if name in title:return True
+ try:
+  aliases=json.loads((CACHE/(hashlib.sha256(institution.encode()).hexdigest()+'.aliases.json')).read_text(encoding='utf-8'))
+  if any(len(normalize(a))>5 and normalize(a) in title for a in aliases):return True
+ except (OSError,ValueError):pass
  return any(name in normalize(tag.get('alt','')) for tag in soup.select('header img, .logo img, img[alt]'))

@@ -49,3 +49,12 @@ body.studio{background:radial-gradient(ellipse at 0 0,#e9d8dd 0,transparent 40%)
 @media(prefers-reduced-transparency:reduce){.studio .setup,.studio .workspace-nav,.studio .score-loading-dialog{background:#f9f7fa;backdrop-filter:none}}
 .studio .score-loading-overlay[hidden]{display:none!important}
 .studio .score-loading-dialog .score-loading-seal{position:relative!important}
+
+/* Keep the two teaching entrances reachable in the default performance panel. */
+.studio[data-workspace=play] .setup{max-height:calc(100dvh - 150px)}
+.studio #workspace-play .playback-panel{height:auto;min-height:0}
+.studio #workspace-play .playback-options{margin:10px 0;gap:10px 18px;flex-wrap:wrap}
+.studio #workspace-play .playback-buttons{margin-bottom:12px}
+.studio #workspace-play .field{margin:8px 0}
+.studio #workspace-play :is(.practice-settings,.score-classroom){margin-top:10px;padding-top:8px}
+@media(max-width:850px){.studio[data-workspace=play] .setup{max-height:calc(100dvh - 155px)}.studio #workspace-play .playback-buttons{margin-bottom:0}}

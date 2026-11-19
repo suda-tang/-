@@ -1,0 +1,47 @@
+{
+  "date": "2026-10-27",
+  "tests": [
+    {
+      "name": "worker",
+      "passed": true,
+      "output": "{\"ok\":true,\"transitions\":2,\"workerCreated\":1,\"workerReleased\":1}\n"
+    },
+    {
+      "name": "routes",
+      "passed": true,
+      "output": "{\"segment\":1,\"points\":1018,\"ms\":525,\"ok\":true}\n{\"segment\":2,\"points\":695,\"ms\":402,\"ok\":true}\n{\"segment\":3,\"points\":888,\"ms\":1328,\"ok\":true}\n{\"segment\":4,\"points\":435,\"ms\":571,\"ok\":true}\n{\"segment\":5,\"points\":491,\"ms\":85,\"ok\":true}\n{\"segment\":6,\"points\":387,\"ms\":78,\"ok\":true}\n"
+    },
+    {
+      "name": "sequencing",
+      "passed": true,
+      "output": "{\"ok\":true,\"staleAudioEventsIgnored\":true,\"manualSkipRetained\":true,\"departureStartsBeforeWorkspaceReady\":true}\n"
+    },
+    {
+      "name": "rig",
+      "passed": true,
+      "output": "{\"ok\":true,\"meshes\":12,\"groundedFeet\":2,\"independentSnapshot\":true}\n"
+    }
+  ],
+  "browser": {
+    "arrivalAutoSpeech": true,
+    "normalDepartureCompleted": true,
+    "gardenEarlyExitReturnedToCampus": true,
+    "interiorPageReady": true,
+    "earlyExitCompleted": true,
+    "avatarResourcesReleased": true
+  },
+  "publicFiles": [
+    {
+      "file": "planner",
+      "available": true
+    },
+    {
+      "file": "arrival",
+      "available": true
+    },
+    {
+      "file": "opening",
+      "available": true
+    }
+  ]
+}

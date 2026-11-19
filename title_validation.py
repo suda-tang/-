@@ -12,14 +12,20 @@ def filename_title(name):
     name=re.sub(r'[_ -]\d{4,}$','',name)
     name=re.split(r'\s*(?:作词|作曲|编曲|编配|制谱|排版|改编|原调|独奏|钢琴|简谱|五线谱|完整版|\[|【|（|\()',name)[0]
     parts=re.split(r'\s+[-–—]\s+',name)
-    if len(parts)>1:name=parts[0]
-    name=re.split(r'[-–—]',name,maxsplit=1)[0]
+    # Preserve ambiguous artist/title pairs until catalogue validation.
+    if len(parts)>1:name=' - '.join(part.strip() for part in parts if part.strip())
     name=re.sub(r'\.(mp3|wav|m4a)$','',name,flags=re.I)
     return name.strip(' _-')[:100] or '未命名曲谱'
 
 def fallback_title(name,cache):
     title=filename_title(name);catalog=lookup(title,cache) if title!='未命名曲谱' else {}
-    matched=bool(catalog.get('artwork')) and (normalized(catalog.get('matchedTitle',''))==normalized(title) or catalog.get('usedCore'))
+    if not catalog.get('matchedTitle'):
+        for candidate in re.split(r'\s+[-–—]\s+',title):
+            if candidate==title or FORBIDDEN.search(candidate):continue
+            alternative=lookup(candidate,cache)
+            if alternative.get('matchedTitle') and normalized(alternative['matchedTitle'])==normalized(candidate):
+                title=candidate;catalog=alternative;break
+    matched=bool(catalog.get('artwork') and catalog.get('matchedTitle')) and (normalized(catalog.get('matchedTitle',''))==normalized(title) or catalog.get('usedCore'))
     return {'title':catalog['matchedTitle'] if matched else title,'ocrTitle':'','titleVersion':'7','titleSource':'filename','titleVerification':'filename-catalogue' if matched else 'filename','cover':catalog.get('artwork','') if matched else ''}
 def check(payload,cache):
     candidates=payload.get('candidates') or []

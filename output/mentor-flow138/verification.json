@@ -1,0 +1,17 @@
+{
+  "date": "2026-10-28",
+  "release": "flow138",
+  "tests": {
+    "cancelledWorkerRetired": true,
+    "staleErrorsIgnored": true,
+    "normalWorkerReused": true,
+    "timeoutRecovered": true,
+    "startupProgress": true,
+    "rigHeadBounded": true,
+    "mobileTwoTileWarmup": true,
+    "slowStream": true,
+    "gardenCameraSamples": 2002,
+    "sequencing": true
+  },
+  "publicScriptsVerified": true
+}

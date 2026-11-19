@@ -532,6 +532,51 @@ def load_index(max_age=_INDEX_TTL):
     return index
 
 
+# ★ 2026-11-18：索引新鲜度阈值与检测。
+# 教训来源：拿 2026-10-09 的过期 theory-index 断言「库里没有人声谱」，实际缓存 XML 里有 4 首。
+# 工具说「没有」不等于现实没有 —— 检索结果必须能让用户看出索引旧了。
+INDEX_STALE_DAYS = 7.0
+
+
+def index_staleness(index, library_count=None):
+    """Return a short human-readable staleness note for a theory index, or ''.
+
+    Two independent signals (either one triggers a note):
+      1. builtAt older than INDEX_STALE_DAYS days;
+      2. library_count (current score count from context.scores) larger than
+         the number of scores the index actually covered -- new imports may
+         not be searchable yet.
+    Pure function: no I/O, safe to call on every query.
+    """
+    if not isinstance(index, dict):
+        return ''
+    reasons = []
+    built = index.get('builtAt')
+    if isinstance(built, (int, float)) and built > 0:
+        days = (time.time() - float(built)) / 86400.0
+        if days >= INDEX_STALE_DAYS:
+            stamp = time.strftime('%Y-%m-%d', time.localtime(float(built)))
+            reasons.append('全库索引建于 %s（约 %d 天前），期间若导入过新谱可能尚未纳入'
+                           % (stamp, int(days)))
+    try:
+        covered = int(index.get('covered') or 0)
+    except (TypeError, ValueError):
+        covered = 0
+    try:
+        current = int(library_count) if library_count is not None else 0
+    except (TypeError, ValueError):
+        current = 0
+    # covered 是「有谱面事实的缓存条目数」，context.scores 是主曲目列表，两者口径不同、
+    # 天然差几首（重复版本 / 未识谱曲）。只有明显落后才提醒，别每次都喊。
+    # 实测：新鲜索引 1892 vs 曲库 1898 差 6（不报）；10-09 过期索引 1873 vs 1898 差 25（报）。
+    if covered and current and (current - covered) >= 20:
+        reasons.append('当前曲库有 %d 首、索引只覆盖 %d 首，新导入的谱可能搜不到'
+                       % (current, covered))
+    if index.get('building'):
+        reasons.append('索引仍在建立中')
+    return '（' + '；'.join(reasons) + '）' if reasons else ''
+
+
 def resolve_instrument(text):
     """Map a user phrase to a normalised instrument label (or None)."""
     for label, pattern in INSTRUMENT_RULES:

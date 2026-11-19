@@ -1,0 +1,7 @@
+Tang Qiuming header handwriting
+Stroke medians adapted from Hanzi Writer Data / Make Me a Hanzi.
+Original font data: Arphic Technology. Licensed under the Arphic Public License.
+https://github.com/chanind/hanzi-writer-data
+https://github.com/skishore/makemeahanzi
+See brand-handwriting-ARPHICPL.txt.
+Modifications: smoothed vector centerlines, monoline pen style, name composition and animation timing.

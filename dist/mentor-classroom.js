@@ -1,6 +1,9 @@
-import {paintLesson} from './mentor-board-art.js?v=full-font3';
+import {isCartoonMentor} from './mentor-identity.js?v=eleven-v4-20261027';
+import {abortTimeout} from './abort-timeout.js';
+import {paintLesson} from './mentor-board-art.js?v=report116';
 import * as THREE from './vendor/three/three.module.js';
 export function createMentorClassroom(scene,{cinematic=false}={}){
+ const cartoon=isCartoonMentor();let disposed=false,presentationReady=false,logoTimer=0,logoWake=null;const logoAbort=new AbortController();
  const group=new THREE.Group(),board=new THREE.Group(),wood=new THREE.MeshStandardMaterial({color:'#82795f',roughness:.6,metalness:.12});group.add(board);
  const canvas=document.createElement('canvas');canvas.width=1024;canvas.height=640;const ctx=canvas.getContext('2d'),texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
  const screen=new THREE.Mesh(new THREE.PlaneGeometry(1.24,.775),new THREE.MeshBasicMaterial({map:texture,toneMapped:false}));screen.position.set(.46,1.16,-.09);board.add(screen);
@@ -9,7 +12,7 @@ export function createMentorClassroom(scene,{cinematic=false}={}){
  const floor=new THREE.Mesh(new THREE.CircleGeometry(1.45,64),new THREE.MeshStandardMaterial({color:'#e4e9df',roughness:1,transparent:true,opacity:.75}));floor.rotation.x=-Math.PI/2;floor.position.y=.003;group.add(floor);
  const podium=new THREE.Mesh(new THREE.CylinderGeometry(.3,.34,.025,48),new THREE.MeshStandardMaterial({color:'#d4ded3',roughness:.8}));podium.position.set(-.18,.01,.05);group.add(podium);scene.add(group);if(cinematic){floor.visible=false;podium.visible=false;board.position.x=2.8;}
  const seal=new Image();seal.src='/suda-seal.svg?v=round19';seal.onload=()=>{signature='';draw(state);};
- const font=new FontFace('Mentor Hand','url(/fonts/LXGWWenKai-Regular.ttf)');font.load().then(loaded=>{document.fonts.add(loaded);signature='';draw(state);}).catch(()=>{});
+ const font=new FontFace('Mentor Hand','url(/fonts/mentor-board-wenkai.woff2)');font.load().then(loaded=>{if(disposed)return;document.fonts.add(loaded);presentationReady=true;signature='';draw(state);}).catch(()=>{presentationReady=true;});
  const visitor=document.querySelector('.tour-home-intro'),visitorName=visitor?.dataset.mentor||'',institution=(visitor?.dataset.institution||'').normalize('NFKC').replace(/\s+/g,'');const visitorLogo=new Image();
  let visitorLogoFallback=false;
  // 匹配不到真实校徽时，用校名自动生成一个首字圆章（彩色 + 校名首字），永远正确、零手动输入。
@@ -19,38 +22,39 @@ export function createMentorClassroom(scene,{cinematic=false}={}){
  visitorLogo.onload=()=>{signature='';draw(state);};
  // Always resolve against the current institution; old share links may contain another school's logo.
  if(institution){void(async()=>{
-  for(let attempt=0;attempt<75&&visitor.isConnected;attempt++){
-   try{
-    const response=await fetch('/api/institution-logo?institution='+encodeURIComponent(institution),{signal:AbortSignal.timeout(10000)});
+  for(let attempt=0;attempt<75&&visitor.isConnected&&!disposed;attempt++){
+   const timeout=abortTimeout(logoAbort.signal,10000);try{
+    const response=await fetch('/api/institution-logo?institution='+encodeURIComponent(institution),{signal:timeout.signal});
     if(!response.ok)throw Error('校徽服务连接失败');
-    const result=await response.json();
+    const result=await response.json();if(disposed)return;
     if(result.status==='complete'&&result.url&&result.institution===institution){visitorLogoFallback=false;visitorLogo.src=result.url;visitor.dataset.institutionLogo=result.url;visitor.dataset.logoSource=result.source||'';visitor.dataset.logoStatus='complete';return;}
     if(result.status==='unavailable'){visitor.dataset.logoStatus=result.message;fallbackLogo();return;}
-   }catch{}
-   await new Promise(resolve=>setTimeout(resolve,2000));
+   }catch{}finally{timeout.dispose();}
+   if(disposed)return;await new Promise(resolve=>{logoWake=resolve;logoTimer=setTimeout(()=>{logoWake=null;resolve();},2000);});
   }
-  if(visitor.isConnected)fallbackLogo();
+  if(!disposed&&visitor.isConnected)fallbackLogo();
  })();}
 
- let signature='',state={title:'异地合奏',points:['时间码同步','延迟补偿','演奏体验'],progress:0,mode:'writing'};
- function draw(next){state={...state,...next};const tr=t=>document.documentElement.lang==='zh-CN'?t:(window.sudaLanguage?.translate(t)||t),points=state.points.map(tr),title=tr(state.title);const progress=Math.max(0,Math.min(1,state.progress||0)),writing=true,count=Math.floor(progress*points.join('').length),key=[title,document.documentElement.lang,writing,count,state.intro,Number(state.welcomeBlend||0).toFixed(2),state.topic,Math.floor((state.elapsed||0)*20)].join(':');if(key===signature)return;signature=key;ctx.clearRect(0,0,1024,640);
+ let signature='',state={title:'课题缘起',points:['音乐学习经历','星海高中实践','课堂操作需求'],progress:0,mode:'writing'};
+ function draw(next){if(disposed)return;state={...state,...next};const tr=t=>document.documentElement.lang==='zh-CN'?t:(window.sudaLanguage?.translate(t)||t),points=state.points.map(tr),title=tr(state.title);const progress=Math.max(0,Math.min(1,state.progress||0)),writing=true,count=Math.floor(progress*points.join('').length),key=[title,document.documentElement.lang,writing,count,state.intro,Number(state.welcomeBlend||0).toFixed(2),state.topic,Math.floor((state.elapsed||0)*20)].join(':');if(key===signature)return;signature=key;ctx.clearRect(0,0,1024,640);
  const background=ctx.createLinearGradient(0,0,1024,640);background.addColorStop(0,writing?'#163e36':'#faf6ed');background.addColorStop(1,writing?'#28554a':'#e6eee3');ctx.fillStyle=background;ctx.fillRect(0,0,1024,640);
  if(state.intro){
-  const blend=visitorName?Math.max(0,Math.min(1,state.welcomeBlend||0)):0;
+  const blend=visitorName?1:0;
   function identity(welcome,alpha){if(alpha<=0)return;ctx.globalAlpha=alpha;ctx.fillStyle='#f3eedb';ctx.textAlign='center';const logo=welcome?(visitorLogo.naturalWidth?visitorLogo:null):seal;if(logo?.complete&&logo.naturalWidth){const scale=Math.min(124/logo.naturalWidth,124/logo.naturalHeight);ctx.drawImage(logo,512-logo.naturalWidth*scale/2,160-logo.naturalHeight*scale/2,logo.naturalWidth*scale,logo.naturalHeight*scale);}
    if(welcome&&visitorLogoFallback){ctx.font='16px \"Mentor Hand\",serif';ctx.fillText(institution||'校徽',512,244);}
    ctx.font='500 48px "Mentor Hand", serif';ctx.fillText(welcome?'欢迎'+visitorName+'老师':'苏州大学',512,293,900);
-   ctx.fillText(welcome?(institution||'欢迎莅临'):'冒小瑛教授',512,373,900);
-   ctx.font='30px "Mentor Hand",serif';ctx.fillText(welcome?'苏州大学冒小瑛教授':'Soochow University',512,447);
-   ctx.fillText(welcome?'Presented by Professor Mao Xiaoying':'Professor Mao Xiaoying',512,502);
+   ctx.fillText(welcome?(institution||'欢迎莅临'):(cartoon?'音乐教师':'冒小瑛教授'),512,373,900);
+   ctx.font='30px "Mentor Hand",serif';ctx.fillText(welcome?(cartoon?'苏州大学音乐学院':'苏州大学冒小瑛教授'):'Soochow University',512,447);
+   ctx.fillText(welcome?(cartoon?'Soochow University School of Music':'Presented by Professor Mao Xiaoying'):(cartoon?'Music educator':'Professor Mao Xiaoying'),512,502);
    if(!welcome){ctx.font='24px "Mentor Hand", serif';ctx.fillText('唐秋鸣课题介绍',512,563);}
   }
   identity(false,1-blend);identity(true,blend);ctx.globalAlpha=1;
   ctx.textAlign='left';texture.needsUpdate=true;return;
  }
- const activeLogo=institution?(visitorLogo.naturalWidth?visitorLogo:null):seal;if(activeLogo?.complete&&activeLogo.naturalWidth){const scale=Math.min(138/activeLogo.naturalWidth,138/activeLogo.naturalHeight);ctx.drawImage(activeLogo,154-activeLogo.naturalWidth*scale/2,134-activeLogo.naturalHeight*scale/2,activeLogo.naturalWidth*scale,activeLogo.naturalHeight*scale);}ctx.fillStyle=writing?'#f2efdc':'#244e40';ctx.font='19px "Mentor Hand", serif';ctx.textAlign='center';ctx.fillText(institution||'苏州大学',154,249,270);ctx.font='29px "Mentor Hand", serif';ctx.fillText(visitorName?visitorName+'老师':'冒小瑛教授',154,291,270);if(institution&&institution!=='苏州大学'&&(activeLogo===seal||visitorLogo.src.includes('suda-seal.svg'))){ctx.font='16px "Mentor Hand", serif';ctx.fillText('苏大校徽',154,215,260);}ctx.textAlign='left';
+ const activeLogo=institution?(visitorLogo.naturalWidth?visitorLogo:null):seal;if(activeLogo?.complete&&activeLogo.naturalWidth){const scale=Math.min(138/activeLogo.naturalWidth,138/activeLogo.naturalHeight);ctx.drawImage(activeLogo,154-activeLogo.naturalWidth*scale/2,134-activeLogo.naturalHeight*scale/2,activeLogo.naturalWidth*scale,activeLogo.naturalHeight*scale);}ctx.fillStyle=writing?'#f2efdc':'#244e40';ctx.font='19px "Mentor Hand", serif';ctx.textAlign='center';ctx.fillText(institution||'苏州大学',154,249,270);ctx.font='29px "Mentor Hand", serif';ctx.fillText(visitorName?visitorName+'老师':(cartoon?'音乐教师':'冒小瑛教授'),154,291,270);if(institution&&institution!=='苏州大学'&&(activeLogo===seal||visitorLogo.src.includes('suda-seal.svg'))){ctx.font='16px "Mentor Hand", serif';ctx.fillText('苏大校徽',154,215,260);}ctx.textAlign='left';
  paintLesson(ctx,state,tr);
  texture.needsUpdate=true;
  }
- draw({...state,intro:cinematic});return {group,board,draw,get state(){return state;},dispose(){group.traverse(o=>{o.geometry?.dispose();for(const m of [o.material].flat().filter(Boolean))m.dispose();});texture.dispose();scene.remove(group);}};
+ draw({...state,intro:cinematic});return {group,board,draw,get ready(){return presentationReady;},get state(){return state;},dispose(){if(disposed)return;disposed=true;logoAbort.abort();clearTimeout(logoTimer);logoWake?.();logoWake=null;seal.onload=seal.onerror=visitorLogo.onload=visitorLogo.onerror=null;seal.src=visitorLogo.src='';document.fonts.delete(font);group.traverse(o=>{o.geometry?.dispose();for(const m of [o.material].flat().filter(Boolean))m.dispose();});texture.dispose();scene.remove(group);group.clear();canvas.width=canvas.height=0;}};
 }
+

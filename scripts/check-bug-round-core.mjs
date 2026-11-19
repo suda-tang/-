@@ -1,0 +1,17 @@
+import fs from 'node:fs';
+import vm from 'node:vm';
+import assert from 'node:assert/strict';
+import {uniquePartLabels} from '../dist/part-labels.js';
+assert.deepEqual(uniquePartLabels([{id:'a',name:'钢琴'},{id:'b',name:'钢琴'},{id:'c',name:'鼓'}]).map(p=>[p.id,p.name]),[['a','钢琴 1'],['b','钢琴 2'],['c','鼓']]);
+const events=[{beat:0,measure:1,notes:[{duration:1}]},{beat:4,measure:2,notes:[{duration:1}]},{beat:8,measure:3,notes:[{duration:1}]}];
+const calls=[];
+const player={setLoop:(...args)=>calls.push(['loop',...args]),clearLoop:()=>calls.push(['clear'])};
+const context={liveScore:()=>({events}),livePlayer:()=>player,document:{addEventListener(){},dispatchEvent(event){calls.push(['practice',event.detail.start,event.detail.end]);event.detail.resolve({ok:true});}},CustomEvent:class{constructor(type,options){this.type=type;this.detail=options.detail;}}};
+vm.createContext(context);
+const source=fs.readFileSync(new URL('../dist/ai-advanced-actions.js',import.meta.url),'utf8').replace(/^import .*;\r?\n/gm,'').replace(/^export \{[^\n]+\};?\r?\n?/gm,'');
+vm.runInContext(source+';globalThis.run=setLoop;',context);
+context.run({from:1,to:2,practice:true},{once:true});
+assert.deepEqual(calls[0],['practice',1,2]);
+assert.equal(calls[1][0],'loop');
+assert.equal(calls[1][1],0);assert.equal(calls[1][2],8);
+console.log('PASS stable distinct part IDs/names; requested practice endpoints applied before playback range');

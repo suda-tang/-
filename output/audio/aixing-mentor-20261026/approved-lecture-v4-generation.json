@@ -1,0 +1,18 @@
+{
+  "provider": "aixingtts.com",
+  "siteModel": "Eleven v4",
+  "turbo": false,
+  "taskId": "29025",
+  "voiceId": "lr5FWzVWR6iXDmZxcLOH",
+  "voiceName": "冒小瑛已确认讲座原声20261026",
+  "reference": "mentor-alternative-original-reference.mp3",
+  "sourceId": "f922ad0fa273a637876ad1b4d9ddbef3",
+  "referenceSeconds": 58.56,
+  "processing": "cut only, no denoising/separation/pitch/speed adjustment",
+  "textCharacters": 483,
+  "scriptSha256": "d56f92699ee87d19d056bf6816a8b8a3e7ee07e2dd024eb408c23f3fa05e8e0f",
+  "audio": "C:/Users/mail/Documents/ChatGPT/自动钢琴陪练系统/output/audio/aixing-mentor-20261026/01-mentor-preface-approved-lecture-v4.mp3",
+  "bytes": 2077505,
+  "review": "awaiting user listening review",
+  "published": false
+}

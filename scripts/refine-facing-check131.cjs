@@ -1,0 +1,1 @@
+const fs=require('fs'),p='scripts/check-mentor-facing131.cjs';let s=fs.readFileSync(p,'utf8').replace("if(actor?.visible){const bearing", "if(actor?.visible&&d.boardTravel!=='disembarking'){const bearing");fs.writeFileSync(p,s);

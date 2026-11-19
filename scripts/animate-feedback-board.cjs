@@ -1,0 +1,1 @@
+const fs=require('fs'),path='dist/mentor-board-report.js';let s=fs.readFileSync(path,'utf8');const from="text('提示条件 → 练习过程 → 独立完成',441,432,19,ink,520);";if(!s.includes(from))throw Error('Feedback scene not found');s=s.replace(from,"line(526+411*scan,209,526+411*scan,391,'#e8c98c65',1.5);"+from);fs.writeFileSync(path,s);

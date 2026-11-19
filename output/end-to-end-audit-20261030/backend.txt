@@ -1,0 +1,40 @@
+part-0.zip: 100.0%
+Extracting part-0.zip
+part-1.zip: 100.0%
+Extracting part-1.zip
+Reassembled and verified .sites-runtime/voice-reference/training/checkpoint.pt
+Selected project resources restored.
+sample.zip: 100.0%
+Extracting sample.zip
+Selected project resources restored.
+
+...................................................................................IMAGE_CANDIDATES grand piano keyboard 24
+IMAGE_PROGRESS 1/20
+IMAGE_PROGRESS 2/20
+IMAGE_PROGRESS 3/20
+IMAGE_PROGRESS 4/20
+IMAGE_PROGRESS 5/20
+IMAGE_PROGRESS 6/20
+IMAGE_PROGRESS 7/20
+IMAGE_PROGRESS 8/20
+IMAGE_PROGRESS 9/20
+IMAGE_PROGRESS 10/20
+IMAGE_PROGRESS 11/20
+IMAGE_PROGRESS 12/20
+IMAGE_PROGRESS 13/20
+IMAGE_PROGRESS 14/20
+IMAGE_PROGRESS 15/20
+IMAGE_PROGRESS 16/20
+IMAGE_PROGRESS 17/20
+IMAGE_PROGRESS 18/20
+IMAGE_PROGRESS 19/20
+IMAGE_PROGRESS 20/20
+.......................................................................................................Traceback (most recent call last):
+  File "C:\Users\mail\Documents\ChatGPT\自动钢琴陪练系统\scorestarling.py", line 372, in run
+    raise ValueError('导出费用已变化，请重新确认；尚未扣费')
+ValueError: 导出费用已变化，请重新确认；尚未扣费
+.....................................
+----------------------------------------------------------------------
+Ran 223 tests in 7.992s
+
+OK

@@ -10,7 +10,9 @@ from classroom_runtime import validate_actions,append_observation,edit_scene,act
 from score_profiles import get_profile,CACHE
 ROOT=Path(__file__).resolve().parent
 STORE=ROOT/'.sites-runtime/classrooms'
-POOL=ThreadPoolExecutor(max_workers=1)
+# 真并行：两组批处理（1879 常规 + 公开课 PBL）各占一个 worker，同时生成。
+# 上游 suda-deepseek 实测 WS_MAX_CONCURRENT=2 时断连 0%，并发 4 才有 8.7%。
+POOL=ThreadPoolExecutor(max_workers=2)
 LOCK=threading.Lock()
 ACTIVE=set()
 
@@ -18,12 +20,74 @@ def read(ident):
  if not re.fullmatch('[a-f0-9]{32}',ident):raise ValueError('无效课堂编号')
  return json.loads((STORE/(ident+'.json')).read_text(encoding='utf-8'))
 
+def repair_lesson_plan(course):
+ # generate.mjs 在 classroom 模式下最后一步生成 teachingDesign（含 objectives/teachingSteps），
+ # 若模型没吐出合法结构会抛“教案结构未生成完整”并整体判失败；但此时 outlines/scenes/lessonPlan 大多已落盘。
+ # 这里用已有的 outlines 兜底合成 teachingDesign，让课程可用，不再把整首判失败。返回 True 表示已成功兜底。
+ outlines=course.get('outlines') or []
+ scenes=course.get('scenes') or []
+ if not outlines and not scenes:
+  return False
+ lp=dict(course.get('lessonPlan') or {})
+ td=dict(lp.get('teachingDesign') or {})
+ objectives=td.get('objectives')
+ if not isinstance(objectives,list) or not objectives:
+  objectives=[o.get('title') for o in outlines[:3] if (o.get('title') or '').strip()]
+  if not objectives:
+   objectives=['通过聆听、分析与表现，理解作品中的音乐要素与表达意图']
+ td['objectives']=objectives
+ steps=td.get('teachingSteps')
+ if not isinstance(steps,list) or not steps:
+  steps=[]
+  for i,o in enumerate(outlines):
+   steps.append({'title':o.get('title') or ('环节 %d'%(i+1)),'teacherPrompt':o.get('description') or ('围绕《%s》展开本环节'%course.get('title','')),'studentActivity':o.get('teachingObjective') or '聆听、讨论或完成对应活动','anticipatedResponse':'学生基于已听内容给出理解与感受','followUp':'根据学生反应追问或补充聆听任务','evidence':'观察学生能否用音乐要素描述本环节内容'})
+  if not steps:
+   steps=[{'title':s.get('title') or ('环节 %d'%(i+1)),'teacherPrompt':'','studentActivity':'','anticipatedResponse':'','followUp':'','evidence':''} for i,s in enumerate(scenes)]
+ td['teachingSteps']=steps
+ for k in ('lessonType','learnerAnalysis','keyPoints','difficulties','preparation','assessment','differentiation'):
+  if k in td and td[k] in (None,'',[],{}):
+   td.pop(k,None)
+ lp['teachingDesign']=td
+ course['lessonPlan']=lp
+ return True
+
+REFERENCE_POOL=ThreadPoolExecutor(max_workers=2)
+REFERENCE_ACTIVE=set()
+def refresh_references(course,force=False):
+ from classroom_references import VERSION,find_references,needs_refresh
+ if course.get('status')!='complete' or not course.get('useReferences') or course.get('mode')!='classroom':return
+ if not force and not needs_refresh(course.get('references',{})):return
+ ident=course['id']
+ with LOCK:
+  if ident in REFERENCE_ACTIVE:
+   course['references']={**course.get('references',{}),'loading':True};return
+  REFERENCE_ACTIVE.add(ident)
+  course['references']={**course.get('references',{}),'message':'正在更新教学参考','loading':True}
+  try:write_json(STORE/(ident+'.json'),course)
+  except Exception:
+   REFERENCE_ACTIVE.discard(ident);raise
+ def work():
+  try:
+   refs=find_references(course['title'],{'primary':'小学','junior':'初中','senior':'高中'}.get(course.get('schoolStage'),'高中'),force=force)
+   latest=read(ident)
+   if latest.get('status')=='complete':
+    latest['references']=refs;write_json(STORE/(ident+'.json'),latest)
+    source=STORE/(ident+'.input.json')
+    if source.exists():
+     payload=json.loads(source.read_text(encoding='utf-8'));payload['references']=refs;write_json(source,payload)
+  except Exception as error:
+   latest=read(ident);latest['references']={**latest.get('references',{}),'version':VERSION,'loading':False,'savedAt':time.time(),'retryAt':time.time()+300,'message':'教学参考更新未完成：'+str(error)};write_json(STORE/(ident+'.json'),latest)
+  finally:
+   with LOCK:REFERENCE_ACTIVE.discard(ident)
+ REFERENCE_POOL.submit(work)
+
 def create(data):
  profile=get_profile(str(data.get('scoreId','')))
  whole=data.get('scope')=='whole'
  start=1 if whole else int(data.get('start',1));end=profile['measureCount'] if whole else int(data.get('end',min(8,profile['measureCount'])))
  if not 1<=start<=end<=profile['measureCount']:raise ValueError('所选小节超出当前谱面范围')
- goal=str(data.get('goal') or '从高中音乐鉴赏课堂出发，设计聆听、讨论与创作活动')[:1500]
+ open_class=bool(data.get('openClass'))
+ goal=str(data.get('goal') or '从高中音乐鉴赏课堂出发，设计聆听、讨论与创作活动')[: (3000 if open_class else 1500)]
  mode='classroom' if re.search('小学|初中|高中|音乐课堂|音乐课|鉴赏|欣赏|班级|教案',goal) else str(data.get('mode') or 'classroom')
  if mode not in ('classroom','piano'):raise ValueError('请选择音乐课堂或钢琴教学')
  duration=int(data.get('duration',45))
@@ -37,7 +101,7 @@ def create(data):
  level=str(data.get('level') or {'primary':'小学三年级','junior':'初中一年级','senior':'高中一年级'}[school_stage])[:50]
  signature=hashlib.sha256((CACHE/(profile['id']+'.json')).read_bytes()).hexdigest()
  attachments=materials.selected(profile['id'],data.get('materialIds',[]))
- ident=hashlib.sha256(json.dumps([profile['id'],signature,profile['title'],start,end,goal,level,mode,duration,features,school_stage,use_references,attachments,'openmaic-0.3.18-v13'],ensure_ascii=False).encode()).hexdigest()[:32]
+ ident=hashlib.sha256(json.dumps([profile['id'],signature,profile['title'],start,end,goal,level,mode,duration,features,school_stage,use_references,attachments,open_class,'openmaic-0.3.18-v15-online-visuals'],ensure_ascii=False).encode()).hexdigest()[:32]
  with LOCK:
   old=None
   try:
@@ -69,7 +133,8 @@ def create(data):
   evidence['noteEvidence']={'total':len(notes),'sampled':stride>1,'stride':stride,'range':[start,end]}
   evidence['units']='beat是从0开始的小节内位置；duration以四分音符为1：1=四分音符，0.5=八分音符，0.25=十六分音符，2=二分音符，4=全音符。writtenType是原谱音符种类。不同staff和voice不能混为一条旋律；同一part、staff、voice和beat的多个音同时发声，是和弦，不能串唱；chord=true表示与前音同时发声。'
   if stride>1:evidence['limits'].append('逐音证据为覆盖全曲的抽样，不能据此断言某小节不存在其他音符，或断定完整和声与曲式。')
-  course=dict(id=ident,scoreId=profile['id'],title=profile['title'],start=start,end=end,scope='whole' if whole else 'range',goal=goal,level=level,mode=mode,schoolStage=school_stage,useReferences=use_references,duration=duration,features=features,status='queued',progress=0,message='等待课程生成',scenes=[],createdAt=time.time(),engine='OpenMAIC generation 0.3.18',signature=signature)
+  course=dict(id=ident,scoreId=profile['id'],title=profile['title'],start=start,end=end,scope='whole' if whole else 'range',goal=goal,level=level,mode=mode,schoolStage=school_stage,useReferences=use_references,duration=duration,features=features,openClass=open_class,status='queued',progress=0,message='等待课程生成',scenes=[],createdAt=time.time(),engine='OpenMAIC generation 0.3.18',signature=signature)
+  course['goalCustomized']=bool(data.get('goalCustomized',True))
   course['materials']=attachments
   STORE.mkdir(parents=True,exist_ok=True);write_json(STORE/(ident+'.json'),course)
   write_json(STORE/(ident+'.input.json'),{**course,'evidence':evidence,'scenes':old.get('scenes',[]) if old else [],'outlines':old.get('outlines',[]) if old else []})
@@ -81,12 +146,12 @@ def generate(ident):
  try:
   node=shutil.which('node') or str(Path.home()/'.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node.exe')
   course.update(status='generating');write_json(STORE/(ident+'.json'),course)
-  if course.get('useReferences') and course.get('mode')=='classroom':
+  if not course.get('imagesOnly') and course.get('useReferences') and course.get('mode')=='classroom':
    course.update(progress=2,message='正在查找《'+course['title']+'》的教学参考');write_json(STORE/(ident+'.json'),course)
    from classroom_references import find_references
    course['references']=find_references(course['title'],{'primary':'小学','junior':'初中','senior':'高中'}.get(course.get('schoolStage'),'高中'))
    payload=json.loads((STORE/(ident+'.input.json')).read_text(encoding='utf-8'));payload['references']=course['references'];write_json(STORE/(ident+'.input.json'),payload);write_json(STORE/(ident+'.json'),course)
-  with subprocess.Popen([node,str(ROOT/'services/openmaic/generate.mjs'),str(STORE/(ident+'.input.json'))],cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.PIPE,encoding='utf-8',creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0)) as proc:
+  with subprocess.Popen([node,str(ROOT/('services/openmaic/illustrate-course.mjs' if course.get('imagesOnly') else 'services/openmaic/generate.mjs')),str(STORE/(ident+'.input.json'))],cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.PIPE,encoding='utf-8',creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0)) as proc:
    # Drain stderr separately: SDK warnings must never block the worker pipe.
    errors=[]
    def drain():
@@ -94,23 +159,53 @@ def generate(ident):
      errors.append(line)
      if len(errors)>50:errors.pop(0)
    threading.Thread(target=drain,daemon=True).start()
-   for line in proc.stdout:
-    try:event=json.loads(line)
-    except ValueError:continue
-    if event.get('type')=='error':raise RuntimeError(event['message'])
-    if 'progress' in event:course['progress']=event['progress']
-    if 'message' in event:course['message']=event['message']
-    if event.get('type')=='outline':course['outlines']=event['outlines'];course['lessonPlan']=event.get('lessonPlan',{})
-    if event.get('type')=='plan':course['lessonPlan']=event['lessonPlan']
-    if event.get('type')=='scene':
-     scene=event['scene'];existing=next((i for i,s in enumerate(course['scenes']) if s['id']==scene['id']),None)
-     if existing is None:course['scenes'].append(scene)
-     else:course['scenes'][existing]=scene
-    if event.get('type')=='complete':course['status']='complete'
-    course['updatedAt']=time.time();write_json(STORE/(ident+'.json'),course)
-   if proc.wait()!=0 or course['status']!='complete':raise RuntimeError('课程生成未完成：'+''.join(errors)[-500:])
+   # 单独线程读 stdout：每行都代表“还在动”，并记录最后活动时间；主线程据此判挂死。
+   last_output=[time.time()]
+   def reader():
+    try:
+     for line in proc.stdout:
+      last_output[0]=time.time()
+      try:event=json.loads(line)
+      except ValueError:continue
+      if event.get('type')=='error':raise RuntimeError(event['message'])
+      if 'progress' in event:course['progress']=event['progress']
+      if 'message' in event:course['message']=event['message']
+      if event.get('type')=='outline':course['outlines']=event['outlines'];course['lessonPlan']=event.get('lessonPlan',{})
+      if event.get('type')=='plan':course['lessonPlan']=event.get('lessonPlan')
+      if event.get('type')=='visual-report':course['visuals']=event.get('visuals',[]);course['imagesDesignVersion']=event.get('version','legacy')
+      if event.get('type')=='scene':
+       scene=event['scene'];existing=next((i for i,s in enumerate(course['scenes']) if s['id']==scene['id']),None)
+       if existing is None:course['scenes'].append(scene)
+       else:course['scenes'][existing]=scene
+      if event.get('type')=='complete':course['status']='complete'
+      course['updatedAt']=time.time();write_json(STORE/(ident+'.json'),course)
+    except RuntimeError as e:
+     errors.append('EVENT_ERROR:'+str(e))
+    except Exception as e:
+     errors.append('READ_ERROR:'+str(e))
+   rthread=threading.Thread(target=reader,daemon=True);rthread.start()
+   # ★ 守卫（真并行放宽）：两路并发共享上游，单节整体 55 分钟 / 无输出 15 分钟。
+   # 否则一个 node 子进程卡死会永久占用唯一的工作线程，把整个 1879 批量队列堵死。
+   start=time.time()
+   while True:
+    rc=proc.poll()
+    if rc is not None:break
+    if time.time()-last_output[0] > 15*60:
+     proc.kill();raise RuntimeError('课程生成无输出超过 15 分钟，疑似模型连接挂死，已强制终止')
+    if time.time()-start > 55*60:
+     proc.kill();raise RuntimeError('课程生成总时长超过 55 分钟，已强制终止')
+    time.sleep(5)
+   rthread.join(timeout=5)
+   if proc.wait()!=0 or course['status']!='complete':
+    raise RuntimeError('课程生成未完成：'+''.join(errors)[-500:])
  except Exception as error:
-  course.update(status='failed',message=str(error),updatedAt=time.time());write_json(STORE/(ident+'.json'),course)
+  msg=str(error)
+  # 结构不完整：用已生成的 outlines/scenes 兜底补全教案，避免整首失败
+  if '教案结构未生成完整' in msg and repair_lesson_plan(course):
+   course.update(status='complete',progress=100,message='教案末段结构由系统兜底补全（原模型输出缺少 objectives/teachingSteps）',updatedAt=time.time())
+   write_json(STORE/(ident+'.json'),course)
+  else:
+   course.update(status='failed',message=msg,updatedAt=time.time());write_json(STORE/(ident+'.json'),course)
  finally:
   with LOCK:ACTIVE.discard(ident)
 
@@ -122,6 +217,8 @@ def handle(handler):
    limit=800000 if parsed.path=='/api/classroom/material-upload' else 64000
    if not 0<length<=limit:raise ValueError('课程请求大小无效')
    data=json.loads(handler.rfile.read(length))
+   if parsed.path=='/api/classroom/references-retry':
+    course=read(str(data.get('id','')));refresh_references(course,force=True);return handler.json_response(course)
    if parsed.path=='/api/classroom/material-upload':return handler.json_response(materials.upload(data))
    if parsed.path=='/api/classroom/material-retry':
     item=materials.read(str(data.get('materialId','')))
@@ -129,6 +226,9 @@ def handle(handler):
      if item['id'] not in materials.ACTIVE:
       item.update(status='queued',message='等待重新解析');materials.save(item);materials.ACTIVE.add(item['id']);materials.POOL.submit(materials.parse,item['id'])
     return handler.json_response(materials.public(item))
+   if parsed.path=='/api/classroom/illustrate':
+    from classroom_image_repair import start
+    return handler.json_response(start(str(data.get('id',''))))
    if parsed.path=='/api/classroom/revise':
     course=read(str(data.get('id','')))
     from ai_workspace import post_model_stream
@@ -206,10 +306,15 @@ def handle(handler):
    return
   ident=parse_qs(parsed.query).get('id',[''])[0]
   course=read(ident)
+  if course.get('imagesStatus')=='running':
+   import classroom_image_repair
+   with classroom_image_repair.LOCK:image_active=ident in classroom_image_repair.ACTIVE
+   if not image_active:course.update(imagesStatus='failed',imagesMessage='上次补图未完成，可以重新补充插图')
+  if parsed.path=='/api/classroom':refresh_references(course)
   if parsed.path=='/api/classroom/export':
    if not course['scenes']:raise ValueError('课件尚未生成')
    target=STORE/(ident+'.pptx')
-   if not target.exists() or target.stat().st_mtime<(STORE/(ident+'.json')).stat().st_mtime:
+   if not target.exists() or target.stat().st_mtime<max((STORE/(ident+'.json')).stat().st_mtime,(ROOT/'services/openmaic/export-pptx.mjs').stat().st_mtime,(ROOT/'dist/classroom-slide-design.js').stat().st_mtime):
     node=shutil.which('node') or str(Path.home()/'.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node.exe')
     result=subprocess.run([node,str(ROOT/'services/openmaic/export-pptx.mjs'),str(STORE/(ident+'.json')),str(target)],cwd=ROOT,capture_output=True,encoding='utf-8',timeout=45,creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
     if result.returncode:raise ValueError('PPT 导出失败：'+result.stderr[-500:])
@@ -231,6 +336,7 @@ def tasks():
    c=read(path.stem);status=c['status']
    message=c['message']
    if status in ('queued','generating') and c['id'] not in ACTIVE:status='failed';message='服务重启中断了课堂生成，请在曲谱课堂重试。'
-   result.append({'id':'classroom-'+c['id'],'kind':'classroom','scoreTitle':c['title'],'created':c['createdAt'],'status':'running' if status=='generating' else status,'progress':c['progress'],'stage':message,'label':'曲谱课堂'})
+   is_open=bool(c.get('openClass'))
+   result.append({'id':'classroom-'+c['id'],'kind':'openclass' if is_open else 'classroom','scoreTitle':c['title'],'created':c['createdAt'],'status':'running' if status=='generating' else status,'progress':c['progress'],'stage':message,'label':('公开课课堂' if is_open else '曲谱课堂'),'openClass':is_open})
   except (OSError,ValueError,KeyError):continue
  return result

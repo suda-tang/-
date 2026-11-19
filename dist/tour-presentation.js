@@ -1,4 +1,4 @@
-import {openingNarration} from './narration-opening.js?v=auto-discovery5';
+import {openingNarration} from './narration-opening.js?v=flow137';
 export function pinTourHeader(){
  if(window.earlyTourUnpin)return window.earlyTourUnpin;
  const header=document.querySelector('.top');if(!header)return()=>{};

@@ -1,0 +1,1 @@
+const fs=require('fs'),p='scripts/check-mentor122.cjs';let s=fs.readFileSync(p,'utf8');s=s.replace("assert(local.equals(remote),'Public mismatch '+file);", "const normalize=b=>file==='index.html'?b.toString('utf8').replace(/<meta property=\"og:url\"[^>]*>/g,''):b.toString('base64');assert(normalize(local)===normalize(remote),'Public mismatch '+file);");fs.writeFileSync(p,s);

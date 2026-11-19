@@ -9,7 +9,7 @@ SOURCES = [
  '.sites-runtime/translation', '.sites-runtime/transcription-vendor', '.sites-runtime/package',
  'dist/narration/tour-male', 'dist/narration/background',
 ]
-EXTERNAL = pathlib.Path(os.getenv('PIANO_COSY_RUNTIME', 'C:/PianoCoachRuntime/cosyvoice'))
+EXTERNAL = pathlib.Path(os.getenv('PIANO_COSY_RUNTIME', 'D:/PianoCoachRuntime/cosyvoice'))
 COSY_ONLY = False
 
 def archive_path(path):

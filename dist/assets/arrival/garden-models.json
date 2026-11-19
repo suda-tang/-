@@ -1,0 +1,612 @@
+[
+  {
+    "id": "yiyuan-tile--1--1",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/7fa6027c-6691-4997-81f5-0d815f10ad0c",
+    "url": "/assets/gardens/yiyuan/tile--1--1.gltf?v=compact66",
+    "position": [
+      -100,
+      0,
+      -180
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "yiyuan",
+    "scale": 1
+  },
+  {
+    "id": "yiyuan-tile--1-0",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/7fa6027c-6691-4997-81f5-0d815f10ad0c",
+    "url": "/assets/gardens/yiyuan/tile--1-0.gltf?v=compact66",
+    "position": [
+      -100,
+      0,
+      -160
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "yiyuan",
+    "scale": 1
+  },
+  {
+    "id": "yiyuan-tile--2--1",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/7fa6027c-6691-4997-81f5-0d815f10ad0c",
+    "url": "/assets/gardens/yiyuan/tile--2--1.gltf?v=compact66",
+    "position": [
+      -120,
+      0,
+      -180
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "yiyuan",
+    "scale": 1
+  },
+  {
+    "id": "yiyuan-tile-0--1",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/7fa6027c-6691-4997-81f5-0d815f10ad0c",
+    "url": "/assets/gardens/yiyuan/tile-0--1.gltf?v=compact66",
+    "position": [
+      -80,
+      0,
+      -180
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "yiyuan",
+    "scale": 1,
+    "previewUrl": "/assets/gardens/yiyuan/tile-0--1.preview.gltf?v=135"
+  },
+  {
+    "id": "yiyuan-tile-0-0",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/7fa6027c-6691-4997-81f5-0d815f10ad0c",
+    "url": "/assets/gardens/yiyuan/tile-0-0.gltf?v=compact66",
+    "position": [
+      -80,
+      0,
+      -160
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "yiyuan",
+    "scale": 1,
+    "previewUrl": "/assets/gardens/yiyuan/tile-0-0.preview.gltf?v=135"
+  },
+  {
+    "id": "yiyuan-tile-1--1",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/7fa6027c-6691-4997-81f5-0d815f10ad0c",
+    "url": "/assets/gardens/yiyuan/tile-1--1.gltf?v=compact66",
+    "position": [
+      -60,
+      0,
+      -180
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "yiyuan",
+    "scale": 1
+  },
+  {
+    "id": "zhuozhengyuan-tile--1--1",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/a340cc45-6e10-4db7-b77d-e51ac3045878",
+    "url": "/assets/gardens/zhuozhengyuan/tile--1--1.gltf?v=compact66",
+    "position": [
+      -95,
+      0,
+      -262
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "zhuozhengyuan",
+    "scale": 1,
+    "alignedLectureDistrict": true
+  },
+  {
+    "id": "zhuozhengyuan-tile--1--2",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/a340cc45-6e10-4db7-b77d-e51ac3045878",
+    "url": "/assets/gardens/zhuozhengyuan/tile--1--2.gltf?v=compact66",
+    "position": [
+      -95,
+      0,
+      -282
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "zhuozhengyuan",
+    "scale": 1,
+    "alignedLectureDistrict": true
+  },
+  {
+    "id": "zhuozhengyuan-tile--1-0",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/a340cc45-6e10-4db7-b77d-e51ac3045878",
+    "url": "/assets/gardens/zhuozhengyuan/tile--1-0.gltf?v=compact66",
+    "position": [
+      -95,
+      0,
+      -242
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "zhuozhengyuan",
+    "scale": 1,
+    "alignedLectureDistrict": true
+  },
+  {
+    "id": "zhuozhengyuan-tile--2--1",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/a340cc45-6e10-4db7-b77d-e51ac3045878",
+    "url": "/assets/gardens/zhuozhengyuan/tile--2--1.gltf?v=compact66",
+    "position": [
+      -115,
+      0,
+      -262
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "zhuozhengyuan",
+    "scale": 1,
+    "alignedLectureDistrict": true
+  },
+  {
+    "id": "zhuozhengyuan-tile--2--2",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/a340cc45-6e10-4db7-b77d-e51ac3045878",
+    "url": "/assets/gardens/zhuozhengyuan/tile--2--2.gltf?v=compact66",
+    "position": [
+      -115,
+      0,
+      -282
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "zhuozhengyuan",
+    "scale": 1,
+    "alignedLectureDistrict": true
+  },
+  {
+    "id": "zhuozhengyuan-tile--2--3",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/a340cc45-6e10-4db7-b77d-e51ac3045878",
+    "url": "/assets/gardens/zhuozhengyuan/tile--2--3.gltf?v=compact66",
+    "position": [
+      -115,
+      0,
+      -302
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "zhuozhengyuan",
+    "scale": 1,
+    "alignedLectureDistrict": true
+  },
+  {
+    "id": "zhuozhengyuan-tile--2-0",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/a340cc45-6e10-4db7-b77d-e51ac3045878",
+    "url": "/assets/gardens/zhuozhengyuan/tile--2-0.gltf?v=compact66",
+    "position": [
+      -115,
+      0,
+      -242
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "zhuozhengyuan",
+    "scale": 1,
+    "alignedLectureDistrict": true
+  },
+  {
+    "id": "zhuozhengyuan-tile--2-1",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/a340cc45-6e10-4db7-b77d-e51ac3045878",
+    "url": "/assets/gardens/zhuozhengyuan/tile--2-1.gltf?v=compact66",
+    "position": [
+      -115,
+      0,
+      -222
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "zhuozhengyuan",
+    "scale": 1,
+    "alignedLectureDistrict": true
+  },
+  {
+    "id": "zhuozhengyuan-tile--3--1",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/a340cc45-6e10-4db7-b77d-e51ac3045878",
+    "url": "/assets/gardens/zhuozhengyuan/tile--3--1.gltf?v=compact66",
+    "position": [
+      -135,
+      0,
+      -262
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "zhuozhengyuan",
+    "scale": 1,
+    "alignedLectureDistrict": true
+  },
+  {
+    "id": "zhuozhengyuan-tile--3--2",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/a340cc45-6e10-4db7-b77d-e51ac3045878",
+    "url": "/assets/gardens/zhuozhengyuan/tile--3--2.gltf?v=compact66",
+    "position": [
+      -135,
+      0,
+      -282
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "zhuozhengyuan",
+    "scale": 1,
+    "alignedLectureDistrict": true
+  },
+  {
+    "id": "zhuozhengyuan-tile--3--3",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/a340cc45-6e10-4db7-b77d-e51ac3045878",
+    "url": "/assets/gardens/zhuozhengyuan/tile--3--3.gltf?v=compact66",
+    "position": [
+      -135,
+      0,
+      -302
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "zhuozhengyuan",
+    "scale": 1,
+    "alignedLectureDistrict": true
+  },
+  {
+    "id": "zhuozhengyuan-tile--3-0",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/a340cc45-6e10-4db7-b77d-e51ac3045878",
+    "url": "/assets/gardens/zhuozhengyuan/tile--3-0.gltf?v=compact66",
+    "position": [
+      -135,
+      0,
+      -242
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "zhuozhengyuan",
+    "scale": 1,
+    "alignedLectureDistrict": true
+  },
+  {
+    "id": "zhuozhengyuan-tile--3-1",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/a340cc45-6e10-4db7-b77d-e51ac3045878",
+    "url": "/assets/gardens/zhuozhengyuan/tile--3-1.gltf?v=compact66",
+    "position": [
+      -135,
+      0,
+      -222
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "zhuozhengyuan",
+    "scale": 1,
+    "alignedLectureDistrict": true
+  },
+  {
+    "id": "zhuozhengyuan-tile--4-0",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/a340cc45-6e10-4db7-b77d-e51ac3045878",
+    "url": "/assets/gardens/zhuozhengyuan/tile--4-0.gltf?v=compact66",
+    "position": [
+      -155,
+      0,
+      -242
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "zhuozhengyuan",
+    "scale": 1,
+    "alignedLectureDistrict": true
+  },
+  {
+    "id": "zhuozhengyuan-tile--4-2",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/a340cc45-6e10-4db7-b77d-e51ac3045878",
+    "url": "/assets/gardens/zhuozhengyuan/tile--4-2.gltf?v=compact66",
+    "position": [
+      -155,
+      0,
+      -202
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "zhuozhengyuan",
+    "scale": 1,
+    "alignedLectureDistrict": true
+  },
+  {
+    "id": "zhuozhengyuan-tile-0--1",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/a340cc45-6e10-4db7-b77d-e51ac3045878",
+    "url": "/assets/gardens/zhuozhengyuan/tile-0--1.gltf?v=compact66",
+    "position": [
+      -75,
+      0,
+      -262
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "zhuozhengyuan",
+    "scale": 1,
+    "alignedLectureDistrict": true,
+    "previewUrl": "/assets/gardens/zhuozhengyuan/tile-0--1.preview.gltf?v=135"
+  },
+  {
+    "id": "zhuozhengyuan-tile-0--2",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/a340cc45-6e10-4db7-b77d-e51ac3045878",
+    "url": "/assets/gardens/zhuozhengyuan/tile-0--2.gltf?v=compact66",
+    "position": [
+      -75,
+      0,
+      -282
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "zhuozhengyuan",
+    "scale": 1,
+    "alignedLectureDistrict": true
+  },
+  {
+    "id": "zhuozhengyuan-tile-0-0",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/a340cc45-6e10-4db7-b77d-e51ac3045878",
+    "url": "/assets/gardens/zhuozhengyuan/tile-0-0.gltf?v=compact66",
+    "position": [
+      -75,
+      0,
+      -242
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "zhuozhengyuan",
+    "scale": 1,
+    "alignedLectureDistrict": true,
+    "previewUrl": "/assets/gardens/zhuozhengyuan/tile-0-0.preview.gltf?v=135"
+  },
+  {
+    "id": "zhuozhengyuan-tile-0-1",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/a340cc45-6e10-4db7-b77d-e51ac3045878",
+    "url": "/assets/gardens/zhuozhengyuan/tile-0-1.gltf?v=compact66",
+    "position": [
+      -75,
+      0,
+      -222
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "zhuozhengyuan",
+    "scale": 1,
+    "alignedLectureDistrict": true
+  },
+  {
+    "id": "zhuozhengyuan-tile-1--1",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/a340cc45-6e10-4db7-b77d-e51ac3045878",
+    "url": "/assets/gardens/zhuozhengyuan/tile-1--1.gltf?v=compact66",
+    "position": [
+      -55,
+      0,
+      -262
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "zhuozhengyuan",
+    "scale": 1,
+    "alignedLectureDistrict": true
+  },
+  {
+    "id": "zhuozhengyuan-tile-1--2",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/a340cc45-6e10-4db7-b77d-e51ac3045878",
+    "url": "/assets/gardens/zhuozhengyuan/tile-1--2.gltf?v=compact66",
+    "position": [
+      -55,
+      0,
+      -282
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "zhuozhengyuan",
+    "scale": 1,
+    "alignedLectureDistrict": true
+  },
+  {
+    "id": "zhuozhengyuan-tile-1-0",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/a340cc45-6e10-4db7-b77d-e51ac3045878",
+    "url": "/assets/gardens/zhuozhengyuan/tile-1-0.gltf?v=compact66",
+    "position": [
+      -55,
+      0,
+      -242
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "zhuozhengyuan",
+    "scale": 1,
+    "alignedLectureDistrict": true
+  },
+  {
+    "id": "zhuozhengyuan-tile-1-1",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/a340cc45-6e10-4db7-b77d-e51ac3045878",
+    "url": "/assets/gardens/zhuozhengyuan/tile-1-1.gltf?v=compact66",
+    "position": [
+      -55,
+      0,
+      -222
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "zhuozhengyuan",
+    "scale": 1,
+    "alignedLectureDistrict": true
+  },
+  {
+    "id": "zhuozhengyuan-tile-2--1",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/a340cc45-6e10-4db7-b77d-e51ac3045878",
+    "url": "/assets/gardens/zhuozhengyuan/tile-2--1.gltf?v=compact66",
+    "position": [
+      -35,
+      0,
+      -262
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "zhuozhengyuan",
+    "scale": 1,
+    "alignedLectureDistrict": true
+  },
+  {
+    "id": "zhuozhengyuan-tile-2--2",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/a340cc45-6e10-4db7-b77d-e51ac3045878",
+    "url": "/assets/gardens/zhuozhengyuan/tile-2--2.gltf?v=compact66",
+    "position": [
+      -35,
+      0,
+      -282
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "zhuozhengyuan",
+    "scale": 1,
+    "alignedLectureDistrict": true
+  },
+  {
+    "id": "zhuozhengyuan-tile-2-0",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/a340cc45-6e10-4db7-b77d-e51ac3045878",
+    "url": "/assets/gardens/zhuozhengyuan/tile-2-0.gltf?v=compact66",
+    "position": [
+      -35,
+      0,
+      -242
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "zhuozhengyuan",
+    "scale": 1,
+    "alignedLectureDistrict": true
+  },
+  {
+    "id": "zhuozhengyuan-tile-2-1",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/a340cc45-6e10-4db7-b77d-e51ac3045878",
+    "url": "/assets/gardens/zhuozhengyuan/tile-2-1.gltf?v=compact66",
+    "position": [
+      -35,
+      0,
+      -222
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "zhuozhengyuan",
+    "scale": 1,
+    "alignedLectureDistrict": true
+  },
+  {
+    "id": "zhuozhengyuan-tile-3--1",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/a340cc45-6e10-4db7-b77d-e51ac3045878",
+    "url": "/assets/gardens/zhuozhengyuan/tile-3--1.gltf?v=compact66",
+    "position": [
+      -15,
+      0,
+      -262
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "zhuozhengyuan",
+    "scale": 1,
+    "alignedLectureDistrict": true
+  },
+  {
+    "id": "zhuozhengyuan-tile-3-0",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/a340cc45-6e10-4db7-b77d-e51ac3045878",
+    "url": "/assets/gardens/zhuozhengyuan/tile-3-0.gltf?v=compact66",
+    "position": [
+      -15,
+      0,
+      -242
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "zhuozhengyuan",
+    "scale": 1,
+    "alignedLectureDistrict": true
+  },
+  {
+    "id": "zhuozhengyuan-tile-3-1",
+    "status": "ready",
+    "license": "User-confirmed research authorization; F. L.",
+    "source": "https://3dwarehouse.sketchup.com/model/a340cc45-6e10-4db7-b77d-e51ac3045878",
+    "url": "/assets/gardens/zhuozhengyuan/tile-3-1.gltf?v=compact66",
+    "position": [
+      -15,
+      0,
+      -222
+    ],
+    "radius": 45,
+    "loadDistance": 120,
+    "garden": "zhuozhengyuan",
+    "scale": 1,
+    "alignedLectureDistrict": true
+  }
+]

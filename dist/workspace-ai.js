@@ -1,9 +1,13 @@
+import {abortTimeout} from './abort-timeout.js';
+import {targetReached} from './ai-action-state.js';
+import {normalizeClassroomCommand} from './classroom-command.js';
+import {classroomIntent,transportIntent,numberedWorkIntent,classroomControlIntent,classroomOperations} from './ai-classroom-intent.js';
 import {renderAssistantText} from './ai-text.js';
-import {offerScoreStarling} from './scorestarling-agent.js';
+import {offerScoreStarling} from './scorestarling-agent.js?v=music-first2';
 import {webSearchCard,webResultCards} from './ai-search-cards.js';
 import {validatePracticePlan} from './practice-plan.js';
 import {arrangementCapabilities,configureArrangement,validateArrangementIntent} from './arrangement-intent.js';
-import {reportTask,taskContext} from './task-center.js?v=folded-groups1';
+import {reportTask,taskContext} from './task-center.js?v=home-attach3';
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 // Task IDs do not require HTTPS-only randomUUID support.
 function taskId(){if(typeof globalThis.crypto?.randomUUID==='function')return crypto.randomUUID();const bytes=new Uint8Array(16);if(globalThis.crypto?.getRandomValues){crypto.getRandomValues(bytes);return Array.from(bytes,n=>n.toString(16).padStart(2,'0')).join('');}return Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);}
@@ -22,6 +26,10 @@ function readableNetworkError(error){
  return text||'连接失败';
 }
 async function requestAI(payload,onEvent,signal){
+ const control=classroomControlIntent(payload);if(control)return control;
+ const numbered=numberedWorkIntent(payload);if(numbered&&!payload.repair)return numbered;
+ const transport=transportIntent(payload);if(transport)return transport;
+ const classroom=classroomIntent(payload);if(classroom&&!payload.repair){onEvent?.({type:'status',text:'正在准备当前曲目的课堂设置'});return classroom;}
  // 重试只看「是不是连接/上游出问题」：HTTP 5xx（模型或网关临时不可用）、真正的传输错误
 // （fetch 抛 TypeError/AbortError/TimeoutError、连接重置等）。不再靠匹配中文报错文案决定。
 const isConnectionError=error=>(error?.status&&error.status>=500)||['TypeError','AbortError','TimeoutError','SyntaxError'].includes(error?.name)||/failed to fetch|load failed|network|connection|timeout|timed?out|abort|reset|econn|socket|断线|连接/i.test(error?.message||'');
@@ -36,9 +44,15 @@ const isConnectionError=error=>(error?.status&&error.status>=500)||['TypeError',
    // ★ 关键修复（2026-10-11）：以前只在 done（连接关闭）时跳出。实测浏览器里这条流迟迟不关闭，
    //   reader.read() 一直挂着 → requestAI 永不返回 → runActions 永远不执行（谱面/速度/静音全没反应），
    //   且 busy 永久卡住，后续每句都只能「先排队」。result 事件就是这条流的终点，收到即可收工。
-   if(result){try{void reader.cancel();}catch{}buffer='';break;}
+   if(result&&!result.partial){try{void reader.cancel();}catch{}buffer='';break;}
    if(done){consume(buffer);break;}}
-  if(!result)throw new TypeError('连接已结束，但操作方案未接收完整');return result;
+  if(!result)throw new TypeError('连接已结束，但操作方案未接收完整');
+  if(!payload.emptyRecovery&&!result.actions?.length&&/这一轮模型没有返回可用内容|不确定你想让我执行哪一步/.test(result.reply||'')){
+   onEvent?.({type:'status',text:'正在保留原要求，重新核对可执行步骤'});
+   const original=[...payload.messages||[]].reverse().find(m=>m.role==='user')?.content||'';
+   return requestAI({...payload,emptyRecovery:true,messages:[...payload.messages||[],{role:'user',content:'继续完成原请求：'+original+'。结合当前作品和课堂状态使用已有功能执行，不要要求我重复原话。'}]},onEvent,deadline);
+  }
+  return result;
  }catch(error){
   // 用户主动关掉对话时中止的请求，不要当成「连接中断」去重试 —— 那会在后台白跑两次。
   if(signal?.aborted)throw error;
@@ -51,13 +65,13 @@ const isConnectionError=error=>(error?.status&&error.status>=500)||['TypeError',
  }
 }
 function init(){
- if(document.querySelector('#workspace-ai'))return;
+ if(document.querySelector('#workspace-ai')&&!document.querySelector('#workspace-ai[data-pending-controller]'))return;
  const ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);if(ios)document.documentElement.classList.add('ios-low-memory');
  const nav=document.querySelector('.workspace-nav');if(!nav)return;
- const trigger=document.createElement('button');trigger.id='workspace-ai';trigger.type='button';trigger.innerHTML='<span>AI</span><svg class="ai-task-ring" viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="ai-task-gradient" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#74bfff"/><stop offset=".5" stop-color="#bf88ef"/><stop offset="1" stop-color="#f8a487"/></linearGradient></defs><circle cx="24" cy="24" r="22"/></svg>';trigger.setAttribute('aria-label','打开 SUPERTANG AI');const dock=document.createElement('div');dock.className='ai-navigation-dock';nav.before(dock);dock.append(nav,trigger);
+ const trigger=document.querySelector('#workspace-ai[data-pending-controller]')||document.createElement('button');delete trigger.dataset.pendingController;trigger.disabled=false;trigger.id='workspace-ai';trigger.type='button';trigger.innerHTML='<span>AI</span><svg class="ai-task-ring" viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="ai-task-gradient" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#74bfff"/><stop offset=".5" stop-color="#bf88ef"/><stop offset="1" stop-color="#f8a487"/></linearGradient></defs><circle cx="24" cy="24" r="22"/></svg>';trigger.setAttribute('aria-label','打开 SUPERTANG AI');const dock=nav.closest('.ai-navigation-dock')||document.createElement('div');dock.className='ai-navigation-dock';if(!dock.isConnected)nav.before(dock);dock.append(nav,trigger);
  const dialog=document.createElement('dialog');dialog.className='ai-conversation';
  dialog.innerHTML='<div class="ai-screen-aura" aria-hidden="true"><i></i><i></i><i></i><i></i></div><div class="ai-history-frame"><div class="ai-messages" role="log" aria-live="polite"></div></div><form><input aria-label="告诉我你想做什么" placeholder="告诉我你想做什么" maxlength="2000"><button type="submit" aria-label="发送">↑</button><button type="button" class="ai-close" aria-label="关闭">×</button></form>';
- document.body.append(dialog);const log=dialog.querySelector('.ai-messages'),input=dialog.querySelector('input'),form=dialog.querySelector('form');let messages=[],executedActions=[],busy=false,transitioning=false,closeRequested=false,selectedScoreId=null,lastUserText="";
+ document.body.append(dialog);const log=dialog.querySelector('.ai-messages'),input=dialog.querySelector('input'),form=dialog.querySelector('form');let submissionQueue=Promise.resolve();let messages=[],executedActions=[],busy=false,transitioning=false,closeRequested=false,selectedScoreId=null,lastUserText="";
  const historyFrame=dialog.querySelector('.ai-history-frame');let historyFrameTick=0;
  const resizeHistory=new ResizeObserver(()=>{cancelAnimationFrame(historyFrameTick);historyFrameTick=requestAnimationFrame(()=>{const height=log.children.length?log.getBoundingClientRect().height:0;historyFrame.style.height=height+'px';historyFrame.classList.toggle('has-content',height>0);});});
  resizeHistory.observe(log);
@@ -91,7 +105,7 @@ function init(){
  let inActionPhase=false,suppressedLogCount=0;
  const ACTION_WARN_RE=/注意|失败|没有找到|未完成|无法|不能|请先|超时|中断|仍在|排队|错误|没有变化/;
  const ACTION_CONFIRM_RE=/^(已|好的|速度已|节拍器已|节拍器已经是|音色已|编制、|配器已|只播第|分段建议已)/;
- function line(text,role='assistant'){if(role==='assistant'&&aiTask)taskLines.push(text);const _s=String(text||'');if(role==='assistant'&&inActionPhase&&_s.length<=48&&!_s.includes('\n')&&ACTION_CONFIRM_RE.test(_s)&&!ACTION_WARN_RE.test(_s)){suppressedLogCount++;return;}trimConversation();const p=document.createElement(role==='assistant'?'div':'p');p.className=role;if(role==='assistant')renderAssistantText(p,text);else p.textContent=text;log.append(p);log.scrollTop=log.scrollHeight;}
+ function line(text,role='assistant'){if(role==='assistant'&&aiTask)taskLines.push(text);const _s=String(text||'');if(role==='assistant'&&tourOwned&&inActionPhase&&_s.length<=48&&!_s.includes('\n')&&ACTION_CONFIRM_RE.test(_s)&&!ACTION_WARN_RE.test(_s)){suppressedLogCount++;return;}trimConversation();const p=document.createElement(role==='assistant'?'div':'p');p.className=role;if(role==='assistant')renderAssistantText(p,text);else p.textContent=text;log.append(p);log.scrollTop=log.scrollHeight;}
  const reduced=()=>matchMedia('(prefers-reduced-motion:reduce)').matches;
  const operation=document.createElement('div');operation.className='ai-operation-layer';operation.innerHTML='<div class="ai-screen-aura" aria-hidden="true"><i></i><i></i><i></i><i></i></div><span role="status"></span>';document.body.append(operation);
  let taskPercent=0,aiTask=null,saveTimer=0,saveChain=Promise.resolve(),taskLines=[];
@@ -106,9 +120,9 @@ function init(){
  };
  addEventListener('pagehide',reportInterrupted);
 
- function taskActivity(label){operation.classList.add('is-indeterminate');trigger.classList.add('is-indeterminate');trigger.classList.add('has-task');trigger.title=label;trigger.setAttribute('aria-label',label);const span=operation.querySelector('span');span.textContent=label;span.setAttribute('role','status');span.removeAttribute('aria-valuenow');taskReport({detail:label,indeterminate:true});}
- function taskProgress(percent,label){operation.classList.remove('is-indeterminate');trigger.classList.remove('is-indeterminate');taskPercent=Math.max(taskPercent,Math.min(100,percent));trigger.dataset.taskProgress=String(Math.round(taskPercent));trigger.style.setProperty('--ai-task-progress',taskPercent/100);trigger.classList.add('has-task');trigger.title=label+' '+Math.round(taskPercent)+'%';trigger.setAttribute('aria-label',trigger.title);operation.querySelector('span').textContent=trigger.title;operation.style.setProperty('--ai-operation-progress',taskPercent+'%');operation.querySelector('span').setAttribute('role','progressbar');operation.querySelector('span').setAttribute('aria-valuenow',String(Math.round(taskPercent)));operation.querySelector('span').setAttribute('aria-valuemin','0');operation.querySelector('span').setAttribute('aria-valuemax','100');taskReport({progress:Math.round(taskPercent),detail:label,indeterminate:false});}
- async function showResults(){while(transitioning)await wait(30);if(!dialog.open)await trigger.onclick({result:true});log.scrollTop=log.scrollHeight;}
+ function taskActivity(label){operation.classList.add('is-indeterminate');trigger.classList.add('is-indeterminate');trigger.classList.add('has-task');trigger.title=label;trigger.setAttribute('aria-label','打开 SUPERTANG AI；'+label);const span=operation.querySelector('span');span.textContent=label;span.setAttribute('role','status');span.removeAttribute('aria-valuenow');taskReport({detail:label,indeterminate:true});}
+ function taskProgress(percent,label){operation.classList.remove('is-indeterminate');trigger.classList.remove('is-indeterminate');taskPercent=Math.max(taskPercent,Math.min(100,percent));trigger.dataset.taskProgress=String(Math.round(taskPercent));trigger.style.setProperty('--ai-task-progress',taskPercent/100);trigger.classList.add('has-task');trigger.title=label+' '+Math.round(taskPercent)+'%';trigger.setAttribute('aria-label','打开 SUPERTANG AI；'+trigger.title);operation.querySelector('span').textContent=trigger.title;operation.style.setProperty('--ai-operation-progress',taskPercent+'%');operation.querySelector('span').setAttribute('role','progressbar');operation.querySelector('span').setAttribute('aria-valuenow',String(Math.round(taskPercent)));operation.querySelector('span').setAttribute('aria-valuemin','0');operation.querySelector('span').setAttribute('aria-valuemax','100');taskReport({progress:Math.round(taskPercent),detail:label,indeterminate:false});}
+ async function showResults(){while(transitioning)await wait(30);if(!dialog.open)await trigger.onclick({result:true,origin:lastOrigin?.isConnected&&lastOrigin.getClientRects().length?lastOrigin:trigger});log.scrollTop=log.scrollHeight;}
  // 操作已经做完、面板收回时，用一小条气泡把结果说一句。
  // 为什么需要：runActions 一开头就把面板收回（要腾出屏幕执行操作），
  // 执行过程中 line() 写的「已暂停播放」「速度已设为 120 BPM」都在收回的面板里，
@@ -129,7 +143,7 @@ function logLatency(result,startedAt){
  const backend=result&&typeof result.latencyMs==='number'&&result.latencyMs>0?result.latencyMs:0;
  console.info('[AI] 回复用时 '+total.toFixed(1)+'s，后端 AI '+(backend?(backend/1000).toFixed(1)+'s':'(未上报)'));
 }
-const labels={practice_plan:'提供分段练习建议',configure_arrangement:'设置配器乐器',panel:'切换工作区',view:'切换谱面',search:'查找曲谱',open:'打开曲谱',play:'开始播放',pause:'暂停播放',stop:'停止播放',solo:'选择独奏声部',solo_group:'声部分组',mute:'调整声部',unmute:'恢复声部',set_tempo:'调整速度',set_metronome:'开关节拍器',set_instrument:'切换音色',set_arrangement:'选择配器',generate_arrangement:'生成总谱',web_search:'联网搜索',skill_search:'查找技能',choose_scores:'列出曲谱',seek_measure:'定位小节',chords:'提取和弦',score_report:'核对曲谱',set_part_volume:'调整声部音量',set_loop:'设置循环区间',set_range:'只播指定区间',tempo_curve:'设置速度渐变',export_score:'导出曲谱',print_score:'打印曲谱',practice_score:'读取跟弹评分'};
+const labels={classroom:'控制音乐课堂',create_classroom:'生成课程与课件',practice_plan:'提供分段练习建议',configure_arrangement:'设置配器乐器',panel:'切换工作区',view:'切换谱面',search:'查找曲谱',open:'打开曲谱',play:'开始播放',pause:'暂停播放',stop:'停止播放',solo:'选择独奏声部',solo_group:'声部分组',mute:'调整声部',unmute:'恢复声部',set_tempo:'调整速度',set_metronome:'开关节拍器',set_instrument:'切换音色',set_arrangement:'选择配器',generate_arrangement:'生成总谱',web_search:'联网搜索',skill_search:'查找技能',choose_scores:'列出曲谱',seek_measure:'定位小节',chords:'提取和弦',score_report:'核对曲谱',set_part_volume:'调整声部音量',set_loop:'设置循环区间',set_range:'只播指定区间',tempo_curve:'设置速度渐变',export_score:'导出曲谱',print_score:'打印曲谱',practice_score:'读取跟弹评分'};
 // 动作执行后回读界面，确认它真的生效了。
 // 为什么需要：AI 常说「我来处理」并发回动作，但动作在界面上什么都没改变 ——
 // 这类「嘴上说好了、界面没动」的失败最难发现，只能靠执行后回读来兜住。
@@ -138,7 +152,9 @@ const PANELS=['library','play','arrange','tasks'];
 // 于是「切换到演奏」会跳到曲库——看着像执行了，其实跑偏。这里先归一，认不出才退回曲库。
 const PANEL_ALIAS={library:'library',曲库:'library',乐谱库:'library',乐谱:'library',play:'play',演奏:'play',播放:'play',弹奏:'play',arrange:'arrange',改编:'arrange',tasks:'tasks',任务:'tasks',任务中心:'tasks'};
 const panelValue=value=>PANEL_ALIAS[String(value??'').trim().toLowerCase()]||'library';
-const KNOWN_TYPES=new Set(['practice_plan','configure_arrangement','view','solo_group','choose_scores','panel','search','open','chords','score_report','seek_measure','play','pause','stop','solo','mute','unmute','set_tempo','set_metronome','set_instrument','set_arrangement','generate_arrangement','skill_search','web_search','set_part_volume','set_loop','set_range','tempo_curve','export_score','print_score','practice_score']);
+const KNOWN_TYPES=new Set(['classroom','create_classroom','practice_plan','configure_arrangement','view','solo_group','choose_scores','panel','search','open','chords','score_report','seek_measure','play','pause','stop','solo','mute','unmute','set_tempo','set_metronome','set_instrument','set_arrangement','generate_arrangement','skill_search','web_search','set_part_volume','set_loop','set_range','tempo_curve','export_score','print_score','practice_score','edit_score']);
+// 乐谱精准编辑（SeraEdit）：以前这些意图被 UNSUPPORTED_EDIT_RE 判为「做不到」如实拒答，
+// 现在改为生成可审查的编辑提案。提案一律要用户在面板里确认，AI 不能直接改谱。
 // ★ 破坏性动作在**前端也拦一道**：后端 ai_workspace 的 FORBIDDEN_TYPES 是第一道闸，
 //   这里补第二道 —— 万一以后新增了动作类型、或绕过模型直连的路径把这类动作送进来，
 //   也不允许碰云曲库。放在 KNOWN_TYPES 之前判定，否则会先落进「暂时不支持这个操作」，
@@ -199,6 +215,7 @@ async function verifyAction(a,before){
  if(a.type==='pause'||a.type==='stop'){const live=await readLiveContext();return !live.playing;}
  if(a.type==='play'){const live=await readLiveContext();return !!live.playing;}
  const now=snapshot();
+ if(targetReached(a,now))return true;
  if(a.type==='view'&&now.viewMode===a.value)return true;
  if(a.type==='solo'&&now.solo===a.value)return true;
  if(a.type==='set_tempo'&&Number(now.tempo)===Number(a.value))return true;
@@ -251,9 +268,9 @@ function currentSettings(){
 // ★ 全站**唯一**的 context 构造入口。主流程以前在别处手工拼了第二份（漏了 settings），
 //   于是「快一点 / 慢一点」的基准永远到不了后端 —— 长流程 #29 的波动就是这么来的。
 //   以后要加 context 字段**只改这里**，不要再手工拼一份。
-async function workspaceContext(extra,onProgress=()=>{}){const [data,live]=await Promise.all([readCloudLibrary(),readLiveContext()]);onProgress('正在读曲库，共 '+(data.scores?.length||0)+' 首');onProgress(live.currentId?'正在读当前打开的曲谱、播放位置和练习记录':'当前没有打开云曲谱，只能按曲库里的条件回答');return {...libraryContext(data.scores),...live,panel:document.body.dataset.workspace,arrangementCapabilities:arrangementCapabilities(),tasks:taskContext(),language:document.documentElement.lang,controls:CONTROLS,settings:currentSettings(),parts:parts(),current:document.querySelector('#score-title')?.textContent,...extra};}
- async function repairActions(failed,error,completed){line('操作没有完成，正在重新核对曲谱、声部和播放位置…');const context=await workspaceContext();const response=await fetch('/api/workspace-ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:historyForModel(),context:{...context,executed:executedActions.slice(-12)},repair:{failed,error:readableNetworkError(error),completed}}),signal:deadline(110000)});const result=await response.json();if(!response.ok)throw Error(result.error);line(result.reply);if(!result.actions?.length)throw Error('重新核对后仍无法完成：'+error.message);return result.actions;}
- async function runActions(actions,summary=''){if(!actions.length)return false;actions=[...actions];let repairCount=0,unverified=0;const failedStates=new Set();const completed=[];awaitingUser=false;await close();inActionPhase=true;document.body.classList.add('ai-executing');trigger.setAttribute('aria-busy','true');taskPercent=0;taskProgress(0,'准备操作');try{for(let i=0;i<actions.length;i++){const a=actions[i];taskProgress(i/actions.length*100,labels[a.type]||'正在操作');const snapBefore=snapshot();try{const outcome=await action(a,p=>taskProgress((i+p)/actions.length*100,labels[a.type]||'正在操作'));if(outcome!=='skipped'&&!await verifyAction(a,snapBefore)){unverified++;line('注意：'+(labels[a.type]||'这一步')+'执行后界面没有变化，可能没有真正生效。');}}catch(error){if(a.type==='practice_plan'||(a.type==='chords'&&/没有钢琴声部/.test(error.message)))throw error;const signature=JSON.stringify(a)+'|'+error.message;if(repairCount>=2||failedStates.has(signature))throw error;failedStates.add(signature);repairCount++;const replacement=await repairActions(a,error,completed);actions.splice(i,actions.length-i,...replacement.slice(0,6));i--;continue;}completed.push(a);executedActions.push({type:a.type,value:a.value});if(executedActions.length>30)executedActions=executedActions.slice(-30);taskProgress((i+1)/actions.length*100,labels[a.type]||'正在操作');}if(unverified)line('这一步里共有 '+unverified+' 个子操作执行后界面没有变化，可能没有真正生效。建议换个更具体的说法再试一次（例如直接点曲名或说面板名）。');taskProgress(100,'已完成');await wait(reduced()?0:350);}catch(error){trigger.classList.add('task-failed');throw error;}finally{inActionPhase=false;document.body.classList.remove('ai-executing');trigger.disabled=false;trigger.removeAttribute('aria-busy');}
+async function workspaceContext(extra,onProgress=()=>{}){const [data,live,classroom]=await Promise.all([readCloudLibrary(),readLiveContext(),new Promise(resolve=>{const timer=setTimeout(()=>resolve({status:'not-loaded'}),300);document.dispatchEvent(new CustomEvent('ai-classroom-context',{detail:{resolve:value=>{clearTimeout(timer);resolve(value)}}}));})]);onProgress('正在读曲库，共 '+(data.scores?.length||0)+' 首');onProgress(live.currentId?'正在读当前打开的曲谱、播放位置和练习记录':'当前没有打开云曲谱，只能按曲库里的条件回答');return {...libraryContext(data.scores),...live,classroom,agentCapabilities:{classroom:classroomOperations,workspace:[...KNOWN_TYPES],execution:'只操作已注册能力，读取真实状态，不生成任意脚本。'},panel:document.body.dataset.workspace,arrangementCapabilities:arrangementCapabilities(),tasks:taskContext(),language:document.documentElement.lang,controls:CONTROLS,settings:currentSettings(),parts:parts(),current:document.querySelector('#score-title')?.textContent,...extra};}
+ async function repairActions(failed,error,completed,pending=[]){line('操作没有完成，正在重新核对曲谱、声部和播放位置…');const context=await workspaceContext();const response=await fetch('/api/workspace-ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:historyForModel(),context:{...context,executed:executedActions.slice(-12)},repair:{failed,error:readableNetworkError(error),completed,pending}}),signal:deadline(110000)});const result=await response.json();if(!response.ok)throw Error(result.error);line(result.reply);if(!result.actions?.length)throw Error('重新核对后仍无法完成：'+error.message);return result.actions;}
+ async function runActions(actions,summary=''){if(!actions.length)return false;actions=[...actions];let repairCount=0;const failedStates=new Set();const completed=[];awaitingUser=false;await close();inActionPhase=true;document.body.classList.add('ai-executing');trigger.setAttribute('aria-busy','true');taskPercent=0;taskProgress(0,'准备操作');try{for(let i=0;i<actions.length;i++){const a=actions[i];taskProgress(i/actions.length*100,labels[a.type]||'正在操作');const snapBefore=snapshot();try{const outcome=await action(a,p=>taskProgress((i+p)/actions.length*100,labels[a.type]||'正在操作'));if(outcome!=='skipped'&&!await verifyAction(a,snapBefore)){throw Error((labels[a.type]||'这一步')+'未通过执行后校验；请读取最新状态，修订尚未完成的操作');}}catch(error){if(a.type==='practice_plan'||(a.type==='chords'&&/没有钢琴声部/.test(error.message)))throw error;const signature=JSON.stringify(a)+'|'+error.message;if(repairCount>=2||failedStates.has(signature))throw error;failedStates.add(signature);repairCount++;const pending=actions.slice(i+1),replacement=await repairActions(a,error,completed,pending);const planned=new Set(replacement.map(x=>JSON.stringify(x)));const remaining=[...replacement,...pending.filter(x=>!planned.has(JSON.stringify(x)))];if(!remaining.length)throw Error('修复方案没有可执行步骤');actions.splice(i,actions.length-i,...remaining);i--;continue;}completed.push(a);if(tourOwned)tourActions.push({...a});executedActions.push({type:a.type,value:a.value});if(executedActions.length>30)executedActions=executedActions.slice(-30);taskProgress((i+1)/actions.length*100,labels[a.type]||'正在操作');}taskProgress(100,'已完成');await wait(reduced()?0:350);}catch(error){trigger.classList.add('task-failed');throw error;}finally{inActionPhase=false;document.body.classList.remove('ai-executing');trigger.disabled=false;trigger.removeAttribute('aria-busy');}
  // ★ 操作已经做完（比如已经在自动演奏）就把面板收回，不挡着谱面；只有还需要用户拍板
  //   （列出曲谱、联网结果、被回绝、报错）时才把面板留在眼前。
  if(awaitingUser){await showResults();return true;}
@@ -292,7 +309,7 @@ async function workspaceContext(extra,onProgress=()=>{}){const [data,live]=await
  function scheduleViewport(){cancelAnimationFrame(layoutFrame);layoutFrame=requestAnimationFrame(syncViewport);}
  window.visualViewport?.addEventListener('resize',scheduleViewport);window.visualViewport?.addEventListener('scroll',scheduleViewport);addEventListener('resize',scheduleViewport);input.addEventListener('focus',scheduleViewport);
 
- let dockMotion=null,dockExpanded=false;
+ let dockMotion=null,dockExpanded=false,activeOrigin=trigger,lastOrigin=trigger;
  function animateDock(expanded){
   const current=getComputedStyle(nav).transform;const matrix=new DOMMatrixReadOnly(current==='none'?undefined:current);const from=matrix.m41;
   const bounds=nav.getBoundingClientRect(),area=dock.getBoundingClientRect();
@@ -314,21 +331,21 @@ async function workspaceContext(extra,onProgress=()=>{}){const [data,live]=await
   surface.setAttribute('popover','manual');document.body.append(surface);let animation,timer;
   try{
    surface.showPopover?.();
-   if(returning){const label=document.createElement('span');label.className='ai-morph-label';label.textContent='AI';const style=getComputedStyle(trigger);label.style.font=style.font;label.style.color=style.color;surface.append(label);label.animate([{opacity:0,filter:'blur(3px)',offset:0},{opacity:0,filter:'blur(3px)',offset:.48},{opacity:1,filter:'blur(0px)',offset:1}],{duration:reduced()?0:duration,easing:'ease-out',fill:'both'});}
+   if(returning){const label=document.createElement('span');label.className='ai-morph-label';label.textContent='AI';const style=getComputedStyle(activeOrigin?.isConnected?activeOrigin:trigger);label.style.font=style.font;label.style.color=style.color;surface.append(label);label.animate([{opacity:0,filter:'blur(3px)',offset:0},{opacity:0,filter:'blur(3px)',offset:.48},{opacity:1,filter:'blur(0px)',offset:1}],{duration:reduced()?0:duration,easing:'ease-out',fill:'both'});}
    const dx=from.left-to.left,dy=from.top-to.top,sx=from.width/Math.max(1,to.width),sy=from.height/Math.max(1,to.height);
    animation=surface.animate([{transform:`translate3d(${dx}px,${dy}px,0) scale(${sx},${sy})`},{transform:'translate3d(0,0,0) scale(1,1)'}],{duration:reduced()?0:duration,easing:'cubic-bezier(.22,.8,.25,1)',fill:'both'});
    await Promise.race([animation.finished.catch(()=>{}),new Promise(resolve=>{timer=setTimeout(resolve,duration+250);})]);
   }catch(error){console.warn('AI transition skipped',error);}
   finally{clearTimeout(timer);handoff();animation?.cancel();try{surface.hidePopover?.();}catch{}surface.remove();}
  }
- async function close(){if(!dialog.open)return;if(transitioning){closeRequested=true;return;}closeRequested=false;transitioning=true;animateDock(false);const from=dialog.getBoundingClientRect();input.blur();const to=trigger.getBoundingClientRect();document.body.classList.remove('ai-listening');dialog.classList.add('is-morphing');dialog.style.opacity='0';try{await morphSurface(from,to,640,()=>{dialog.close();trigger.style.opacity='';},true);}finally{dialog.close();dialog.style.opacity='';dialog.classList.remove('is-morphing');trigger.style.opacity='';trigger.focus({preventScroll:true});transitioning=false;}}
+ async function close(){if(!dialog.open)return;if(transitioning){closeRequested=true;return;}closeRequested=false;transitioning=true;if(activeOrigin===trigger)animateDock(false);const from=dialog.getBoundingClientRect();input.blur();const originBounds=activeOrigin?.isConnected?activeOrigin.getBoundingClientRect():null,returnOrigin=originBounds?.width&&originBounds?.height?activeOrigin:trigger;const to=returnOrigin.getBoundingClientRect();document.body.classList.remove('ai-listening');dialog.classList.add('is-morphing');dialog.style.opacity='0';try{await morphSurface(from,to,640,()=>{dialog.close();trigger.style.opacity='';returnOrigin.style.opacity='';},true);}finally{dialog.close();dialog.style.opacity='';dialog.classList.remove('is-morphing');trigger.style.opacity='';if(activeOrigin?.isConnected)activeOrigin.style.opacity='';returnOrigin.focus({preventScroll:true});activeOrigin=trigger;transitioning=false;}}
  // 用户主动关闭（× 或 Esc）。注意不能把这个中止逻辑放进 close() 本身：
  // runActions 开头也会调 close()，那时 busy 仍为 true，会把「用户关闭」的标记错误地置上。
  function closeByUser(){if(busy&&abortCurrent){userClosed=true;abortCurrent.abort();}return close();}
- trigger.onclick=async event=>{if(transitioning||dialog.open)return;transitioning=true;try{const from=trigger.getBoundingClientRect();dialog.style.width=from.width+'px';dialog.style.left=from.left+'px';dialog.style.top=from.top+'px';dialog.classList.add('is-morphing');dialog.style.opacity='0';dialog.showModal();if(!event?.result)input.focus({preventScroll:true});trigger.style.opacity='0';animateDock(true);requestAnimationFrame(()=>document.body.classList.add('ai-listening'));
+ trigger.onclick=async event=>{if(transitioning||dialog.open)return;transitioning=true;try{activeOrigin=event?.origin?.isConnected&&event.origin.getClientRects().length?event.origin:trigger;lastOrigin=activeOrigin;const from=activeOrigin.getBoundingClientRect();dialog.style.width=from.width+'px';dialog.style.left=from.left+'px';dialog.style.top=from.top+'px';dialog.classList.add('is-morphing');dialog.style.opacity='0';dialog.showModal();if(!event?.result)input.focus({preventScroll:true});trigger.style.opacity='0';activeOrigin.style.opacity='0';if(activeOrigin===trigger)animateDock(true);requestAnimationFrame(()=>document.body.classList.add('ai-listening'));
  // Focus first; wait for the keyboard viewport to settle before choosing the destination.
  if(matchMedia('(pointer:coarse)').matches&&!reduced()){await new Promise(resolve=>{let settle;const v=window.visualViewport;const finish=()=>{clearTimeout(settle);clearTimeout(deadline);v?.removeEventListener('resize',changed);resolve();};const changed=()=>{clearTimeout(settle);settle=setTimeout(finish,120);};const deadline=setTimeout(finish,650);v?.addEventListener('resize',changed);});}
- const layout=visibleLayout(),{width,top,left}=layout;dialog.style.width=width+'px';dialog.style.left=left+'px';dialog.style.top=top+'px';await morphSurface(from,{left,top,width,height:57},520);}catch(error){console.warn('AI panel could not open',error);if(dialog.open)dialog.close();document.body.classList.remove('ai-listening');trigger.style.opacity='';animateDock(false);}finally{dialog.style.opacity='';dialog.classList.remove('is-morphing');transitioning=false;syncViewport();if(closeRequested){closeRequested=false;void close();}}};dialog.querySelector('.ai-close').onclick=closeByUser;dialog.addEventListener('cancel',e=>{e.preventDefault();void closeByUser();});
+ const layout=visibleLayout(),{width,top,left}=layout;dialog.style.width=width+'px';dialog.style.left=left+'px';dialog.style.top=top+'px';await morphSurface(from,{left,top,width,height:57},520);}catch(error){console.warn('AI panel could not open',error);if(dialog.open)dialog.close();document.body.classList.remove('ai-listening');trigger.style.opacity='';if(activeOrigin?.isConnected)activeOrigin.style.opacity='';if(activeOrigin===trigger)animateDock(false);activeOrigin=trigger;}finally{dialog.style.opacity='';dialog.classList.remove('is-morphing');transitioning=false;syncViewport();if(closeRequested){closeRequested=false;void close();}}};dialog.querySelector('.ai-close').onclick=closeByUser;dialog.addEventListener('cancel',e=>{e.preventDefault();void closeByUser();});
  async function spotlight(el){if(!el)return;el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('ai-operating');try{await wait(matchMedia('(prefers-reduced-motion:reduce)').matches?0:650);}finally{el.classList.remove('ai-operating');}}
  // 播放传输控制。暂停/停止以前没有独立入口，只能借 play —— 而 ai-play-score 的语义是
  // 「确保在播放」，于是用户说「暂停」音乐反而响起来。现在走独立事件，由 app.js 明确实现。
@@ -404,6 +421,8 @@ const CONTROLS=[
 
  function offerWebSearch(query){awaitingUser=true;webSearchCard({query,log,onSearch:async value=>{await runActions([{type:'web_search',value}]);}});}
  async function action(a,onProgress=()=>{}){
+ if(tourOwned&&tourPolicy.localOnly&&a.type==='web_search'){line('本轮只查本地曲库，已将联网提议改为本地检索。');a.type='search';a.value=tourPolicy.localQuery;}
+ if(tourOwned&&['generate_arrangement','export_score','print_score'].includes(a.type))throw Error('本段只演示查看和操作，不自动生成、导出或打印');
  // 删除/清空/覆盖云曲库的动作：明确回绝，且**不要**走「重新核对」——
  // 那是给「动作参数不对、值得换个写法再试」用的，删除不是这类问题，重试多少次都不该做。
  if(FORBIDDEN_TYPES.has(String(a.type||'').toLowerCase())){line(REFUSAL);awaitingUser=true;return 'skipped';}
@@ -444,11 +463,17 @@ const CONTROLS=[
   }
   // 新增能力：这些以前 AI 只能回答「做不到」，现在有真实控件可操作。
   if(a.type==='set_part_volume'){const r=await new Promise((resolve,reject)=>document.dispatchEvent(new CustomEvent('ai-part-volume',{detail:{value:a.value,resolve,reject}})));line('「'+r.label+'」的音量已设为 '+Math.round(r.level*100)+'%。');return;}
-  if(a.type==='set_loop'){const r=await new Promise((resolve,reject)=>document.dispatchEvent(new CustomEvent('ai-loop',{detail:{value:a.value,resolve,reject}})));line('已设置循环：第 '+r.from+' 到第 '+r.to+' 小节'+(r.from===r.to?'':'，播完自动回到开头')+'。');return;}
-  if(a.type==='set_range'){const r=await new Promise((resolve,reject)=>document.dispatchEvent(new CustomEvent('ai-range-play',{detail:{value:a.value,resolve,reject}})));line('只播第 '+r.from+' 到第 '+r.to+' 小节，播完停住。');return;}
-  if(a.type==='tempo_curve'){const r=await new Promise((resolve,reject)=>document.dispatchEvent(new CustomEvent('ai-tempo-curve',{detail:{value:a.value,resolve,reject}})));line('第 '+r.from+' 到第 '+r.to+' 小节设为 '+r.startBpm+' → '+r.endBpm+' BPM 的渐变，其余段落仍是 '+r.base+' BPM。');return;}
-  if(a.type==='export_score'){const r=await new Promise((resolve,reject)=>document.dispatchEvent(new CustomEvent('ai-export-score',{detail:{value:a.value,resolve,reject}})));line(r.format==='midi'?('已导出 MIDI：'+r.file+'，共 '+r.notes+' 个音符、'+r.tracks+' 条轨。'):('已导出 MusicXML：'+r.file));return;}
+  // ★ 2026-11-17：setLoop() 在「取消循环 / 空值 / 退化区间」时返回 {cleared:true,had}，
+  //   根本没有 from/to。以前无条件拼 r.from/r.to 会说出「第 undefined 到第 undefined 小节」。
+  //   现在先认 cleared 分支，正常分支也用 Number.isFinite 兜底，杜绝裸拼 undefined。
+  if(a.type==='set_loop'){const r=await new Promise((resolve,reject)=>document.dispatchEvent(new CustomEvent('ai-loop',{detail:{value:a.value,resolve,reject}})));if(r?.cleared){line(r.had?'已取消循环，恢复完整播放。':'当前没有设置循环，无需取消。');return;}const from=Number(r?.from),to=Number(r?.to);if(!Number.isFinite(from)||!Number.isFinite(to))throw Error('循环区间没有生效，请说明从第几小节到第几小节');line('已设置循环：第 '+from+' 到第 '+to+' 小节'+(from===to?'':'，播完自动回到开头')+'。');return;}
+  if(a.type==='set_range'){const r=await new Promise((resolve,reject)=>document.dispatchEvent(new CustomEvent('ai-range-play',{detail:{value:a.value,resolve,reject}})));if(r?.cleared){line(r.had?'已取消区间播放，恢复完整播放。':'当前没有区间限制，无需取消。');return;}const from=Number(r?.from),to=Number(r?.to);if(!Number.isFinite(from)||!Number.isFinite(to))throw Error('区间没有生效，请说明从第几小节到第几小节');line('只播第 '+from+' 到第 '+to+' 小节，播完停住。');return;}
+  if(a.type==='tempo_curve'){const r=await new Promise((resolve,reject)=>document.dispatchEvent(new CustomEvent('ai-tempo-curve',{detail:{value:a.value,resolve,reject}})));const from=Number(r?.from),to=Number(r?.to),sb=Number(r?.startBpm),eb=Number(r?.endBpm),base=Number(r?.base);if(![from,to,sb,eb,base].every(Number.isFinite))throw Error('速度渐变没有生效，请说明第几到第几小节、从多少到多少 BPM');line('第 '+from+' 到第 '+to+' 小节设为 '+sb+' → '+eb+' BPM 的渐变，其余段落仍是 '+base+' BPM。');return;}
+  if(a.type==='export_score'){const r=await new Promise((resolve,reject)=>document.dispatchEvent(new CustomEvent('ai-export-score',{detail:{value:a.value,resolve,reject}})));awaitingUser=true;line(r.format==='midi'?('MIDI 下载请求已提交：'+r.file+'，共 '+r.notes+' 个音符、'+r.tracks+' 条轨。'):('MusicXML 下载请求已提交：'+r.file));return;}
   if(a.type==='print_score'){await new Promise((resolve,reject)=>document.dispatchEvent(new CustomEvent('ai-print-score',{detail:{resolve,reject}})));line('已打开打印对话框，只会把谱面打进去，界面按钮不会出现在纸上。');return;}
+  if(a.type==='edit_score'){await import('/sera-edit.js?v=sera1');const r=await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('乐谱编辑提案超时，请在「乐谱精准编辑」面板核对')),90000);document.dispatchEvent(new CustomEvent('ai-edit-score',{detail:{value:a.value,resolve:v=>{clearTimeout(timer);resolve(v)},reject:e=>{clearTimeout(timer);reject(e)}}}));});awaitingUser=true;line(r.applied?('已生成并应用修订：'+r.summary+'。原谱未改动，可在编辑面板撤销。'):('已生成乐谱编辑提案：'+r.summary+'。请在「乐谱精准编辑」面板核对后点击「应用到当前谱面」。'));return;}
+  if(a.type==='classroom'){const value=normalizeClassroomCommand(typeof a.value==='string'?JSON.parse(a.value):a.value);if(!classroomOperations.includes(value?.operation))throw Error('未知课堂操作');if(['status','ask'].includes(value.operation))awaitingUser=true;const result=await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('课堂操作尚未返回结果，请核对课堂状态')),120000);document.dispatchEvent(new CustomEvent('ai-classroom-command',{detail:{value,resolve:r=>{clearTimeout(timer);resolve(r)},reject:e=>{clearTimeout(timer);reject(e)}}}));});const receipt={classroom:result};messages.push({role:'assistant',content:JSON.stringify(receipt)});if(value.operation!=='open')line(result.receipt||('《'+(result.title||'当前作品')+'》：'+result.message+'；已生成 '+result.sceneCount+' 个环节，当前第 '+result.scene+' 个环节。'));return;}
+  if(a.type==='create_classroom'){const rawSettings=typeof a.value==='string'?JSON.parse(a.value):a.value;const settings=Object.fromEntries(Object.entries(rawSettings||{}).filter(([,value])=>value!=null&&value!==''));const created=await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('课堂提交超时，请在任务中心核对生成状态')),60000);document.dispatchEvent(new CustomEvent('ai-create-classroom',{detail:{settings,resolve:r=>{clearTimeout(timer);resolve(r)},reject:e=>{clearTimeout(timer);reject(e)}}}));});line('《'+created.title+'》课程已提交，进度显示在音乐课堂和任务中心。');return;}
   if(a.type==='practice_score'){const r=await new Promise((resolve,reject)=>document.dispatchEvent(new CustomEvent('ai-practice-score',{detail:{resolve,reject}})));line('这一段跟弹：正确率 '+r.accuracy+'、节奏 '+r.rhythm+'、实测速度 '+r.bpm+'。');return;}
   if(a.type==='configure_arrangement'){
    validateArrangementIntent(a.value,arrangementCapabilities());
@@ -500,7 +525,7 @@ const CONTROLS=[
      const consume=line=>{if(!line.trim())return;const event=JSON.parse(line);if(event.type==='progress'){if(event.total&&event.completed>0){onProgress(.25+.65*event.completed/event.total);}else taskActivity(event.text||'正在检索曲库');if(event.text)taskReport({detail:event.text});}if(event.type==='result')result=event;};
      // ★ 同 Bug7（2026-10-11）：result 事件才是这条流的终点，不能只等 done（连接关闭）。
 //   否则结果早收到了、循环却还挂着，整段卡到外层 deadline。
-for(;;){const {value,done}=await reader.read();buffer+=decoder.decode(value||new Uint8Array(),{stream:!done});const lines=buffer.split('\n');buffer=lines.pop();for(const line of lines)consume(line);if(result){try{void reader.cancel();}catch{}buffer='';break;}if(done){consume(buffer);break;}}
+for(;;){const {value,done}=await reader.read();buffer+=decoder.decode(value||new Uint8Array(),{stream:!done});const lines=buffer.split('\n');buffer=lines.pop();for(const line of lines)consume(line);if(result&&!result.partial){try{void reader.cancel();}catch{}buffer='';break;}if(done){consume(buffer);break;}}
     }else result=await response.json();
     if(!result)throw Error('搜索连接已结束，但结果未接收完整');
     const ids=new Set(result.ids||[]);hits=catalog.filter(item=>ids.has(item.id));if(result.warning)line(result.warning);
@@ -558,6 +583,7 @@ for(;;){const {value,done}=await reader.read();buffer+=decoder.decode(value||new
   // 模型会用 play 的 value 带速度意图（tempo=1.2 表示「再快一点」），
   // 也常把「暂停/停止」塞进同一个 value（测试报告 A1）。
   // 后者必须拦住：ai-play-score 的语义是「确保在播放」，不拦就会「说暂停反而开始播放」。
+  if(a.type==='play'&&!/tempo/i.test(String(a.value||''))&&/暂停|pause|^(?:stop|停止|停下|停|别放|不要放|关掉播放)/i.test(String(a.value||'').trim())){a.type=/暂停|pause/i.test(String(a.value))?'pause':'stop';a.value='';return action(a,onProgress);}
   if(a.type==='play'){const el=document.querySelector('#play-button');if(!el||el.disabled)throw Error('请先载入一首已经识别好的曲谱');
    const raw=String(a.value||'').trim();
    if(!/tempo/i.test(raw)){
@@ -569,7 +595,7 @@ for(;;){const {value,done}=await reader.read();buffer+=decoder.decode(value||new
     const target=asked>=30?asked:current*asked;const next=Math.round(Math.min(240,Math.max(30,target)));
     const applied=await applyTempo(next);line('速度已设为 '+applied.tempo+' BPM（原 '+Math.round(current)+'）。');}}
    await spotlight(el);await new Promise((resolve,reject)=>document.dispatchEvent(new CustomEvent('ai-play-score',{detail:{resolve,reject}})));}
-  if(a.type==='solo'){const select=document.querySelector('#part-solo-select');const hit=findPart(a.value);if(!hit)throw Error('当前曲谱没有这个声部');await spotlight(select);select.value=hit.value;select.dispatchEvent(new Event('change',{bubbles:true}));}
+  if(a.type==='solo'){const select=document.querySelector('#part-solo-select');const hit=findPart(a.value);if(!hit)throw Error('当前曲谱没有这个声部');await spotlight(select);for(const mix of findMixes(hit.value)){if(!mix.checked){mix.checked=true;mix.dispatchEvent(new Event('change',{bubbles:true}));}}select.value=hit.value;select.dispatchEvent(new Event('change',{bubbles:true}));}
   if(a.type==='mute'){const els=findMixes(a.value);if(!els.length)throw Error('当前曲谱没有这个声部');let closed=0;
    for(const el of els){if(!el.checked)continue;await spotlight(el.parentElement);el.checked=false;el.dispatchEvent(new Event('change',{bubbles:true}));closed++;}
    if(els.length>1)line(closed?'已关闭全部 '+closed+' 个声部。':'这些声部本来就都已经关闭了。');}
@@ -585,7 +611,7 @@ for(;;){const {value,done}=await reader.read();buffer+=decoder.decode(value||new
   }
   if(a.type==='web_search'){
    awaitingUser=true;taskActivity('正在查找可转谱的演奏链接');
-   if(!/谱/.test(String(a.value))||/视频|演奏链接|转录/.test(String(a.value))){try{if(await offerScoreStarling({query:a.value,log,line,action}))return;}catch(e){line('链接转谱暂未完成：'+readableNetworkError(e));}}
+   if(!/谱/.test(String(a.value))||/视频|演奏链接|转录/.test(String(a.value))){const scope=abortTimeout(abortCurrent?.signal,12000);try{if(await offerScoreStarling({query:a.value,log,line,action,signal:scope.signal}))return;}catch(e){if(abortCurrent?.signal.aborted)throw e;line(scope.signal.aborted?'音乐检索未及时返回，正在改查曲谱网页。':'链接转谱暂未完成：'+readableNetworkError(e));}finally{scope.dispose();}}
    taskActivity('正在联网查询曲谱来源');const r=await fetch('/api/workspace-ai/web',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'search',query:a.value}),signal:AbortSignal.timeout(30000)});const result=await r.json();if(!r.ok)throw Error(result.error);onProgress(1);
    // 以前这里写「直接 PDF 可以导入」，但实测乐谱站几乎不给直链 PDF（报告 #7），
    // 于是用户等半天、按钮也不出现。改成实话实说，并把来源标出来。
@@ -605,13 +631,19 @@ for(;;){const {value,done}=await reader.read();buffer+=decoder.decode(value||new
   if(input.value.trim()){
    const queued=input.value.trim();input.value='';
    line('上一条还在处理，这句先排队，马上就轮到。');
-   const queuedAt=Date.now();
-   while(busy&&Date.now()-queuedAt<180000)await new Promise(r=>setTimeout(r,250));
-   if(busy){line('上一条处理得太久，这句没能排上，请稍后再说一次。');return;}
-   input.value=queued;
+   submissionQueue=submissionQueue.catch(()=>{}).then(async()=>{
+    const queuedAt=Date.now();
+    while(busy&&Date.now()-queuedAt<180000)await wait(250);
+    if(busy){line('排队超时，未执行：'+queued);return;}
+    const draft=input.value;input.value=queued;
+    const running=form.onsubmit({preventDefault(){}});
+    if(!input.value)input.value=draft;
+    await running;await showResults();
+   });
+   return;
   }else{cancelledByUser=true;abortCurrent?.abort();return;}
  }
- const text=input.value.trim();if(!text)return;lastUserText=text;busy=true;const requestStart=Date.now();abortCurrent=new AbortController();userClosed=false;cancelledByUser=false;taskLines=[];aiTask={id:'ai-'+taskId(),label:text,created:Date.now(),kind:'ai',status:'running',progress:0,detail:'正在读取曲库与当前打开的谱面'};taskReport({});trigger.classList.remove('task-failed','has-task');taskPercent=0;dialog.classList.add('is-thinking');input.value='';messages.push({role:'user',content:text});line(text,'user');const send=form.querySelector('button[type="submit"]');send.textContent='■';send.setAttribute('aria-label','停止这次请求');send.classList.add('is-cancel');const status=document.createElement('p');status.className='ai-operation-detail';status.setAttribute('role','status');const statusText=document.createElement('span');status.append(statusText);log.append(status);let statusTimer=0,receiving=false;function streamStatus(text){if(!text||statusText.textContent===text)return;if(!status.isConnected)log.append(status);const stick=log.scrollHeight-log.scrollTop-log.clientHeight<80;statusText.textContent=text;if(stick)log.scrollTop=log.scrollHeight;}streamStatus('正在读取曲库与当前打开的谱面');
+ const text=input.value.trim();if(!text){input.focus();input.animate?.([{transform:'translateX(0)'},{transform:'translateX(-4px)'},{transform:'translateX(4px)'},{transform:'translateX(0)'}],{duration:220});return;}lastUserText=text;busy=true;const requestStart=Date.now();abortCurrent=new AbortController();userClosed=false;cancelledByUser=false;taskLines=[];aiTask={id:'ai-'+taskId(),label:text,created:Date.now(),kind:'ai',status:'running',progress:0,detail:'正在读取曲库与当前打开的谱面'};taskReport({});trigger.classList.remove('task-failed','has-task');taskPercent=0;dialog.classList.add('is-thinking');input.value='';messages.push({role:'user',content:text});line(text,'user');const send=form.querySelector('button[type="submit"]');send.textContent='■';send.setAttribute('aria-label','停止这次请求');send.classList.add('is-cancel');const status=document.createElement('p');status.className='ai-operation-detail';status.setAttribute('role','status');const statusText=document.createElement('span');status.append(statusText);log.append(status);let statusTimer=0,receiving=false;function streamStatus(text){if(!text||statusText.textContent===text)return;if(!status.isConnected)log.append(status);const stick=log.scrollHeight-log.scrollTop-log.clientHeight<80;statusText.textContent=text;if(stick)log.scrollTop=log.scrollHeight;}streamStatus('正在读取曲库与当前打开的谱面');
  // ★ 首字之前有一段「模型在思考」的空档（实测 3~7 秒，长回答可到 10 秒），
  //   状态行静止时用户会以为卡死。这里**不再显示秒表**（唐老师 2026-10-10 要求去掉计时），
  //   改成轮换「现在在做什么」的措辞——和后端 `_wait_step` 同一套写法，
@@ -623,7 +655,7 @@ for(;;){const {value,done}=await reader.read();buffer+=decoder.decode(value||new
  let reveal=characterStream();
  // 15 秒还没回来就告诉用户「还能等，也能停」，别让人以为卡死了。
  const slowHint=setTimeout(()=>{if(busy&&!receiving){status.title='还在处理中，点发送按钮的位置可以随时停止这次请求';}},15000);
- // ★ 前端超时(110s)必须**比后端的读超时(90s)长**：后端 ai_workspace 到 8765 的
+ // ★ 前端超时(200s)必须**比后端的读超时(90s)长**：后端 ai_workspace 到 8765 的
  //   requests 超时是 (5, 90)，它到点会回一句准确的「SUPERTANG AI 暂时没有响应，请稍后重试。」
  //   以前前端也是 90s，两边撞在一起，前端先 abort —— 用户看到的是
  //   「请求等待超时或连接被中止…请检查外网隧道连接」，把模型没响应错怪到隧道上。
@@ -634,8 +666,8 @@ for(;;){const {value,done}=await reader.read();buffer+=decoder.decode(value||new
  //   又像在「承诺执行/声称已做」，必须如实告诉用户这次没做成 —— 不能让「我来处理」「已打开」
  //   这类话术单独出现（用户以为做成了，其实界面毫无变化）。
  //   仅在「无动作 + 兜底也没补开 + 回复是承诺措辞」时提示；纯乐理问答（无承诺措辞）不提示。
- if(!(result.actions||[]).length&&!autoOpened&&/我来处理|我来|已(?:经)?(?:打开|播放|设置|调整|切换|静音|开始|处理)|正在(?:处理|打开|播放)|马上|这就/.test(result.reply||''))
-  line('（这次没有生成可执行的操作——上面说的界面操作没有落下来。可以换个更具体的说法，或直接点曲库里的曲子。）');
+ if(!(result.actions||[]).length&&!autoOpened&&/(?:我来|我会|马上|这就|正在|已(?:经)?)(?:帮您|帮你|为您|为你)?[^。！？\n]{0,18}(?:检索|搜索|查找|打开|播放|切换|静音|调速|设置|定位|导出|制定|生成|处理|安排|搞定|办)/.test(result.reply||'')&&!/无法|不能|不支持|需要您|需要你|请先|是否|要不要|可以吗|尚未|没有执行/.test(result.reply||''))
+  {taskActivity('正在补齐操作步骤');const recovered=await repairActions({type:'missing_actions'},new Error('回复承诺执行操作，但没有收到执行步骤；请核对原请求并补齐动作'),[]);await runActions(recovered,'');}
  // 模型已被要求自己产出动作（含 web_search）；不再用正则从回复里猜、也不显示死路提示。
  // 若模型确实没给动作，它的回复本身已经流给用户了，这里不做任何追加。
  taskReport({status:'complete',progress:100,indeterminate:false,detail:result.actions?.some(a=>['choose_scores','search','web_search'].includes(a.type))?'结果已列出，等待选择':'已完成',result:[result.reply,...taskLines].filter(Boolean).join('\n\n')}); }
@@ -646,5 +678,26 @@ for(;;){const {value,done}=await reader.read();buffer+=decoder.decode(value||new
   finally{clearInterval(statusTimer);stopWaitClock();clearTimeout(slowHint);clearTimeout(saveTimer);abortCurrent=null;const snapshot=aiTask?{...aiTask}:null;busy=false;dialog.classList.remove('is-thinking');send.textContent='↑';send.setAttribute('aria-label','发送');send.classList.remove('is-cancel');if(snapshot){saveChain=saveChain.catch(()=>{}).then(async()=>{const saved=await fetch('/api/ai-tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(snapshot),signal:AbortSignal.timeout(8000)});if(!saved.ok)throw Error('任务结果未能保存');}).catch(error=>console.warn('AI 任务保存失败',error));}}
 
  };
+ let tourOwned=false,tourCancelled=false,tourActions=[],tourPolicy={};
+ document.addEventListener('ai-tour-cancel',()=>{if(tourOwned){tourCancelled=true;if(abortCurrent){cancelledByUser=true;abortCurrent.abort();}}});
+ document.addEventListener('ai-tour-request',async event=>{
+  if(busy||transitioning||tourOwned){event.detail.resolve?.({ok:false,detail:'AI 正在处理另一条请求，请等它完成后再演示'});return;}
+  tourOwned=true;tourCancelled=false;tourActions=[];tourPolicy=event.detail.policy||{};const oldLinks=new Set(log.querySelectorAll('a'));
+  try{
+   if(!dialog.open)await trigger.onclick({});const requested=String(event.detail.text||'').slice(0,2000);input.value='';
+   for(let i=0;i<requested.length;i+=4){if(tourCancelled)throw new DOMException('演示已停止','AbortError');input.value=requested.slice(0,i+4);if(!reduced())await wait(14);}
+   if(tourCancelled)throw new DOMException('演示已停止','AbortError');
+   await form.onsubmit({preventDefault(){}});
+   const result={actions:[...tourActions],ok:aiTask?.status==='complete',detail:aiTask?.detail,result:taskLines.join('\n\n')||aiTask?.result,reply:messages.filter(m=>m.role==='assistant').at(-1)?.content,links:[...log.querySelectorAll('a[href]')].filter(a=>!oldLinks.has(a)&&/^https?:/.test(a.href)).map(a=>({href:a.href,text:a.textContent||a.href}))};
+   for(const match of String(result.reply||'').matchAll(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<>]+)/g)){const href=match[2]||match[3];if(!result.links.some(link=>link.href===href))result.links.push({href,text:match[1]||href});}
+   if(event.detail.holdResults&&!tourCancelled){
+    await showResults();
+    const review=document.createElement('button');review.type='button';review.className='small-button ai-tour-review';review.textContent='已看完，返回导览';dialog.append(review);
+    await new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;review.remove();dialog.removeEventListener('close',finish);document.removeEventListener('ai-tour-cancel',finish);resolve();};review.onclick=finish;dialog.addEventListener('close',finish);document.addEventListener('ai-tour-cancel',finish);});
+   }
+   if(dialog.open&&!busy)await close();
+   event.detail.resolve?.(result);
+  }catch(error){if(dialog.open&&!busy)await close();event.detail.reject?.(error)}finally{tourOwned=false;tourCancelled=false;tourPolicy={};}
+ });
 }
 if(document.querySelector('.workspace-nav'))init();else window.addEventListener('workspace-ready',init,{once:true});

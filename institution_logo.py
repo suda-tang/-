@@ -95,6 +95,7 @@ def lookup(institution,receipt):
    registry_hosts={urlparse(page).hostname for page in pages if urlparse(page).hostname}
    discovered=discover(institution) if not pages else []
    pages=list(dict.fromkeys(pages+discovered))
+   registry_hosts.update(urlparse(page).hostname for page in discovered if urlparse(page).hostname)
    best=None;seen=set();deadline=time.monotonic()+80;discovery_done=False;errors=[];verified_pages=[]
    for page in pages:
     if time.monotonic()>deadline:break

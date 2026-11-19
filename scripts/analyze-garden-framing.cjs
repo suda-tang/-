@@ -1,0 +1,2 @@
+const fs=require('fs'),data=JSON.parse(fs.readFileSync('dist/assets/arrival/garden-tour-rails.json','utf8'));
+for(const [name,r]of Object.entries(data)){let front=0,min=Infinity,max=0;for(let i=0;i<r.walk.length;i++){const a=r.walk[Math.max(0,i-1)],b=r.walk[Math.min(r.walk.length-1,i+1)],p=r.walk[i],c=r.camera[i],dx=b[0]-a[0],dz=b[2]-a[2],vx=c[0]-p[0],vz=c[2]-p[2];if(dx*vx+dz*vz>0)front++;const d=Math.hypot(vx,vz);min=Math.min(min,d);max=Math.max(max,d);}console.log({name,frontRatio:front/r.walk.length,min,max,start:r.walk[0],end:r.walk.at(-1)});}

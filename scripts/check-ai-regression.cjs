@@ -40,6 +40,7 @@ const CHECKS = [
   { name: 'no-delete',         file: 'scripts/check-ai-no-delete.py',          run: 'python', about: '禁删：后端回绝 + 前后端清单一致',                    timeout: 180 },
   { name: 'stream-reply',      file: 'scripts/check-ai-stream-reply.py',       run: 'python', about: '流式提取器（纯函数）',                              timeout: 120 },
   { name: 'task-ttl',          file: 'scripts/check-ai-task-ttl.py',           run: 'python', about: '任务 TTL（纯函数）',                                timeout: 120 },
+  { name: 'scorestarling-retry', file: 'scripts/check-ai-scorestarling-retry.py', run: 'python', about: '转谱连接器瞬态重试（纯函数，不打网络）',      timeout: 120 },
   { name: 'web-search',        file: 'scripts/check-ai-web-search.py',         run: 'python', about: '联网找谱（需外网，可降级）',                        timeout: 180 },
 ];
 

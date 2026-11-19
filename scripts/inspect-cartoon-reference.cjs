@@ -1,0 +1,1 @@
+const fs=require('fs'),d=JSON.parse(fs.readFileSync('dist/narration/models/mentor-portrait-surface.json','utf8'));console.log('source',d.source);for(const i of [10,152,234,454,93,323,172,397,1,2,33,133,362,263,61,291,13,14])console.log(i,d.positions.slice(i*3,i*3+3));

@@ -85,7 +85,7 @@ export function engravingPlan(score, sourceDocument) {
     // 每块小节数按声部数收敛。实测：整部管弦乐总谱（28 声部）若每块仍排 16 小节 = 4 个系统、
     // 上百行谱表，OSMD 一次要生成约 7000 个 SVG 元素、画成近 6700px 高，
     // 主线程被锁住好几秒（唐老师说的「卡好久好久」）。声部越多，每块越小。
-    const chunk = parts.length >= 20 ? 4 : parts.length >= 12 ? 8 : parts.length >= 8 ? 12 : 16;
+    const chunk = 4; // Render one short system first; retain every later measure as a lazy chunk.
     return { open, headers, parts, count: parts[0]?.total || 0, chunk, close: '</' + root.tagName + '>', measuresText, changesUpTo };
   })();
   plans.set(score, { xml: score.xml, promise });

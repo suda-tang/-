@@ -1,5 +1,8 @@
 /* Stable surfaces; animate composited layers without changing their stacking order. */
-html{scrollbar-gutter:stable}
+html{scrollbar-gutter:auto;overflow-y:scroll;scrollbar-color:rgba(120,92,89,.3) #e7e9ed}
+/* Paint the reserved desktop gutter even when the document has no scroll thumb. */
+html::-webkit-scrollbar-track,html::-webkit-scrollbar-corner{background:#e7e9ed}
+html::-webkit-scrollbar{background:#e7e9ed}
 .studio .workspace-stage{isolation:isolate}
 .studio .workspace-stage.is-moving{overflow:clip}
 .studio .workspace-stage.is-moving>.workspace-panel{backface-visibility:hidden;transition:none!important}
@@ -27,3 +30,34 @@ html{scrollbar-gutter:stable}
 .studio .library-browser .library-score:hover:not(:disabled),.studio .library-browser .library-score:active:not(:disabled){transform:perspective(900px) rotateX(var(--card-x,0deg)) rotateY(var(--card-y,0deg)) translateZ(var(--card-z,0px))!important}
 .studio .library-browser .library-list:not(.library-hover-ready) .library-score{--card-x:0deg!important;--card-y:0deg!important;--card-z:0px!important}
 @media(hover:none){.studio .library-browser .library-score{--card-x:0deg!important;--card-y:0deg!important;--card-z:0px!important}}
+/* Module transitions own the shell height; prevent document scroll anchoring from
+   counteracting the same frame's interpolation on touch devices. */
+.studio .setup:has(>.workspace-stage.is-moving){overflow-anchor:none}
+.studio .workspace-stage.is-moving{overflow-anchor:none}
+
+/* A stable text box prevents WebKit button text autosizing and late line reflow
+   when covers, recognition status or fullscreen card parents are updated. */
+.studio .library-score{align-items:stretch;-webkit-appearance:none;appearance:none}
+.studio .library-score .library-title{width:100%;min-width:0;flex:0 0 auto;min-height:42px;max-height:42px;line-height:21px;margin:0;text-align:left;-webkit-text-size-adjust:100%;text-size-adjust:100%;overflow:hidden}
+.studio .library-score .library-detail{min-height:16px;line-height:16px;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+
+/* Keep these two small surfaces composited after their entrance animations end.
+   Only iOS Safari gets persistent layers; the rest of the library stays virtual. */
+@supports (-webkit-touch-callout:none){
+ .studio .top .brand,.studio .setup .score-library{transform:translateZ(0);-webkit-backface-visibility:hidden;backface-visibility:hidden;will-change:transform;isolation:isolate}
+}
+
+/* Bound persistent card layers to the observer's viewport plus 100px margin. */
+@media(hover:none) and (pointer:coarse){
+ .library-low-memory .library-score[data-cover-visible]{will-change:transform!important;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+}
+
+/* Keep identity and language controls reachable while browsing the workspace. */
+.studio > header.top{position:sticky;top:0;z-index:40;isolation:isolate;}
+
+/* Keep page gutters during a swipe, not just after its final frame. */
+.studio .workspace-stage{--workspace-page-gap:28px;--workspace-section-gap:20px}
+.studio .workspace-stage>.workspace-panel{display:flex;flex-direction:column;gap:var(--workspace-section-gap);box-sizing:border-box}
+.studio .workspace-stage>.workspace-panel> :is(.setup-section,.practice-settings,.score-classroom,.arrangement-studio,.task-center){margin-block:0!important;flex-shrink:0;order:0!important}
+@media(max-width:850px){.studio .workspace-stage{--workspace-page-gap:24px;--workspace-section-gap:18px}}
+@media(max-width:480px){.studio .workspace-stage{--workspace-page-gap:20px;--workspace-section-gap:16px}}

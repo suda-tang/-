@@ -1,0 +1,20 @@
+[
+  {
+    "prompt": "速度调到90",
+    "status": 200,
+    "ms": 263,
+    "body": "{\"type\": \"status\", \"text\": \"正在读取曲库与当前打开的谱面\"}\n{\"type\": \"delta\", \"text\": \"速\"}\n{\"type\": \"delta\", \"text\": \"度\"}\n{\"type\": \"delta\", \"text\": \"设\"}\n{\"type\": \"delta\", \"text\": \"为\"}\n{\"type\": \"delta\", \"text\": \" \"}\n{\"type\": \"delta\", \"text\": \"9\"}\n{\"type\": \"delta\", \"text\": \"0\"}\n{\"type\": \"delta\", \"text\": \" \"}\n{\"type\": \"delta\", \"text\": \"B\"}\n{\"type\": \"delta\", \"text\": \"P\"}\n{\"type\": \"delta\", \"text\": \"M\"}\n{\"type\": \"delta\", \"text\": \"。\"}\n{\"type\": \"result\", \"reply\": \"速度设为 90 BPM。\", \"actions\": [{\"type\": \"set_tempo\", \"value\": 90}]}\n"
+  },
+  {
+    "prompt": "我要看简谱",
+    "status": 200,
+    "ms": 93,
+    "body": "{\"type\": \"status\", \"text\": \"正在读取曲库与当前打开的谱面\"}\n{\"type\": \"delta\", \"text\": \"已\"}\n{\"type\": \"delta\", \"text\": \"切\"}\n{\"type\": \"delta\", \"text\": \"换\"}\n{\"type\": \"delta\", \"text\": \"谱\"}\n{\"type\": \"delta\", \"text\": \"面\"}\n{\"type\": \"delta\", \"text\": \"。\"}\n{\"type\": \"result\", \"reply\": \"已切换谱面。\", \"actions\": [{\"type\": \"view\", \"value\": \"simple\"}]}\n"
+  },
+  {
+    "prompt": "现在暂停",
+    "status": 200,
+    "ms": 7,
+    "body": "{\"type\": \"status\", \"text\": \"正在读取曲库与当前打开的谱面\"}\n{\"type\": \"delta\", \"text\": \"暂\"}\n{\"type\": \"delta\", \"text\": \"停\"}\n{\"type\": \"delta\", \"text\": \"播\"}\n{\"type\": \"delta\", \"text\": \"放\"}\n{\"type\": \"delta\", \"text\": \"，\"}\n{\"type\": \"delta\", \"text\": \"保\"}\n{\"type\": \"delta\", \"text\": \"留\"}\n{\"type\": \"delta\", \"text\": \"当\"}\n{\"type\": \"delta\", \"text\": \"前\"}\n{\"type\": \"delta\", \"text\": \"位\"}\n{\"type\": \"delta\", \"text\": \"置\"}\n{\"type\": \"delta\", \"text\": \"。\"}\n{\"type\": \"result\", \"reply\": \"暂停播放，保留当前位置。\", \"actions\": [{\"type\": \"pause\", \"value\": \"\"}]}\n"
+  }
+]

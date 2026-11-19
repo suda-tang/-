@@ -1,0 +1,60 @@
+{
+  "release": "flow137",
+  "date": "2026-10-27",
+  "tests": [
+    {
+      "name": "check-mentor-startup135.mjs",
+      "passed": true,
+      "output": "{\"ok\":true,\"partialBytes\":250000,\"unneededPortraitExcluded\":true,\"realDownloadCompletes\":true}\n"
+    },
+    {
+      "name": "check-mentor-rig135.mjs",
+      "passed": true,
+      "output": "Head bounded over 1800 frames: 0.16044696646686057\n{\"ok\":true,\"meshes\":12,\"groundedFeet\":2,\"independentSnapshot\":true}\n"
+    },
+    {
+      "name": "check-mentor-stream135.mjs",
+      "passed": true,
+      "output": "{\"ok\":true,\"mobileTwoTileWarmup\":true,\"retryRecovered\":true,\"nextGardenReady\":true,\"cleanup\":true}\n"
+    },
+    {
+      "name": "check-mentor-slow-stream136.mjs",
+      "passed": true,
+      "output": "{\"ok\":true,\"mobileTwoTileWarmup\":true,\"retryRecovered\":true,\"continuousSlowTransferNotAborted\":true,\"nextGardenReady\":true,\"cleanup\":true}\n"
+    },
+    {
+      "name": "check-mentor-previews135.mjs",
+      "passed": true,
+      "output": "{\"ok\":true,\"previewModels\":4,\"allBufferViewsValid\":true,\"allTexturesPresent\":true}\n"
+    },
+    {
+      "name": "check-mentor-framing136.mjs",
+      "passed": true,
+      "output": "{\"name\":\"yiyuan\",\"samples\":1001,\"blocked\":0,\"preservedSurveyedCamera\":true}\n{\"name\":\"zhuozhengyuan\",\"samples\":1001,\"blocked\":0,\"preservedSurveyedCamera\":true}\n"
+    }
+  ],
+  "browser": {
+    "sevenChaptersPassed": true,
+    "lateYiyuanSkipPassed": true,
+    "earlyLectureHiddenWorkspaceDeferred": true
+  },
+  "changes": [
+    "index.html",
+    "mentor-arrival.js",
+    "mentor-cartoon-model.js",
+    "mentor-chapter-flight.js",
+    "mentor-flight-plan.js",
+    "mentor-flight-worker.js",
+    "mentor-garden-asset-stream.js",
+    "mentor-garden-neighborhood.js",
+    "mentor-garden-view.js",
+    "mentor-preload.js",
+    "mentor-sign-placement.js",
+    "mentor-site-activity.js",
+    "mentor-water-town.js",
+    "mentor-waterside-willows.js",
+    "narration-avatar.js",
+    "narration-opening.js",
+    "tour-presentation.js"
+  ]
+}

@@ -1,0 +1,1 @@
+const fs=require('fs'),p='dist/narration-opening.js';let s=fs.readFileSync(p,'utf8').replace("audio.addEventListener('playing',()=>{window.mentorVoiceStarted=true;", "audio.addEventListener('playing',()=>{if(audio.muted||audio.dataset.priming==='1'||audio.dataset.lectureReady!=='1')return;window.mentorVoiceStarted=true;");fs.writeFileSync(p,s);

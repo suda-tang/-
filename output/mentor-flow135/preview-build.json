@@ -1,0 +1,34 @@
+[
+  {
+    "garden": "yiyuan",
+    "tile": "tile-0-0",
+    "before": 790061,
+    "after": 41398,
+    "bytes": 1926280,
+    "gzip": 905784
+  },
+  {
+    "garden": "yiyuan",
+    "tile": "tile-0--1",
+    "before": 1102575,
+    "after": 79070,
+    "bytes": 3470508,
+    "gzip": 1912902
+  },
+  {
+    "garden": "zhuozhengyuan",
+    "tile": "tile-0-0",
+    "before": 240761,
+    "after": 79398,
+    "bytes": 4045308,
+    "gzip": 1749883
+  },
+  {
+    "garden": "zhuozhengyuan",
+    "tile": "tile-0--1",
+    "before": 132702,
+    "after": 52994,
+    "bytes": 2852612,
+    "gzip": 1157766
+  }
+]

@@ -13,7 +13,7 @@ export function yieldToBrowser() {
   return new Promise(resolve => {
     if (typeof MessageChannel !== 'function') return void setTimeout(resolve, 0);
     const channel = new MessageChannel();
-    channel.port1.onmessage = () => { channel.port1.close(); resolve(); };
+    channel.port1.onmessage = () => { channel.port1.close(); channel.port2.close(); resolve(); };
     channel.port2.postMessage(0);
   });
 }

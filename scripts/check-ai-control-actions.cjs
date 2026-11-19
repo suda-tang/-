@@ -54,7 +54,7 @@ const sse=(reply,actions)=>[
       panel:document.body.dataset.workspace||'',
       activeView:['notation-button','simple-button','original-button','daw-button'].find(id=>document.querySelector('#'+id)?.classList.contains('active'))||'',
       mix:[...document.querySelectorAll('#part-mix input[data-part]')].map(x=>x.checked),
-      tail:[...document.querySelectorAll('.ai-messages p')].slice(-4).map(x=>x.textContent.slice(0,90))
+      tail:[...document.querySelectorAll('.ai-messages .assistant')].slice(-4).map(x=>x.textContent.slice(0,90))
     }));
     const act=async(actions,reply='我来处理。')=>{
       stub={reply,actions};

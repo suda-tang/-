@@ -11,12 +11,69 @@ import requests
 ROOT=Path(__file__).resolve().parent
 _stream_progress=threading.local()
 
+from contextlib import contextmanager
+from functools import wraps
+_model_active=threading.BoundedSemaphore(1)
+_model_waiters=threading.BoundedSemaphore(8)
+
+@contextmanager
+def model_slot():
+    if not _model_waiters.acquire(blocking=False):
+        raise requests.exceptions.Timeout('模型请求较多，请稍后重试；现有任务仍在处理')
+    acquired=False
+    try:
+        notify=getattr(_stream_progress,'notify',None)
+        if notify:notify('正在等待模型处理席位，已进入队列')
+        acquired=_model_active.acquire(timeout=60)
+        if not acquired:raise requests.exceptions.Timeout('模型排队超过60秒，请稍后重试')
+        yield
+    finally:
+        if acquired:_model_active.release()
+        _model_waiters.release()
+
+def serialized_model(function):
+    @wraps(function)
+    def wrapped(*args,**kwargs):
+        with model_slot():return function(*args,**kwargs)
+    return wrapped
+
+
+@serialized_model
+def recover_model_plan(messages,question,on_status=None):
+    """One bounded non-streaming recovery for gateways that drop stream content."""
+    if on_status:on_status('正在重新整理任务步骤，保留原来的要求')
+    recovery=[*messages[:2],*messages[-7:],{'role':'user','content':'继续完成原任务，不要要求用户重说。原任务：'+question+'。根据真实上下文返回JSON对象，包含reply和actions数组；仅使用已注册动作，不编造成功。'}]
+    try:
+        response=requests.post('http://127.0.0.1:8765/v1/chat/completions',headers={'Authorization':'Bearer suda-local'},json={'model':'suda-deepseek','tools':[],'tool_choice':'none','messages':recovery,'temperature':0.1,'max_tokens':3000,'stream':False},timeout=(5,20))
+        response.raise_for_status();value=response.json()['choices'][0]['message'].get('content') or ''
+        plan=parse_model_json(value)
+        if isinstance(plan,dict) and isinstance(plan.get('actions',[]),list) and (plan.get('reply') or plan.get('actions')):return plan
+    except (requests.RequestException,ValueError,KeyError,IndexError,TypeError,SyntaxError):pass
+    return None
+
+def missing_execution(plan):
+    """Detect a promised UI operation with no corresponding action, not ordinary advice."""
+    if not isinstance(plan, dict) or plan.get('actions'):
+        return False
+    reply = str(plan.get('reply') or '')
+    return bool(re.search(r'(?:我来|我会|马上|这就|正在|已(?:经)?)(?:帮您|帮你|为您|为你)?[^。！？\n]{0,18}(?:检索|搜索|查找|打开|播放|切换|静音|调速|设置|定位|导出|制定|生成)', reply)) and not bool(re.search(r'无法|不能|不支持|需要您|需要你|请先|是否|要不要|可以吗|尚未|没有执行', reply))
+
+
 def parse_model_json(content):
     content=str(content)[:200000].strip()
+    for _ in range(2):
+        try:decoded=json.loads(content)
+        except ValueError:break
+        if not isinstance(decoded,str):break
+        content=decoded
     start=content.find('{');end=content.rfind('}')
     candidate=content[start:end+1] if start>=0 and end>=start else content
     try:value=json.loads(candidate)
     except json.JSONDecodeError:
+        try:
+            value=json.loads(candidate.replace('\\"','"'))
+            if isinstance(value,dict) and isinstance(value.get('actions',[]),list):return value
+        except ValueError:pass
         # Some upstream replies use Chinese separators outside JSON strings.
         # Repair separators only; musical prose and escaped quotes stay intact.
         fixed=[];quote=None;escaped=False
@@ -177,7 +234,8 @@ class ActionStreamExtractor:
 
 _ACTION_LABELS={'play':'开始播放','pause':'暂停','stop':'停止','chords':'分析和弦',
                 'score_report':'核对曲谱','search':'搜索曲库','web_search':'联网搜索',
-                'skill_search':'查找技能','panel':'打开面板','generate_arrangement':'生成总谱'}
+                'skill_search':'查找技能','panel':'打开面板','generate_arrangement':'生成总谱',
+                'edit_score':'生成乐谱编辑提案'}
 _VIEW_LABELS={'simple':'简谱','engraved':'五线谱','pdf':'原稿','daw':'音轨'}
 _PANEL_LABELS={'play':'演奏面板','library':'曲库','arrange':'改编面板','tasks':'任务中心'}
 
@@ -257,12 +315,13 @@ def _wait_step(text,elapsed):
     return pool[min(int(max(0,elapsed)//5),len(pool)-1)]
 
 
+@serialized_model
 def post_model_stream(messages,on_visible=None,timeout=(5,90),on_action=None,plain_text=False):
     """流式调用 8765，边收边把可显示文本交给 on_visible；返回模型产出的完整文本。
 
     8765 的流式是**真流式**（实测 0.14s 首包、之后每 ~50ms 一个 delta），
     所以这里能真正做到「边生成边显示」。
-    ★ 超时保持 (5, 90) 不动：前端 deadline 是 110s，必须长于后端读超时
+    ★ 超时保持 (5, 90) 不动：前端 deadline 是 200s，必须长于后端读超时
       （见文件末尾「前端超时必须长于后端读超时」那条教训），改大会把
       「模型没响应」错怪成隧道断了。
     """
@@ -271,13 +330,16 @@ def post_model_stream(messages,on_visible=None,timeout=(5,90),on_action=None,pla
     parts=[];received=0;last_progress=0
     notify=getattr(_stream_progress,'notify',None)
     if notify:notify('正在把你的问题交给乐理模型')
-    with requests.post('http://127.0.0.1:8765/v1/chat/completions',headers={'Authorization':'Bearer suda-local'},json={'model':'suda-deepseek','messages':messages,'temperature':0.2,'max_tokens':MODEL_TOKENS,'stream':True},stream=True,timeout=timeout) as response:
+    with requests.post('http://127.0.0.1:8765/v1/chat/completions',headers={'Authorization':'Bearer suda-local'},json={'model':'suda-deepseek','tools':[],'tool_choice':'none','messages':messages,'temperature':0.2,'max_tokens':MODEL_TOKENS,'stream':True},stream=True,timeout=timeout) as response:
         response.raise_for_status()
         for line in response.iter_lines(chunk_size=1):
             if not line or not line.startswith(b'data:'):continue
             payload=line[5:].strip()
             if payload==b'[DONE]':break
-            try:delta=json.loads(payload)['choices'][0]['delta'].get('content') or ''
+            try:
+                choice=json.loads(payload)['choices'][0]
+                delta=(choice.get('delta') or choice.get('message') or {}).get('content') or choice.get('text') or ''
+                if isinstance(delta,list):delta=''.join(part.get('text','') for part in delta if isinstance(part,dict))
             except (ValueError,KeyError,IndexError,TypeError):continue
             if not delta:continue
             parts.append(delta)
@@ -299,6 +361,16 @@ def post_model_stream(messages,on_visible=None,timeout=(5,90),on_action=None,pla
 
 def action_value(action):
     value=action.get('value','')
+    if action.get('type')=='classroom':
+        if isinstance(value,str):value=json.loads(value)
+        if not isinstance(value,dict) or value.get('operation') not in ('status','open','close','configure','goto_slide','next','previous','present','minimize','speak','pause','stop','listen','rate','continuous','export','images','ask'):raise ValueError('课堂操作无效')
+        return json.dumps(value,ensure_ascii=False)
+    if action.get('type')=='create_classroom':
+        if isinstance(value,str):value=json.loads(value)
+        if not isinstance(value,dict):raise ValueError('课堂设置格式无效')
+        value={key:item for key,item in value.items() if item is not None and item!=''}
+        value.setdefault('scope','whole')
+        return json.dumps(value,ensure_ascii=False)
     if action.get('type')=='practice_plan':
         if isinstance(value,str):value=json.loads(value)
         return json.dumps(value,ensure_ascii=False)
@@ -559,6 +631,90 @@ UNSUPPORTED_EDIT_RE=re.compile('移.{0,4}[降升].{0,3}调|移调|升调|降调|
                                #   原来的 `删.{0,4}小节` 只认「删在前」，这类句子一个都匹配不到，
                                #   于是被规则的「有数字就跳转」劫持成 seek_measure。两条都要。
                                r'|删.{0,4}小节|小节.{0,4}(删|去掉|移除|抹掉)|删(掉|除)')
+# ★ 2026-11-12 接入 SeraEdit：以下「改谱」意图现在有真实能力支撑（本地
+#   /api/sera-edit/preview 生成可审查提案），不再一律拒答。只覆盖 Sera 规则生成器
+#   确实支持的编辑：移调/升降半音/八度、力度、演奏记号、调号、拍号、音高与时值。
+#   「标指法 / 即兴作曲 / 删小节 / 编曲」不在其中，仍走原来的如实拒答。
+SERA_EDITABLE_RE=re.compile(
+    r'移.{0,4}[降升].{0,3}调|移调|升调|降调'
+    r'|升.{0,6}(半音|大二度|八度|音)|降.{0,6}(半音|大二度|八度|音)'
+    r'|上移.{0,6}(半音|大二度|八度)|下移.{0,6}(半音|大二度|八度)'
+    # ★ 2026-11-17 补八度口语说法（用户实测「低八度都不行」）：
+    #   「移低八度 / 移高八度 / 低八度 / 高八度 / 低一个八度 / 调低八度」等
+    #   此前 AI 层完全不命中 → 落模型拒答；规则层 _transpose_delta 也已同步补齐。
+    #   必须带「八度」单位才命中，不会误吞「低音区 / 高音 / 声音低一点」等音量/音色说法。
+    r'|(?:移(?:低|高)|调(?:低|高)|降|升|低|高)(?:一个)?八度'
+    r'|(?:下移|上移|往下移|往上移|向下移|向上移).{0,3}八度'
+    r'|转调|改为.{0,6}(力度|断奏|重音|保持音)|力度.{0,4}(改为|设为|调成|改成)'
+    # ★ 目标调式转调的自然说法：「改成D调 / 更改简谱到 D调琵琶谱 / 改到D调 / 调成D调 /
+    #   换成D调 / 改为D调 / 变更到D调 / 把这首改成D调」。这些以前只被「移调|转调|升调|降调」
+    #   兜住，用户用「更改/改成」就被漏掉、落到「做不到」兜底。动词后到调名之间允许夹宾语
+    #   （如「简谱」），但必须出现「到/成」且后接调名字母 A–G，避免误吞「改力度/改速度/改编」。
+    # ★★ 2026-11-15 同步修复规则层同款回归：调名后缀原来是「可选」，导致
+    #   「把第 3 小节的 C 改成 D」里的音名 D、「把力度改成 ff」里的 f 被当成目标调。
+    #   后缀（大调/小调/调/major/minor）**必须存在**，与 rule_patch_generator.py:189 一致。
+    r'|(?:更改|改成|改到|调成|换成|改为|变更|调到|转成|变调)[^，。；、！？\n]{0,12}?到?\s*[升降]?[#b♯♭]?\s*[a-gA-G]\s*(?:大调|小调|调|major|minor)'
+    r'|(加|标|改为).{0,4}(断奏|staccato|重音|accent|保持音|tenuto)'
+    r'|改.{0,6}(音符|音高|时值|拍号|调号|力度)'
+    # 「把调号改为 G major」这类动词在后、对象在前的语序也要认。
+    r'|(?:调号|拍号|key signature|time signature).{0,6}(?:改|换|设|调|变成)'
+    r'|(?:改|换|设|调).{0,4}(?:调号|拍号)'
+    r'|(?:把|将).{0,12}(?:升高|降低|移高|移低|升|降|改成|改为).{0,8}(?:半音|度|音高|音符|时值|ff|pp|mf|mp|f|p)'
+    # ★ 2026-11-15（100 问真实浏览器测试）：分数拍号的自然说法。「换成 6/8 拍」
+    #   「第二页也改成 3/4」原本两个正则都不命中，落到下方「做不到」兜底，
+    #   模型再据此谎称「系统不支持改拍号」。规则层 _time_signature_value 已同步补齐动词。
+    #   只在「改/换/调/设/变 + ≤6 字 + N/N」时命中；离线 12 条验证不会误伤
+    #   「第 5 到第 8 小节」「速度设为 120 BPM」「把力度改成 ff」「把第 3 小节的 C 改成 D」。
+    r'|(?:改|换|调|设|变|换成|调成)[^，。；、！？\n]{0,6}?\d+\s*/\s*\d+'
+    # ★ 自然说法补缺（2026-11-12 实测：用户用「编辑/修改/改一下」等动词、或「对象在前动词在后」
+    #   语序时被漏掉，落到下方 1413 行的「做不到」兜底）。两类都补上，避免被误杀：
+    #   ①「编辑/修改/改一下/改动 + 编辑对象」；②「编辑对象在前、动词在后」（如「把第5小节的音符改成高音do」）。
+    r'|(?:修改|编辑|改一下|改动).{0,10}(?:音符|音高|时值|力度|调号|拍号|谱面|谱子|断奏|重音|保持音|记号|staccato|accent|tenuto)'
+    r'|(?:音符|音高|时值|力度|调号|拍号|谱面|谱子|断奏|重音|保持音|记号).{0,10}(?:改成|改为|升高|降低|移高|移低|升|降|加|标|写|调成|设成|改)',
+    re.I)
+# 明确的「越界改谱」意图：Sera 规则层不支持，保持拒答，避免模型乱发动作。
+SERA_OUT_OF_SCOPE_RE=re.compile(
+    r'(?:标|写|加|打|生成|自动)[出上]?.{0,4}指法|指法.{0,4}(?:标好|标注|写上|加上)|自动指法'
+    r'|即兴|作曲|编曲|写.{0,6}(小节|曲|首)|删.{0,4}小节|小节.{0,4}(删|去掉|移除|抹掉)'
+    # ★ 2026-11-15：连奏线 / legato 是「假闭环」——后端 sera_bridge 不落写 <slur>，
+    #   前端 dist/score.js 也不解析 <slur>（详见 rule_patch_generator._is_slur 的决策记录）。
+    #   明确列为越界，让 sera_edit_plan 放行给 fast_plan 的诚实能力边界回执，
+    #   避免生成 change_count=0 的提案、点「应用」后显示「已应用」却什么都没变。
+    r'|连奏|连音线|legato',re.I)
+
+# ★ 2026-11-15（100 问真实浏览器测试）「诚实能力边界」三件套。
+#   背景：改谱能力只在 SERA_EDITABLE_RE 命中时由规则层强制转提案；未命中的说法落到模型，
+#   而模型的 system prompt action 枚举里没有 edit_score，于是按旧认知答「系统不支持改谱」，
+#   或者更糟——把「渐强」误当速度渐变、把「标连奏」说成已标注但其实一个动作都没发。
+#   这里在 fast_plan 里用确定性回执接管这三类：既不撒谎，也不假装成功。
+#   ★★ 刻意不对模型开放 edit_score：让模型自由发改谱动作，会把规则层不支持的说法
+#     变成一堆 unsupported 提案，比诚实说明更糟。改谱一律走规则层路由（见 sera_edit_plan）。
+SERA_CAPABILITY_ASK_RE=re.compile(
+    r'(?:能不能|能否|可不可以|可以|能|支持|行不行)[^，。；、！？\n]{0,12}?'
+    r'(?:移调|转调|改调|调号|拍号|力度|断奏|重音|保持音|升降|半音|八度|改谱|编辑谱|修改谱|音符|音高|时值|连奏|连音线|legato|渐强|渐弱)'
+    r'|(?:移调|转调|改调|调号|拍号|力度|断奏|重音|保持音|改谱|编辑谱|修改谱|连奏|连音线|legato)[^，。；、！？\n]{0,10}?'
+    r'(?:能不能|能否|可以吗|支持吗|行不行)',re.I)
+CRESCENDO_RE=re.compile(r'渐强|渐弱|crescendo|diminuendo',re.I)
+SLUR_UNSUPPORTED_RE=re.compile(
+    r'(?:标|加|画|写|加上|标注)[^，。；、！？\n]{0,6}?(?:连奏|连音线|legato)'
+    r'|(?:连奏|连音线|legato)[^，。；、！？\n]{0,6}?(?:标|加|画)'
+    r'|(?:改成|改为|换成|调成)[^，。；、！？\n]{0,4}?(?:连奏|连音线|legato)',re.I)
+
+def sera_edit_plan(text):
+    """Return an edit_score action for a supported score-edit request, else None.
+
+    The action only *proposes* a patch; the human must approve it in the panel.
+    """
+    if not text or SERA_OUT_OF_SCOPE_RE.search(text): return None
+    # ★ 疑问句一律交回模型回答，不抢着改谱。这里放在 fast_plan 最前面，
+    #   若不加这道闸，「第12小节能不能升半音？」「移调怎么弄」会被当成编辑指令，
+    #   正是千轮实测里「有数字就跳转」同类的劫持问题。复用项目现成的疑问句判据。
+    if QUESTION_ASK_RE.search(text): return None
+    # 否定句（「不要把第3小节升半音」）同理，整句交模型，别自作主张。
+    if NEGATION_RE.search(text): return None
+    if not SERA_EDITABLE_RE.search(text): return None
+    return {'reply':'','actions':[{'type':'edit_score','value':text}]}
+
 # ★ 否定辖域：规则通道只做子串匹配，看见「简谱」就切简谱、看见「独奏人声」就独奏人声，
 #   于是「不要切到简谱」会真的切、「不要独奏人声」会真的独奏 —— 千轮实测 negation 族 6/6 全中。
 #   句子里有否定词 + 动作动词时整句交给模型：模型实测能正确处理否定（「不要切到五线谱」
@@ -628,7 +784,8 @@ def plan_locate(target,play,text,items,context):
     """把「X 最早出现在哪」变成可执行的动作。"""
     from ai_catalog import locate as locate_in_score
     current=context.get('currentId')
-    named=[s for s in items if s.get('title') and (s['title'] in text or re.sub(r'[·《》].*','',s['title']) in text)]
+    named=[s for s in items if s.get('title') and
+           (s['title'] in text or (_title_core(s['title']) and _title_core(s['title']) in text))]
     # 当前打开的那首优先（同名曲目可能有多份，其中一份没有可播放数据）。
     ordered=[s for s in named if s.get('id')==current]+[s for s in named if s.get('id')!=current]
     if not ordered and current:ordered=[s for s in items if s.get('id')==current]
@@ -991,20 +1148,27 @@ def run_library_query(value,items,context):
     except Exception:
         return None
     titled={str(s.get('id')):str(s.get('title') or '').strip() for s in items if isinstance(s,dict)}
+    # ★ 2026-11-18：索引过期提醒。旧索引说「没有」不等于库里真没有（10-09 的索引
+    #   漏了人声谱，害我误判）。把时效/覆盖缺口附在结果里，别让旧索引骗人。
+    try:
+        from music_index import index_staleness
+        stale=index_staleness(index,len(items))
+    except Exception:
+        stale=''
     ids,desc=run_query(index,spec,allowed=set(titled),title_of=titled)
     # ★ 多轮细化：「这个里边哪些巴洛克时期的？」= 在**上一轮结果**上继续筛
     if spec.get('_refine') and _THEORY_STATE.get('ids'):
         keep=set(_THEORY_STATE['ids'])
         ids=[i for i in ids if i in keep]
     if spec['op']=='top_chord':
-        return '《'+titled.get(str(spec.get('id')),'当前这首')+'》：'+(desc or '这首曲子的谱面里没有识别出成型的和弦')+'。'
+        return '《'+titled.get(str(spec.get('id')),'当前这首')+'》：'+(desc or '这首曲子的谱面里没有识别出成型的和弦')+'。'+stale
     hits=sorted({titled[i] for i in ids if titled.get(i)})
     what=str(spec.get('label') or '符合条件')
     if not hits:
-        return '全库逐首核对谱面后，没有找到'+what+'的作品。'
+        return '全库逐首核对谱面后，没有找到'+what+'的作品。'+stale
     show=hits[:20]
     tail='' if len(hits)<=20 else '（共 '+str(len(hits))+' 首，先列前 20 首）'
-    return '全库逐首核对谱面后，'+what+'的作品'+tail+'：\n'+'、'.join(show)
+    return '全库逐首核对谱面后，'+what+'的作品'+tail+'：\n'+'、'.join(show)+stale
 
 
 def _find_pieces_intent(text):
@@ -1044,6 +1208,19 @@ def _external_find_intent(text):
     if re.search(r'这首|本曲|当前|这一首|该曲', t) and not re.search(r'网上|全网|外网|库外|不在曲库|不在库里|联网', t):
         return False
     # ② 显式取谱动词 + 具体作品（注意：我想听/我要听 是「打开播放」，不算找谱）
+    # ★ 2026-11-18：按**乐器 / 声部条件**找谱（「有人声轨道的谱子」「带大提琴的曲子」）
+    #   是曲库内筛选，不是要某首曲子的转谱链接。parse_theory_spec 能把这些解析成
+    #   instrument 槽，交给后面的 plan_theory_search 用真实索引回答（库里没有就如实说没有）。
+    #   以前这类句子被本函数的「找+谱子」命中→联网找转谱链接，用户看到的正是「AI 乱发挥」。
+    #   注意：显式外部源（网上/全网/联网）在 1195 行已优先判定，不受这里影响；
+    #   带书名号的具体作品（如「找《X》的谱子」）解析不出 instrument 槽，仍照常联网找。
+    if re.search(r'找|搜|有没有|带|含', t):
+        try:
+            _spec=parse_theory_spec(t,{})
+            if _spec and _spec.get('op')=='find' and _spec.get('instrument'):
+                return False
+        except Exception:
+            pass
     if re.search(r'找|搜|下载|获取|要一份|来一首|给我(一份|找)|帮我(找|搜)|我想(下载|找)', t):
         if re.search(r'[《「【].{1,30}[》」】]|钢琴谱|乐谱|曲谱|谱子|小提琴谱|大提琴谱|吉他谱|钢琴曲|曲子|作品', t):
             return True
@@ -1119,9 +1296,13 @@ def plan_theory_search(text,items,context,strong_only=False):
         index=load_index()
     except Exception:
         return None
-    note=''
-    if index.get('building'):
-        note='（索引仍在建立：已核对 '+str(index.get('cached') or index.get('covered') or 0)+'/'+str(index.get('scores') or 0)+' 首，结果可能不全）'
+    # ★ 2026-11-18：索引过期提醒（builtAt 太旧 / 覆盖数落后于当前曲库）。
+    #   旧索引说「没有」不等于库里真没有 —— 10-09 的索引漏了人声谱就是教训。
+    try:
+        from music_index import index_staleness
+        note=index_staleness(index,len(items))
+    except Exception:
+        note=''
     titled={str(s.get('id')):str(s.get('title') or '').strip() for s in items if isinstance(s,dict)}
     from music_index import composer_of
     artists={composer_of(re.sub(r'\.(mp3|mid|midi|pdf|musicxml|mxl)$','',title,flags=re.I)) for title in titled.values()}
@@ -1160,7 +1341,18 @@ def plan_theory_search(text,items,context,strong_only=False):
         #   检索词交给 ai_web_import.search_core 做轻量清洗（抽出作曲家/乐器，补「乐谱」后缀）。
         #   这把原先「前端正则兜底 + 后端回『没找到』」两套硬规则，收敛成一条清晰的意图判断：
         #   本地库满足不了「要找曲谱」的请求，就联网；其余（针对当前曲子的提问、纯库内检索）不变。
-        if _find_pieces_intent(text):
+        # ★ 2026-11-18：「按乐器/声部条件筛选」没命中时如实回答，不要转成联网找转谱链接。
+        #   用户要的是曲库筛选结果，甩一堆网上的转谱链接是答非所问 = 用户说的「AI 乱发挥」。
+        #   判据与 _external_find_intent 一致：能解析出 instrument 槽 = 筛选请求。
+        #   注意：这里说「没有」前必须确认索引是新的（见上方 note 里的过期提醒）；
+        #   10-09 的过期索引曾把有人声谱的曲库误报成「没有」。
+        _is_instrument_filter=False
+        try:
+            _sp=parse_theory_spec(text,context) if isinstance(context,dict) else parse_theory_spec(text,{})
+            _is_instrument_filter=bool(_sp and _sp.get('op')=='find' and _sp.get('instrument'))
+        except Exception:
+            pass
+        if _find_pieces_intent(text) and not _is_instrument_filter:
             try:
                 from ai_web_import import search_core
                 value=search_core(text) or text
@@ -1190,6 +1382,36 @@ def fast_plan(data,progress=lambda x:None):
     """
     history=data.get('messages',[])
     text=next((str(m.get('content','')) for m in reversed(history) if m.get('role')=='user'),'')
+    from score_work_titles import numbered_work, numbered_title_matches
+    if numbered_work(text) and re.match(r'^(?:请|帮我|找|搜|查找|推荐|想听|我要听)',text) and not re.search(r'分析|和弦|播放|小节|不要|排除|联网',text):
+        matches=[item for item in (data.get('context',{}).get('scores') or []) if item.get('ready',True) and numbered_title_matches(text,item.get('title',''))]
+        if matches:return {'reply':'曲库里有这些版本，请选择。','actions':[{'type':'choose_scores','value':choose_payload(matches)}]}
+        return {'reply':'先按作品名称检索曲库。','actions':[{'type':'search','value':text}]}
+    from ai_classroom_controls import classroom_controls
+    classroom=classroom_controls(data)
+    if classroom:return classroom
+    # ★ 2026-11-12 SeraEdit：可支持的改谱意图交给精准编辑引擎生成**可审查提案**。
+    #   放在最前面，避免被下面「有数字就跳小节」「区间播放」等规则劫持。
+    #   越界意图（标指法/即兴/删小节）不在此命中，继续走原来的如实拒答。
+    sera=sera_edit_plan(text)
+    if sera:return sera
+    # ★ 2026-11-15（100 问真实浏览器测试）诚实能力边界：疑问句已被 sera_edit_plan 放行，
+    #   不接管就会落到模型按旧认知拒答；「渐强」「标连奏」则会被模型谎称做成或误映射成速度渐变。
+    #   ★ 铁律：整句只是在问能力 / 只提这一条不支持的编辑时才接管；句子里还夹了播放、
+    #     速度、导出等别的动作就 return None，把整句交模型，绝不半截处理（见 fast_plan 文档串）。
+    _other_action=r'播放|暂停|停止|打开|切换|速度|静音|独奏|导出|打印|跳到|循环|定位'
+    # 「能把第5小节升半音吗？」是带具体目标的委婉**编辑请求**，不是问能力；
+    #   项目既有铁律是疑问句一律交回模型（见 sera_edit_plan 与 check-sera-edit.py 的
+    #   「疑问句/否定句不劫持」用例）。这类句子排除掉，别用固定说明盖掉模型的正常应答。
+    _specific_edit=r'第\s*[0-9一二三四五六七八九十]+\s*小节|这一段|这一句|这一小节|现在就|顺便|帮我(?:升|降|改)|升(?:高|低)?[^，。；、！？\n]{0,4}(?:半音|八度)|降[^，。；、！？\n]{0,4}(?:半音|八度)'
+    if SERA_CAPABILITY_ASK_RE.search(text) and not re.search(_other_action,text) and not re.search(_specific_edit,text):
+        return {'reply':'可以。改谱走「精准编辑提案」：你先说出改法，我生成一份可审查的修订，你在「乐谱精准编辑」面板核对后点「应用到当前谱面」，谱面才会真的改（原谱保留、可撤销）。目前支持：目标调式移调（如「把这首从 C 调移调到 D 调」）、升降半音/八度、力度（「把力度改成 ff」）、断奏/重音/保持音、调号与拍号（「把拍号改成 3/4」）、指定音高替换。指法、增删小节、连奏线与渐强暂不支持。','actions':[]}
+    if CRESCENDO_RE.search(text) and not re.search(_other_action+r'|渐快|渐慢|accelerando|ritardando',text):
+        return {'reply':'渐强 / 渐弱是力度渐变，目前精准编辑规则层还不支持，我不会把它当成速度渐变去改（那会变成渐快 / 渐慢，不是你要的效果）。现在能做的是给指定区域设固定力度，例如「把第 1 小节力度改成 ff」「把力度改成 mf」。','actions':[]}
+    if SLUR_UNSUPPORTED_RE.search(text) and not re.search(_other_action,text):
+        return {'reply':'连奏线 / legato 目前还不能真正写进谱面（精准编辑不会落写连线，前端也不渲染），所以我不会假装已经标好。现阶段能改的演奏记号是断奏、重音、保持音，例如「给前 4 个音加断奏」。要把连奏线做成真闭环，需要后端落写 <slur> + 前端解析渲染一起改。','actions':[]}
+    # Classroom ranges/pages are not score transport instructions.
+    if re.search(r'课堂|课件|PPT|幻灯片|讲课|讲解',text,re.I):return None
     from ai_direct_controls import direct_controls
     direct=direct_controls(text,data.get('context',{}))
     if direct:return direct
@@ -1226,7 +1448,10 @@ def fast_plan(data,progress=lambda x:None):
         return {'reply':'我会查找候选曲谱链接，先供你查看，不自动导入。','actions':[{'type':'web_search','value':web_title[1]+' 钢琴谱'}]}
     # ★ 外部找谱（先于模型）：用户明显在要一份曲库里可能没有的曲谱时，确定性发 `web_search`，
     #   不让模型回闲聊、也不回「找到 0 份」死胡同。检索词交给 ai_web_import.search_core 清洗。
-    if _external_find_intent(text):
+    from music_query import library_discovery_request
+    if library_discovery_request(text):
+        return {'reply':'我先在云曲库里查找，找到后列出来供你选择。','actions':[{'type':'search','value':text}]}
+    if _external_find_intent(text) and (not constrained_query(text) or re.search('联网|网上',text)):
         try:
             from ai_web_import import search_core
             _q=search_core(text) or re.sub(r'[^一-鿿A-Za-z0-9 ]',' ',text).strip()
@@ -1244,7 +1469,7 @@ def fast_plan(data,progress=lambda x:None):
     # ★ 带「和弦/色彩」的全库检索必须先于选曲通道：选曲通道会把这类问题甩给模型，
     #   而模型没有索引、答不出（只会回「没有这个功能」）。纯乐器/纯选曲查询顺序不变。
     _ctx0=data.get('context',{}) if isinstance(data.get('context'),dict) else {}
-    _early=plan_theory_search(text,_ctx0.get('scores',[]),_ctx0,strong_only=True)
+    _early=None if constrained_query(text) and not re.search('和弦|减七|属七',text) else plan_theory_search(text,_ctx0.get('scores',[]),_ctx0,strong_only=True)
     if _early:return _early
     if repertoire_conversation(history):return None
     # Contextual questions need the full planner, not title/playback shortcuts.
@@ -1281,11 +1506,17 @@ def fast_plan(data,progress=lambda x:None):
         # ★ 排除项必须带上「配器/编制/音色/静音/音量/总谱」：实测「恢复全部声部，配器也换回原谱。」
         #   以前只发 solo all、把「配器换回原谱」**静默丢掉**（音乐家 #12）。整句交回模型去做。
         return {'reply':'已恢复全部声部，回到完整合奏。','actions':[{'type':'solo','value':'all'}]}
-    # ★「修改乐谱内容」确定性拒答：AI 没有任何改谱能力，不能默默去跳小节 / 切谱面充数。
+    # ★「规则层不支持的改谱」确定性拒答：2026-11-15 更新。
+    #   接入 SeraEdit 后，移调 / 力度 / 调号 / 拍号 / 演奏记号等已有真实改谱能力，
+    #   原「修改乐谱内容目前做不到、不能改动音符时值或拍号本身」已经过时，会把本可闭环的
+    #   说法误导成「系统不支持」（100 问测试里 5 轮错误拒答的帮凶之一）。
+    #   这里只兜住 SERA_EDITABLE_RE 未命中的改谱请求：如实说明 + 给出可用说法示例；
+    #   actions 仍保持为空，防止「删小节」被劫持成跳小节、或擅自发用户没要的动作。
     #   注意排除「音色/音轨/音量」（那些是合法动作），只认真正指向音符本身的说法。
     if re.search('修改|编辑|改成|改为|改一下|改动|删掉这个|去掉这个|加一个',text) \
-       and re.search('音符|音高|音名|时值|拍号|调号|和弦|小节|音(?!色|轨|量)',text):
-        return {'reply':'修改乐谱内容目前做不到 —— 我只能在播放、视图、声部、速度这些层面操作，不能改动音符、时值或拍号本身。','actions':[]}
+       and re.search('音符|音高|音名|时值|拍号|调号|和弦|小节|音(?!色|轨|量)',text) \
+       and not SERA_EDITABLE_RE.search(text) and not QUESTION_ASK_RE.search(text):
+        return {'reply':'这条改谱说法我暂时没有对应的精准编辑规则，不会去动谱面。系统现在支持的说法是：目标调式移调（「把这首从 C 调移调到 D 调」）、「升高一个半音」「升一个八度」、力度（「把力度改成 ff」）、断奏/重音/保持音（「给前 4 个音加断奏」）、调号与拍号（「把拍号改成 3/4」）、指定音高替换。指法、增删小节、连奏线与渐强暂不支持。','actions':[]}
     # ★ 纯「相对速度」指令在这里确定性处理（理由见 REL_TEMPO_UP 处的注释）。
     #   只接管「整句就是在调速度」：把速度词、语气词、标点剥掉后几乎不剩东西才动手。
     #   否则（「快一点，然后播放。」「节拍器太快了」）继续往下走 / 整句转交模型，
@@ -1372,7 +1603,7 @@ def fast_plan(data,progress=lambda x:None):
             #   但下面的名称匹配认不出「全部」，会误报「没有找到你指定的声部」（报告 G4）。
             if re.search('全部|所有|全都|一起',text) and re.search('乐器|声部|音轨',text):
                 actions.append({'type':'solo','value':'all'})
-            elif not ids:return {'reply':'当前曲谱没有找到你指定的声部，请先打开包含该乐器的作品。','actions':[]}
+            elif not ids:return {'reply':'当前曲谱没有这个声部。可以选择这份谱已有的乐器，或换一份包含该声部的曲谱。','actions':[]}
             else:actions.append({'type':'solo_group','value':json.dumps(ids)})
             if not context.get('playing') and requested_measure(text,context) is None and not re.search('播放|试听|听一下|听起来',text):actions.append({'type':'play','value':''})
         number=requested_measure(text,context)
@@ -1644,7 +1875,7 @@ def stream_result(handler,data):
             emit({'type':'status','text':'正在逐小节分析这份谱的和声、动机与段落结构'})
             analysis_dir=ROOT/'.sites-runtime/score-profiles/reports';analysis_dir.mkdir(parents=True,exist_ok=True)
             report_context=analysis_context(data.get('context',{}),plan['score']['id'])
-            analysis_key=hashlib.sha256(json.dumps(['report-v2-context',{k:v for k,v in plan['evidence'].items() if k!='cached'},plan['question'],report_context],sort_keys=True,ensure_ascii=False).encode()).hexdigest()
+            analysis_key=hashlib.sha256(json.dumps(['report-v3-tonal-evidence',{k:v for k,v in plan['evidence'].items() if k!='cached'},plan['question'],report_context],sort_keys=True,ensure_ascii=False).encode()).hexdigest()
             report=analysis_dir/(analysis_key+'.json')
             if report.exists():
                 try:
@@ -1652,9 +1883,9 @@ def stream_result(handler,data):
                     emit({'type':'status','text':'这份谱之前分析过，直接读取已有结论'})
                     emit({'type':'delta','text':cached['reply']});emit({'type':'result','reply':cached['reply'],'actions':[]});return
                 except (OSError,ValueError,KeyError):pass
-            prompt='根据提供的实际乐谱档案回答用户的问题。若是练习问题，给出小节范围、练习目标、操作方法和可观察的达成标准，不虚构学生的错误或学习效果；若是演奏或配器建议，说明音乐依据，不声称已改变或生成音频。先说明只有音高、小节和少量文字信息，缺少完整听觉与和声验证；区分可观测证据与推断。若证据不足不要硬划段落或断言曲式；只有出现同一个调号不能推断发生转调或回归。拍号必须结合 beats 和 beatType，不能只凭分子判断。提出具体小节范围供核对，不确定就明确说不确定。不能把文学题名当成音乐结构，不编造确定曲式。问题：'+plan['question']+'\n标题：'+plan['score']['title']+'\n乐谱证据：'+json.dumps(plan['evidence'],ensure_ascii=False)+'\n实际练习记录（null 表示尚无真实练习，不可虚构）：'+json.dumps(report_context.get('practice'),ensure_ascii=False)+'\n请使用界面语言：'+str(data.get('context',{}).get('language','zh-CN'))
+            prompt='根据提供的实际乐谱档案回答用户的问题。keys 为空只表示文件未写调号，不是分析失败。继续使用实际音高、逐小节音级和谱面和弦标注；不能把音级集合当成同时发声和弦，也不能直接认定 C 大调。调性未确定时照样解释可核验的音高关系，并明确哪些结论待核实。若是练习问题，给出小节范围、练习目标、操作方法和可观察的达成标准，不虚构学生的错误或学习效果；若是演奏或配器建议，说明音乐依据，不声称已改变或生成音频。先说明只有音高、小节和少量文字信息，缺少完整听觉与和声验证；区分可观测证据与推断。若证据不足不要硬划段落或断言曲式；只有出现同一个调号不能推断发生转调或回归。拍号必须结合 beats 和 beatType，不能只凭分子判断。提出具体小节范围供核对，不确定就明确说不确定。不能把文学题名当成音乐结构，不编造确定曲式。问题：'+plan['question']+'\n标题：'+plan['score']['title']+'\n乐谱证据：'+json.dumps(plan['evidence'],ensure_ascii=False)+'\n实际练习记录（null 表示尚无真实练习，不可虚构）：'+json.dumps(report_context.get('practice'),ensure_ascii=False)+'\n请使用界面语言：'+str(data.get('context',{}).get('language','zh-CN'))
             prompt += '\n'+WORKSPACE_GUIDANCE+'\n当前操作上下文：'+json.dumps(report_context,ensure_ascii=False)
-            with requests.post('http://127.0.0.1:8765/v1/chat/completions',headers={'Authorization':'Bearer suda-local'},json={'model':'suda-deepseek','messages':[{'role':'user','content':prompt}],'stream':True,'temperature':0.3,'max_tokens':8000},stream=True,timeout=(5,120)) as r:
+            with model_slot(), requests.post('http://127.0.0.1:8765/v1/chat/completions',headers={'Authorization':'Bearer suda-local'},json={'model':'suda-deepseek','tools':[],'tool_choice':'none','messages':[{'role':'user','content':prompt}],'stream':True,'temperature':0.3,'max_tokens':8000},stream=True,timeout=(5,120)) as r:
                 r.raise_for_status();reply=''
                 for line in r.iter_lines():
                     if not line.startswith(b'data:'):continue
@@ -1780,6 +2011,8 @@ search 按曲名或歌手搜索现有曲库；多首候选先询问选哪首，�
         #   超过 suda 的 WEB_PROMPT_LIMIT(150000) 被截断、也逼近模型窗口。发给模型的曲库只留
         #   「短 id(前12位) + 标题 + 是否可播放(1/0)」元组，完整曲库仍留在服务端用于解析；
         #   模型返回的短 id 在下方归一化时映射回真实 id（short_to_full）。
+        messages[0]['content'] += '\n你可以控制课堂，context.classroom 是真实当前课堂状态。使用 classroom 动作，value 为对象，operation 可为 status/open/close/configure/goto_slide/next/previous/present/minimize/speak/pause/stop/listen/rate/continuous/export/images/ask。goto_slide 带 page（PPT页码）；rate 带 rate（0.8—1.8）；continuous 带 enabled 布尔；ask 带 question 与 role（teacher/student）；configure 带 settings（goal/schoolStage/mode/duration/scope/start/end），仅更新设置，不冒称重新生成。create_classroom 才提交生成。不得混淆乐曲播放速度与讲解语速。按依赖顺序执行，未生成的幻灯片不能跳转；每次结果将回写对话，依据实际状态继续，不重复成功动作。\n'
+        messages[0]['content'] += '\n生成当前曲目的课程、PPT 或教案用 create_classroom，value 是 JSON 对象：goal 教学要求、schoolStage 为 primary/junior/senior、mode 为 classroom/piano、scope 为 whole。不要用 skill_search 代替项目已有的课堂功能。\n'
         messages[0]['content'] += WORKSPACE_GUIDANCE + REPERTOIRE_GUIDANCE + PRACTICE_GUIDANCE
         _ctx_full=dict(data.get('context',{}) or {})
         # ★ 只按**用户这句话**匹配参考资料，绝不把全库标题塞进 scope：
@@ -1859,20 +2092,39 @@ search 按曲名或歌手搜索现有曲库；多首候选先询问选哪首，�
                 #   但这类回答**本来就不需要动作**——纯文字答复零风险。所以最后一次仍失败时，
                 #   把模型原话当回复返回、动作置空：宁可少做，不可整句失败。
                 if attempt==2:
+                    recovered=recover_model_plan(messages,latest_question,on_status)
+                    if recovered:
+                        if on_reset:on_reset()
+                        plan=recovered;break
                     # 上游偶尔会**整段返回空**（received=0），这时连一句可读的话都没有。
                     # 但用户要的是「别把整句话变成技术错误」，所以最后兜底给一句明确的说明，
                     # 动作置空——零风险，且比 502 让用户知道发生了什么。
                     fallback_reply=str(content or '').strip()
                     if on_reset:on_reset()
                     if not fallback_reply:
-                        fallback_reply='这一轮模型没有返回可用内容，曲谱没有做任何改动。请再说一次你要做什么，比如「定位到第 12 小节」「速度调到 90」「导出 MIDI」。'
+                        fallback_reply='生成服务本次未返回有效方案，自动恢复仍未成功；本次操作尚未执行。'
                     # 模型有时跑偏成**元话语**（「好的，我重新输出标准 JSON」「已按标准格式修复」），
                     # 这类话对用户毫无意义。换成明确的「什么都没做 + 请说清要做哪一步」。
                     elif re.match(r'^\s*(好的|好|明白|收到)[，,。！!]?\s*(我|已)?\s*(重新|按|按照|已按|将按)[^。]{0,20}(标准|完整)?\s*JSON',fallback_reply,re.I) \
                        or re.match(r'^\s*(已|已经)?(按照|按|重新)(标准)?(JSON|格式)',fallback_reply,re.I):
                         fallback_reply='这一轮我没有对曲谱做任何改动，也不确定你想让我执行哪一步。请把要做的事直接说一句，比如「定位到第 12 小节」「只听钢琴」「速度调到 90」。'
-                    return handler.json_response({'reply':fallback_reply[:4000],'actions':[]})
+                    plan={'reply':fallback_reply[:4000],'actions':[]};break
                 messages.extend([{'role':'assistant','content':str(content)[:20000]},{'role':'user','content':'请重新回答原问题：'+latest_question+'。返回完整JSON，actions为数组，字符串使用双引号。reply必须是原问题的实质回答，不能回答已经修复格式，也不能提JSON。'}])
+        if missing_execution(plan):
+            recovered = fast_plan(data)
+            if recovered and recovered.get('actions'):
+                plan = recovered
+            else:
+                if on_status:on_status('正在核对并补齐这次操作的执行步骤')
+                correction = [*messages, {'role':'assistant','content':json.dumps(plan,ensure_ascii=False)},
+                    {'role':'user','content':'你刚才承诺执行操作，但 actions 为空，尚未执行任何操作。请根据原请求和真实 context 补齐可执行动作。不得编造曲谱或声部 id，不得省略请求条件；纯建议或需要澄清时直接说明，不能承诺已经执行。返回完整 JSON。'}]
+                try:
+                    fixed = parse_model_json(post_model_stream(correction,None,timeout=(5,max(1,review_deadline-time.monotonic())),on_action=on_action_stream))
+                    if isinstance(fixed,dict):plan=fixed
+                except (ValueError,TypeError,SyntaxError,requests.exceptions.RequestException):
+                    pass
+                if missing_execution(plan):
+                    plan={'reply':'这次操作尚未执行，执行步骤暂未确认。当前曲谱和播放状态保持原样。','actions':[]}
         if form_question:
             draft=str(plan.get('reply',''))
             # A bounded second pass is reserved for concrete assertions, not
@@ -1901,13 +2153,16 @@ search 按曲名或歌手搜索现有曲库；多首候选先询问选哪首，�
         #   （导出 / 打印 / 定位），其余一律清空，只回文字说明。
         latest_user_text=next((str(m.get('content','')) for m in reversed(history) if m.get('role')=='user'),'')
         if UNSUPPORTED_EDIT_RE.search(latest_user_text):
-            explicit=set()
-            if re.search('导出|export|存成|保存为|下载成',latest_user_text):explicit.add('export_score')
-            if re.search('打印|print',latest_user_text):explicit.add('print_score')
-            if re.search(r'(跳|定位)到第?\s*\d+\s*小节',latest_user_text):explicit.add('seek_measure')
-            plan['actions']=[a for a in plan.get('actions',[])
-                             if isinstance(a,dict) and str(a.get('type','')) in explicit]
-        allowed={'search','open','play','pause','stop','solo','mute','unmute','panel','web_search','skill_search','seek_measure','chords','score_report','view','solo_group','set_tempo','set_metronome','set_instrument','set_arrangement','configure_arrangement','generate_arrangement','set_part_volume','set_loop','set_range','tempo_curve','export_score','print_score','practice_score'}
+            # ★ SeraEdit：可编辑的改谱意图不再清空动作，允许 edit_score 通过（仍需用户在面板确认）。
+            sera_supported=bool(SERA_EDITABLE_RE.search(latest_user_text)) and not SERA_OUT_OF_SCOPE_RE.search(latest_user_text)
+            if not sera_supported:
+                explicit=set()
+                if re.search('导出|export|存成|保存为|下载成',latest_user_text):explicit.add('export_score')
+                if re.search('打印|print',latest_user_text):explicit.add('print_score')
+                if re.search(r'(跳|定位)到第?\s*\d+\s*小节',latest_user_text):explicit.add('seek_measure')
+                plan['actions']=[a for a in plan.get('actions',[])
+                                 if isinstance(a,dict) and str(a.get('type','')) in explicit]
+        allowed={'classroom','create_classroom','search','open','play','pause','stop','solo','mute','unmute','panel','web_search','skill_search','seek_measure','chords','score_report','view','solo_group','set_tempo','set_metronome','set_instrument','set_arrangement','configure_arrangement','generate_arrangement','set_part_volume','set_loop','set_range','tempo_curve','export_score','print_score','practice_score','edit_score'}
         # ★★ 2026-10-10：practice_plan 以前是**无条件**加进 allowed 的，而下面的校验只在
         #   practice_requested 为真时才跑。于是「没有跟弹会话却要练习建议」时，动作一路放行到
         #   1563 行的 bind_generated_practice_plan（没有任何 try），抛错 → 整句 502。
@@ -2163,6 +2418,8 @@ search 按曲名或歌手搜索现有曲库；多首候选先询问选哪首，�
             reply='这一段的分段练习建议要先在跟弹区开始一次练习，我才能把它落到谱面上。先按下面的思路练，打开跟弹之后我再把计划放进去。'+(('\n\n'+reply) if reply.strip() else '')
         if suppressed and re.search('已(?:经)?(?:打开|播放|切换|静音|设置)|切换谱面并调整',reply):
             reply='这次是按条件选曲，当前作品的播放和声部没有改变。请先核对候选作品的编制、时期与具体乐章。'
+        if not any(a['type']=='practice_plan' for a in normalized) and re.search(r'已[^。！？]{0,30}(?:制定|生成|放入)[^。！？]{0,30}(?:练习|慢练|计划)|请到跟弹区域查看',reply):
+            reply='这份练习计划还没有应用到跟弹区。可以先在跟弹练习中确认作品和小节范围，再生成可确认的计划。'
         if any(a['type']=='configure_arrangement' for a in normalized):
             reply='准备按要求设置编制、乐器和鼓声部。'+('设置完成后提交生成总谱。' if any(a['type']=='generate_arrangement' for a in normalized) else '这一步只设置参数，不生成总谱。')
         # ★ 以前只要模型产出了动作，它写的 reply 就被整段丢掉换成「我来处理。」——

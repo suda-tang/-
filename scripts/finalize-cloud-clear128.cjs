@@ -1,0 +1,1 @@
+const fs=require('fs'),p='dist/mentor-arrival.js';let s=fs.readFileSync(p,'utf8');s=s.replace("parent.dataset.gateOpen=gateAmount.toFixed(4);p=.4+.6*q;","parent.dataset.gateOpen=gateAmount.toFixed(4);if(gateOpening)cloud.style.opacity='0';p=.4+.6*q;");fs.writeFileSync(p,s);

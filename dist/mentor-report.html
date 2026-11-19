@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>导师访问报表</title>
+<style>
+  :root{--bg:#f6f7f9;--panel:#fff;--ink:#1f2933;--muted:#6b7785;--line:#e3e7ec;--accent:#2f6f5e;--accent2:#3b82f6}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.55 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif}
+  header{position:sticky;top:0;z-index:5;background:rgba(255,255,255,.94);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:12px 18px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  header h1{font-size:16px;margin:0;font-weight:600;letter-spacing:.02em}
+  header .sp{flex:1}
+  input,button{font:inherit}
+  #key{width:280px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:#fff}
+  button{padding:7px 14px;border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  main{max-width:1180px;margin:0 auto;padding:18px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .card .k{color:var(--muted);font-size:12px}
+  .card .v{font-size:24px;font-weight:650;margin-top:4px;letter-spacing:.01em}
+  table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-size:12px;color:var(--muted);font-weight:600;background:#fafbfc;white-space:nowrap}
+  tbody tr.t{cursor:pointer}
+  tbody tr.t:hover{background:#f8faf9}
+  tbody tr.t.open{background:#f2f7f5}
+  th:first-child,td:first-child{min-width:110px}
+  .name{font-weight:600;white-space:nowrap}
+  .inst{color:var(--muted);font-size:12px}
+  .chips{display:flex;flex-wrap:wrap;gap:5px}
+  .chip{display:inline-block;padding:2px 7px;border-radius:999px;background:#eef3f1;color:#2f5d4f;font-size:12px;white-space:nowrap}
+  .chip.b{background:#eef4ff;color:#2559a8}
+  .muted{color:var(--muted)}
+  .detail{display:none;background:#fbfcfd}
+  .detail.open{display:table-row}
+  .detail>td{padding:0 12px 14px}
+  .sess{border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:10px;background:#fff}
+  .sess h4{margin:0 0 6px;font-size:13px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}
+  @media(max-width:760px){.grid2{grid-template-columns:1fr}}
+  .bars{margin-top:6px}
+  .bar{display:grid;grid-template-columns:150px 1fr 64px;gap:8px;align-items:center;margin:3px 0;font-size:12px}
+  .bar .track{height:8px;background:#eef1f4;border-radius:999px;overflow:hidden}
+  .bar .fill{height:100%;background:var(--accent);border-radius:999px}
+  .bar.b .fill{background:var(--accent2)}
+  .bar .n{text-align:right;color:var(--muted);white-space:nowrap}
+  .timeline{max-height:220px;overflow:auto;border-top:1px dashed var(--line);margin-top:8px;padding-top:6px}
+  .timeline div{font-size:12px;color:#44505c;padding:2px 0}
+  .chatlog{max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff;margin-top:6px}
+  .chat{font-size:12px;padding:5px 0;border-bottom:1px dashed #eef1f4;white-space:pre-wrap;word-break:break-word}
+  .chat:last-child{border-bottom:0}
+  .chat b{color:var(--accent)}
+  .chat.user b{color:#2559a8}
+  .dev{font-size:12px;color:var(--muted);margin-top:4px;word-break:break-all}
+  .empty{padding:40px;text-align:center;color:var(--muted);background:var(--panel);border:1px dashed var(--line);border-radius:12px}
+  .err{color:#b42318;background:#fef3f2;border:1px solid #fecdca;padding:8px 10px;border-radius:8px;margin-bottom:12px;display:none}
+  .foot{color:var(--muted);font-size:12px;margin-top:14px}
+</style>
+</head>
+<body>
+<header>
+  <h1>导师访问报表</h1>
+  <span class="sp"></span>
+  <input id="key" type="password" placeholder="报表口令（见 .sites-runtime/mentor-report.key）" autocomplete="off">
+  <button class="primary" id="load">查看</button>
+  <button id="refresh">刷新</button>
+</header>
+<main>
+  <div class="err" id="err"></div>
+  <div id="app"><div class="empty">输入口令后查看。数据来自每位老师使用导师链接时的行为采集。</div></div>
+  <div class="foot" id="foot"></div>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+const KEY = 'mentorReportKey';
+let data = null, timer = 0;
+
+const AI_LABEL = {
+  'ai:ai-open-score':'打开曲谱','ai:ai-play-score':'播放','ai:ai-transport':'暂停/停止',
+  'ai:ai-set-view':'切换视图','ai:ai-seek-measure':'定位小节','ai:ai-solo-part':'声部独奏',
+  'ai:ai-solo-group':'声部组独奏','ai:ai-analyze-chords':'和弦分析','ai:ai-set-tempo':'调速度',
+  'ai:ai-practice-score':'跟练','ai:ai-loop':'循环','ai:ai-range-play':'片段播放',
+  'ai:ai-export-score':'导出','ai:ai-print-score':'打印','ai:ai-generate-arrangement':'生成总谱',
+  'ai:ai-create-classroom':'创建课堂','ai:ai-classroom-command':'课堂指令','ai:ai-compose':'创作',
+  'ai:ai-part-volume':'声部音量','ai:ai-tempo-curve':'速度曲线','ai:ai-set-metronome':'节拍器',
+  'ai:ai-set-instrument':'音色','ai:ai-set-arrangement':'编制','score_open':'打开曲谱'
+};
+const VIEW_LABEL = {engraved:'五线谱',simple:'简谱',pdf:'原稿',daw:'音轨'};
+const TOUR_LABEL = {opening:'开场',select:'选曲',inputs:'导入','shared-time':'异地合奏',practice:'跟练',arrange:'配器',tasks:'任务',research:'研究'};
+
+function label(k){
+  if (AI_LABEL[k]) return AI_LABEL[k];
+  if (k.startsWith('panel:')) return '进入面板「' + k.slice(6) + '」';
+  if (k.startsWith('view:')) return '切换视图「' + (VIEW_LABEL[k.slice(5)] || k.slice(5)) + '」';
+  if (k.startsWith('click:')) return '点击「' + k.slice(6) + '」';
+  return k;
+}
+function dur(ms){
+  if (!ms) return '—';
+  const s = Math.round(ms / 1000);
+  if (s < 60) return s + ' 秒';
+  const m = Math.floor(s / 60), r = s % 60;
+  if (m < 60) return m + ' 分' + (r ? r + ' 秒' : '');
+  return Math.floor(m / 60) + ' 时 ' + (m % 60) + ' 分';
+}
+function when(ts){ return ts ? new Date(ts).toLocaleString('zh-CN', {hour12:false}) : '—'; }
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function sectionLabel(key){
+  const [panel, view, score] = key.split('|');
+  return [panel ? '面板 ' + panel : '', view ? (VIEW_LABEL[view] || view) : '', score ? '曲谱 ' + score.slice(0,8) : '']
+    .filter(Boolean).join(' / ') || '首页';
+}
+
+// mode='duration' 用于「在哪停留」，'count' 用于「功能使用次数」，'tour' 用于导览分段。
+function bars(map, limit, mode){
+  const entries = Object.entries(map || {}).sort((a,b) => b[1]-a[1]).slice(0, limit);
+  if (!entries.length) return '<div class="muted">暂无</div>';
+  const max = Math.max(...entries.map(r => r[1])) || 1;
+  const name = k => mode === 'count' ? label(k) : mode === 'tour' ? (TOUR_LABEL[k] || k) : sectionLabel(k);
+  return '<div class="bars">' + entries.map(([k,v]) =>
+    `<div class="bar ${mode==='count'?'b':''}"><span title="${esc(k)}">${esc(name(k)).slice(0,24)}</span>` +
+    `<span class="track"><span class="fill" style="width:${Math.max(3, v/max*100).toFixed(1)}%"></span></span>` +
+    `<span class="n">${esc(mode==='count'?v:dur(v))}</span></div>`).join('') + '</div>';
+}
+
+function deviceLine(s){
+  const d = s.device || {};
+  const parts = [];
+  const ip = s.publicIp || s.ip;
+  if (ip) parts.push('IP ' + ip);
+  if (s.publicGeo) parts.push(s.publicGeo);
+  if (d.platform) parts.push('平台 ' + d.platform);
+  if (d.mobile !== undefined) parts.push(d.mobile ? '移动设备' : '桌面设备');
+  if (d.screen) parts.push('屏幕 ' + d.screen);
+  if (d.viewport) parts.push('窗口 ' + d.viewport);
+  if (d.dpr) parts.push('DPR ' + d.dpr);
+  if (d.cores) parts.push(d.cores + ' 核');
+  if (d.memoryGB) parts.push(d.memoryGB + ' GB 内存');
+  if (d.touch) parts.push('触屏 ' + d.touch);
+  if (d.timezone) parts.push(d.timezone);
+  if (d.network) parts.push(d.network);
+  if (d.brands) parts.push(d.brands);
+  return parts.map(esc).join(' · ');
+}
+function chatLog(list, kind){
+  if (!list || !list.length) return '';
+  const rows = list.slice(-80).map(item => {
+    if (kind === 'ai') {
+      const who = item.role === 'user' ? '老师' : 'AI';
+      return `<div class="chat ${item.role === 'user' ? 'user' : ''}"><b>${who}</b>：${esc(item.text)}</div>`;
+    }
+    const d = item.detail || {};
+    if (item.action === 'classroom_reply') return `<div class="chat"><b>课堂回答</b>：${esc(d.answer || '')}</div>`;
+    const req = d.request || d;
+    const value = req.value ?? req.question ?? req.instruction ?? '';
+    return `<div class="chat"><b>${esc(d.api || '')}</b>${req.kind ? ' · ' + esc(req.kind) : ''}${req.sceneId ? ' · 场景 ' + esc(String(req.sceneId).slice(0,8)) : ''}${value ? ' · ' + esc(typeof value === 'string' ? value : JSON.stringify(value)) : ''}</div>`;
+  }).join('');
+  return `<div class="chatlog">${rows}</div>`;
+}
+function eventLine(e){
+  const d = e.detail || {};
+  switch (e.action) {
+    case 'ai_action': {
+      const type = d.type || '';
+      const params = Object.keys(d).filter(k => !['type','panel','view','score'].includes(k))
+        .map(k => k + '=' + JSON.stringify(d[k])).join(' ');
+      return label('ai:' + type) + (params ? '（' + params + '）' : '');
+    }
+    case 'click': return '点击「' + (d.text || d.id || d.tag || '') + '」' + (d.panel ? ' @' + d.panel : '');
+    case 'control': return '调整 ' + (d.name || d.id || d.tag || '') + ' → ' + d.value;
+    case 'panel_change': return '面板 ' + (d.from || '—') + ' → ' + (d.to || '—');
+    case 'view_change': return '视图 ' + (VIEW_LABEL[d.from] || d.from || '—') + ' → ' + (VIEW_LABEL[d.to] || d.to || '—');
+    case 'score_change': return '曲谱 ' + (d.from ? String(d.from).slice(0,8) : '无') + ' → ' + (d.to ? String(d.to).slice(0,8) : '无');
+    case 'visibility': return d.state === 'hidden' ? '页面切到后台' : '页面回到前台';
+    case 'error': return '报错：' + (d.message || '');
+    case 'classroom': return '课堂 ' + (d.api || '') + ' ' + JSON.stringify(d.request || {}).slice(0, 140);
+    case 'classroom_reply': return '课堂回答：' + String(d.answer || '').slice(0, 160);
+    case 'tour_step': return '导览：' + (TOUR_LABEL[d.id] || d.id || '') + (d.title ? '（' + d.title + '）' : '');
+    case 'ai_chat': return (d.role === 'user' ? '老师：' : 'AI：') + String(d.text || '').slice(0, 160);
+    default: return label(e.action) + (e.detail ? ' · ' + JSON.stringify(e.detail).slice(0, 140) : '');
+  }
+}
+function detail(x){
+  const sessions = (x.sessions || []).map(s => `
+    <div class="sess">
+      <h4>${when(s.first)} → ${when(s.last)} · 可见 ${dur(s.visibleMs)} · 有效 ${dur(s.activeMs)}</h4>
+      <div class="dev">${deviceLine(s) || esc(s.ua || '')}</div>
+      <div class="grid2">
+        <div><div class="muted">在哪停留（时长）</div>${bars(s.sectionMs, 8, 'duration')}</div>
+        <div><div class="muted">用了哪些功能（次数）</div>${bars(s.features, 8, 'count')}</div>
+      </div>
+      ${Object.keys(s.tourMs || {}).length ? `<div class="muted" style="margin-top:10px">导览分段停留</div>${bars(s.tourMs, 12, 'tour')}` : ''}
+      ${(s.aiChat && s.aiChat.length) ? `<div class="muted" style="margin-top:10px">AI 对话（${s.aiChat.length} 条）</div>${chatLog(s.aiChat, 'ai')}` : ''}
+      ${(s.classroom && s.classroom.length) ? `<div class="muted" style="margin-top:10px">课堂操作（${s.classroom.length} 条）</div>${chatLog(s.classroom, 'classroom')}` : ''}
+      ${(s.timeline && s.timeline.length) ? `<div class="muted" style="margin-top:10px">操作时间线（最近 ${Math.min(500, s.timeline.length)} 条）</div><div class="timeline">${s.timeline.slice(-500).reverse().map(e =>
+        `<div><span class="muted">${new Date(e.ts).toLocaleTimeString('zh-CN',{hour12:false})}</span> · ${esc(eventLine(e))}</div>`).join('')}</div>` : ''}
+    </div>`).join('');
+  return `<div class="muted" style="margin-top:10px">会话明细（${(x.sessions||[]).length} 次）</div>${sessions || '<div class="muted">暂无</div>'}`;
+}
+
+function render(){
+  const t = data.totals;
+  const cards = `<div class="cards">
+    <div class="card"><div class="k">访问者</div><div class="v">${t.teachers}</div></div>
+    <div class="card"><div class="k">总访问次数</div><div class="v">${t.visits}</div></div>
+    <div class="card"><div class="k">总有效停留</div><div class="v">${dur(t.activeMs)}</div></div>
+    <div class="card"><div class="k">人均有效停留</div><div class="v">${dur(t.avgActiveMs)}</div></div>
+  </div>`;
+  if (!data.teachers.length) {
+    $('#app').innerHTML = cards + '<div class="empty">还没有访问记录。用带 ?visit=&lt;令牌&gt; 或 ?mentor=&lt;姓名&gt; 的导师链接访问一次即可产生。</div>';
+    return;
+  }
+  const rows = data.teachers.map((x, i) => {
+    const top = Object.entries(x.features || {}).sort((a,b)=>b[1]-a[1]).slice(0,4)
+      .map(([k,v]) => `<span class="chip">${esc(label(k))} ×${v}</span>`).join('');
+    const scores = (x.scores || []).slice(0,4).map(s => `<span class="chip b">曲谱 ${esc(s.slice(0,8))}</span>`).join('');
+    const tours = Object.entries(x.tourMs || {}).sort((a,b)=>b[1]-a[1]).slice(0,3)
+      .map(([k,v]) => `<span class="chip b">导览 ${esc(TOUR_LABEL[k] || k)} ${dur(v)}</span>`).join('');
+    return `<tr class="t" data-i="${i}">
+      <td><div class="name">${esc(x.name || '（未命名）')}${x.anonymous ? ' <span class="chip">匿名</span>' : ''}</div><div class="inst">${esc(x.institution || '')}</div></td>
+      <td>${x.visits}</td>
+      <td>${when(x.first)}</td>
+      <td>${when(x.last)}</td>
+      <td>${dur(x.totalActiveMs)}</td>
+      <td>${dur(x.avgActiveMs)}</td>
+      <td><div class="chips">${top || '<span class="muted">—</span>'}</div>${scores ? '<div class="chips" style="margin-top:4px">'+scores+'</div>' : ''}${tours ? '<div class="chips" style="margin-top:4px">'+tours+'</div>' : ''}</td>
+    </tr>
+    <tr class="detail" data-d="${i}"><td colspan="7">${detail(x)}</td></tr>`;
+  }).join('');
+  $('#app').innerHTML = cards + `<table><thead><tr>
+    <th>老师</th><th>次数</th><th>首次</th><th>最近</th><th>总停留</th><th>平均</th><th>常用功能</th>
+  </tr></thead><tbody>${rows}</tbody></table>`;
+  document.querySelectorAll('tr.t').forEach(tr => tr.onclick = () => {
+    const d = document.querySelector(`tr.detail[data-d="${tr.dataset.i}"]`);
+    tr.classList.toggle('open'); if (d) d.classList.toggle('open');
+  });
+  $('#foot').textContent = '数据生成于 ' + when(data.generated) + ' · 每 30 秒自动刷新 · 只统计带导师链接的访问';
+}
+
+async function load(){
+  const key = $('#key').value.trim();
+  if (!key) { $('#key').focus(); return; }
+  localStorage.setItem(KEY, key);
+  $('#err').style.display = 'none';
+  try {
+    const r = await fetch('/api/mentor-report?key=' + encodeURIComponent(key), {cache:'no-store'});
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+    data = j; render();
+  } catch (e) {
+    $('#err').style.display = 'block';
+    $('#err').textContent = '读取失败：' + e.message + '（口令见 .sites-runtime/mentor-report.key）';
+  }
+}
+
+$('#load').onclick = load;
+$('#refresh').onclick = load;
+$('#key').addEventListener('keydown', e => { if (e.key === 'Enter') load(); });
+const saved = localStorage.getItem(KEY) || new URLSearchParams(location.search).get('key') || '';
+if (saved) { $('#key').value = saved; load(); }
+clearInterval(timer); timer = setInterval(() => { if (data) load(); }, 30000);
+</script>
+</body>
+</html>

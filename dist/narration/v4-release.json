@@ -1,0 +1,14 @@
+{
+  "status": "partial",
+  "completed": 6,
+  "total": 7,
+  "published": true,
+  "pending": [
+    "mentor-learning"
+  ],
+  "reason": "Available character quota; existing recording retained",
+  "model": "Eleven v4",
+  "turbo": false,
+  "release": "eleven-v4-20261027",
+  "updated": 1793037776.3377328
+}

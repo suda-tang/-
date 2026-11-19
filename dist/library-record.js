@@ -1,8 +1,8 @@
-import {unfoldScoreLoader} from './score-arrival.js';
+import {unfoldScoreLoader,restoreArrivingScore} from './score-arrival.js';
 import {cardPositions} from './library-tether.js';
 // Carry the selected original card into the existing loading surface.
-export async function carryCardToLoader(card,list,loader,settle=()=>Promise.resolve()){
- if(matchMedia('(prefers-reduced-motion: reduce)').matches){loader.style.removeProperty('opacity');await settle();return;}
+export async function carryCardToLoader(card,list,loader,settle=()=>Promise.resolve(),{ready=()=>false}={}){
+ if(matchMedia('(prefers-reduced-motion: reduce)').matches){document.body.classList.add('score-loader-covering');loader.style.removeProperty('opacity');await settle();return;}
  const source=cardPositions(list).get(card);
  const box=card.getBoundingClientRect(),style=card.getAttribute('style'),computed=getComputedStyle(card),padding=computed.padding;
  const matrix=new DOMMatrix(computed.transform);matrix.m41=matrix.m42=matrix.m43=0;
@@ -17,6 +17,12 @@ export async function carryCardToLoader(card,list,loader,settle=()=>Promise.reso
  const inside=document.createElement('div');inside.className='record-book-inside';
  const cover=document.createElement('div');cover.className='record-book-cover';cover.append(card);
  const pocket=document.createElement('div');pocket.className='record-book-pocket';
+ const title=document.createElement('div');title.className='record-book-title';
+ title.textContent=card.querySelector('.library-title')?.textContent?.trim()||card.getAttribute('aria-label')||'';
+ title.style.fontSize=Math.min(33,Math.max(14,Math.sqrt(w*h*.4/Math.max(1,Array.from(title.textContent).length))))+'px';
+ title.setAttribute('dir','auto');cover.append(title);
+ if(!document.querySelector('link[data-record-font]')){const font=document.createElement('link');font.rel='stylesheet';font.href='/vendor/record-fonts/title-font.css';font.dataset.recordFont='';document.head.append(font);}
+ const emblem=document.createElement('img');emblem.className='record-pocket-seal';emblem.src='/suda-seal.svg';emblem.alt='苏州大学';emblem.width=64;emblem.height=64;pocket.append(emblem);
  layer.append(inside,cover);document.body.append(layer);layer.showPopover?.();
  const target=loader.querySelector('.score-loading-seal').getBoundingClientRect();
  const seal=loader.querySelector('.score-loading-seal'),sealStyle=seal.getAttribute('style');
@@ -51,8 +57,41 @@ export async function carryCardToLoader(card,list,loader,settle=()=>Promise.reso
   animate(layer,[{opacity:1,transform:flat},{opacity:0,transform:`perspective(1400px) translate3d(${bx}px,${by+32}px,-70px) scale(${bookScale*.96})`}],{duration:850,delay:100,easing:'ease-in-out'});
   await finish(travel);
   // Reparent the same emblem at the exact measured landing position.
-  sealSlot.replaceWith(seal);seal.classList.remove('record-morph-emblem');sealStyle===null?seal.removeAttribute('style'):seal.setAttribute('style',sealStyle);
   await Promise.resolve().then(settle);
+  if(ready()){
+   // The download and engraving finished during the sleeve animation. Reveal
+   // that prepared score directly; never open and immediately close a loader.
+   loader.hidePopover?.();loader.hidden=true;
+   const sheet=document.querySelector('#sheet-scroll'),score=document.querySelector('.score-card');
+   if(sheet){const r=sheet.getBoundingClientRect();if(r.top<24||r.bottom>innerHeight-24)sheet.scrollIntoView({block:'center',behavior:'instant'});}
+   await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+   if(score&&sheet){
+    loader.dataset.arrivalPhase='direct-vinyl';
+    const area=sheet.getBoundingClientRect(),from=disc.getBoundingClientRect();
+    const x=(Math.max(12,area.left)+Math.min(innerWidth-12,area.right))/2;
+    const y=Math.max(16,area.top)+(Math.min(innerHeight-16,area.bottom)-Math.max(16,area.top))*.42;
+    const dx=x-from.left-from.width/2,dy=y-from.top-from.height/2;
+    // Continue from the exact last frame of the same physical disc.
+    const base=`translate3d(${tx}px,${ty}px,0) scale(${ratio})`;
+    const flight=animate(disc,[
+     {transform:base},
+     {transform:`translate3d(${tx+dx*.55}px,${ty+dy*.55-36}px,0) scale(${ratio*1.35}) rotateX(32deg) rotateZ(120deg)`,offset:.55},
+     {transform:`translate3d(${tx+dx}px,${ty+dy}px,0) scale(${ratio*1.5}) rotateX(0deg) rotateZ(240deg)`}
+    ],{duration:620,easing:'cubic-bezier(.25,.5,.2,1)'});
+    await finish(flight);
+    const rect=score.getBoundingClientRect(),px=x-rect.left,py=y-rect.top;
+    const radius=Math.max(...[[0,0],[rect.width,0],[0,rect.height],[rect.width,rect.height]].map(([a,b])=>Math.hypot(a-px,b-py)));
+    const reveal=animate(score,[
+     {clipPath:`circle(${from.width*.65}px at ${px}px ${py}px)`,opacity:0},
+     {clipPath:`circle(${radius*.45}px at ${px}px ${py}px)`,opacity:1,offset:.4},
+     {clipPath:`circle(${radius}px at ${px}px ${py}px)`,opacity:1}
+    ],{duration:560,easing:'cubic-bezier(.18,.8,.2,1)'});
+    const dissolve=animate(disc,[{opacity:1},{opacity:0}],{duration:240,easing:'ease-in'});
+    restoreArrivingScore();await Promise.all([finish(reveal),finish(dissolve)]);
+   }else restoreArrivingScore();
+   return;
+  }
+  sealSlot.replaceWith(seal);seal.classList.remove('record-morph-emblem');sealStyle===null?seal.removeAttribute('style'):seal.setAttribute('style',sealStyle);
   // Top-layer order, rather than z-index, decides which popover covers another.
   // Finish card returns before the loading surface takes the foreground.
   layer.remove();discLayer.remove();loader.hidePopover?.();loader.showPopover?.();

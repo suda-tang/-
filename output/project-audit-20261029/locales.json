@@ -1,0 +1,42 @@
+[
+  {
+    "file": "de.json",
+    "ok": true,
+    "keys": 535
+  },
+  {
+    "file": "es.json",
+    "ok": true,
+    "keys": 535
+  },
+  {
+    "file": "fr.json",
+    "ok": true,
+    "keys": 535
+  },
+  {
+    "file": "ja.json",
+    "ok": true,
+    "keys": 535
+  },
+  {
+    "file": "ko.json",
+    "ok": true,
+    "keys": 535
+  },
+  {
+    "file": "pt.json",
+    "ok": true,
+    "keys": 574
+  },
+  {
+    "file": "yue.json",
+    "ok": true,
+    "keys": 516
+  },
+  {
+    "file": "zh-Hant.json",
+    "ok": true,
+    "keys": 516
+  }
+]

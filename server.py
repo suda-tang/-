@@ -95,12 +95,29 @@ def read_cached_score(digest, repair=True):
         value = json.loads(path.read_text(encoding='utf-8'))
     except (OSError, ValueError, TypeError):
         return None
-    if not (isinstance(value.get('xml'), str) and value['xml'].startswith('<?xml')):
+    if not (isinstance(value, dict) and isinstance(value.get('xml'), str) and value['xml'].startswith('<?xml')):
         return None
+    if not isinstance(value.get('metadata'), dict):value['metadata']={}
     metadata_file=CACHE_DIR/(digest+'.metadata.json')
     if metadata_file.exists():
-        try:value['metadata']={**value.get('metadata',{}),**json.loads(metadata_file.read_text(encoding='utf-8'))}
+        try:
+            metadata=json.loads(metadata_file.read_text(encoding='utf-8'))
+            if isinstance(metadata, dict):value['metadata']={**value['metadata'],**metadata}
         except (OSError, ValueError):pass
+    try:join_revision=int(value.get('joinRevision') or 0)
+    except (TypeError, ValueError):join_revision=0
+    if repair and value['metadata'].get('joined')=='true' and join_revision<2:
+        from score_book import repair_legacy_page_padding,JOIN_REVISION
+        try:
+            repaired,count=repair_legacy_page_padding(value['xml'])
+            if count:
+                backup=path.with_suffix('.before-join-v2.json')
+                if not backup.exists():shutil.copy2(path,backup)
+                value['xml']=repaired;value['saved']=time.time()
+            value['joinRevision']=JOIN_REVISION
+            store_cached_score(path,value)
+        except Exception as error:
+            print('旧版拼页节拍修复未完成：',digest,str(error),flush=True)
     # Scores recognized before the part-structure repair carry the OMR engine's
     # stray staves: a two-staff piano solo rendered as three, with a phantom
     # "Voice" part and a bass clef printed above a treble one. Repairing on read
@@ -133,6 +150,8 @@ def read_score_list_entry(digest):
             data=None
         if data is not None:
             ready = (b'"xml":"<?xml' in data) or (b'"xml": "<?xml' in data)
+            # Interrupted writes can leave NUL/control-byte holes despite a valid XML prefix.
+            if ready and re.search(rb'[\x00-\x08\x0b\x0c\x0e-\x1f]',data):ready=False
             i = data.find(b'"metadata":')
             if i != -1:
                 # 用 C 层 JSONDecoder 只解析 metadata 对象：先定位 metadata 值的 '{' 真实字节位置，
@@ -309,8 +328,8 @@ def store_variant(digest, name, xml, active=True):
     temporary.write_text(json.dumps(value, ensure_ascii=False), encoding='utf-8'); temporary.replace(path)
     return value
 
-def variants_summary(digest):
-    value = read_variants(digest)
+def variants_summary(digest, value=None):
+    value = read_variants(digest) if value is None else value
     if not value or len(value['entries']) < 2: return None
     return {'active': value['active'], 'available': [
         {'id': key, 'name': VARIANT_LABELS.get(key, key), 'saved': entry.get('saved')}
@@ -320,12 +339,18 @@ def activate_variant(digest, name):
     value = read_variants(digest)
     if not value or len(value['entries']) < 2: raise ValueError('该曲谱还没有可切换的识谱版本')
     if name not in value['entries']: raise ValueError('没有这个识谱版本')
+    # Keep a manually renamed title when switching between recognition models.
+    cached = read_cached_score(digest) or {}
+    metadata = cached.get('metadata', {})
+    xml = value['entries'][name]['xml']
+    if metadata.get('titleSource') == 'user':
+        from score_title import with_title
+        xml = with_title(xml, metadata.get('userTitle') or metadata.get('title', ''))
+    write_cached_score(digest, xml, metadata)
+    value['entries'][name]['xml'] = xml
     value['active'] = name
     path = variants_path(digest); temporary = path.with_suffix('.' + uuid.uuid4().hex + '.tmp')
     temporary.write_text(json.dumps(value, ensure_ascii=False), encoding='utf-8'); temporary.replace(path)
-    # Mirror the chosen version into the main cache so every reader agrees.
-    cached = read_cached_score(digest) or {}
-    write_cached_score(digest, value['entries'][name]['xml'], cached.get('metadata', {}))
     return value
 
 def unpack_musicxml(data):
@@ -384,6 +409,9 @@ def recognition_error(log_text, returncode):
     return f'识谱引擎异常退出（代码 {returncode}），诊断日志已保存在服务端'
 
 def job_progress(job):
+    if job.get('status') == 'complete':
+        job.update(progress=100)
+        return job
     if job.get("totalPages") and job.get("status")=="running":
         job.update(progress=round(job.get("completedPages",0)/job["totalPages"]*100),stage=f'已识别 {job.get("completedPages",0)} / {job["totalPages"]} 页')
         return job
@@ -556,7 +584,10 @@ def recognize(job_id, data, digest, fine=False):
         # as the cloud library's OCR title.
         metadata={'title':'','ocrTitle':'','source':'recognition','joined':'true'} if len(xmls)>1 else {}
         write_cached_score(digest,first_xml,metadata,parts=omr_normalize.REVISION)
-        with LOCK: JOBS[job_id].update(status='complete', xml=first_xml, metadata=metadata, digest=digest, cached=False)
+        if len(xmls)>1:
+            cached=read_cached_score(digest,repair=False)
+            if cached:cached['joinRevision']=2;store_cached_score(cache_path(digest),cached)
+        with LOCK: JOBS[job_id].update(status='complete', xml=first_xml, metadata=metadata, digest=digest, cached=False, progress=100, stage='识谱完成')
     except subprocess.TimeoutExpired:
         with LOCK: JOBS[job_id].update(status='failed', error='识谱超过 15 分钟，请按单首曲目拆分 PDF 后重试')
     except Exception as error:
@@ -585,7 +616,8 @@ BUNDLE_CSS = ['tour-presentation.css', 'language.css', 'narration-avatar.css',
               'glass.css', 'media-import.css', 'polish.css',
               'daw.css', 'ios26-controls.css', 'mentor-lecture.css', 'motion-continuity.css',
               'adaptive-controls.css', 'liquid-language.css', 'header-layout.css',
-              'library-mobile-controls.css', 'workspace-ai.css', 'library-pending.css']
+              'library-mobile-controls.css', 'workspace-ai.css', 'library-pending.css',
+              'real-keyboard.css', 'glass-wheel-picker.css']
 _BUNDLE_CACHE = {}
 
 def audit_bundle():
@@ -630,6 +662,77 @@ def gzip_cached(path):
     _GZIP_CACHE[path] = (stat.st_mtime, len(raw), data)
     return data
 
+# Bounded RAM cache of serialized score responses; file stamps invalidate edits.
+_SCORE_HTTP_CACHE = {}
+_SCORE_HTTP_LOCK = threading.Lock()
+_SCORE_HTTP_BUDGET = 24 * 1024 * 1024
+
+def score_http_stamp(digest):
+    stamps=[]
+    for path in (cache_path(digest), CACHE_DIR/(digest+'.metadata.json'), variants_path(digest)):
+        try:
+            stat=path.stat();stamps.append((stat.st_mtime_ns,stat.st_size))
+        except OSError:stamps.append(None)
+    return tuple(stamps)
+
+# --- 导师访问日志 -------------------------------------------------------------
+# 导师链接形如 ?tour=1&visit=<令牌>（令牌→老师 的映射见 dist/mentor-visits.json），
+# 有的链接只带 ?mentor=<姓名>。只要请求里出现这两者之一，就记一条 —— 令牌能
+# 唯一对应到被邀请的老师，这就是「知道是哪个老师访问的」的依据。
+# 只落本地文件，不通过任何接口暴露（内含受邀老师姓名，属隐私数据）。
+MENTOR_ACCESS_LOG = ROOT / '.sites-runtime' / 'mentor-access.jsonl'
+_MENTOR_VISITS = {'stamp': None, 'data': None}
+
+def mentor_visits():
+    """读取 令牌→老师 映射，按 mtime 缓存（该文件约 0.5 MB，别每次请求都解析）。"""
+    path = PUBLIC / 'mentor-visits.json'
+    try:
+        stamp = path.stat().st_mtime
+    except OSError:
+        return {}
+    if _MENTOR_VISITS['stamp'] == stamp and _MENTOR_VISITS['data'] is not None:
+        return _MENTOR_VISITS['data']
+    try:
+        data = json.loads(path.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return {}
+    _MENTOR_VISITS['stamp'], _MENTOR_VISITS['data'] = stamp, data
+    return data
+
+def log_mentor_access(handler, parsed):
+    """带 visit/mentor 的请求记一条访问日志；其余请求（资源、接口）不记。"""
+    query = parse_qs(parsed.query)
+    token = (query.get('visit') or [''])[0].strip()
+    mentor = (query.get('mentor') or [''])[0].strip()
+    if not token and not mentor:
+        return
+    person = mentor_visits().get(token) or {}
+    record = {
+        'ts': int(time.time() * 1000),
+        'at': time.strftime('%Y-%m-%d %H:%M:%S'),
+        'token': token,
+        'name': person.get('name') or mentor,
+        'institution': person.get('institution', ''),
+        'path': parsed.path,
+        'query': parsed.query[:500],
+        # 本机 TLS 终结器 / frp 隧道是裸转发，服务端看到的源地址恒为 127.0.0.1；
+        # 真正能区分老师的是 token，IP 仅作留档。
+        'ip': handler.client_address[0] if handler.client_address else '',
+        'ua': (handler.headers.get('User-Agent') or '')[:300],
+        'referer': (handler.headers.get('Referer') or '')[:300],
+    }
+    try:
+        MENTOR_ACCESS_LOG.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            if MENTOR_ACCESS_LOG.stat().st_size > 4 * 1024 * 1024:
+                os.replace(MENTOR_ACCESS_LOG, MENTOR_ACCESS_LOG.with_suffix('.jsonl.1'))
+        except OSError:
+            pass
+        with MENTOR_ACCESS_LOG.open('a', encoding='utf-8') as stream:
+            stream.write(json.dumps(record, ensure_ascii=False) + '\n')
+    except OSError:
+        pass
+
 class Handler(SimpleHTTPRequestHandler):
     # 默认 HTTP/1.0：那样每个资源都要重新握手一次，首屏四十几个请求就是四十几
     # 次 TCP（HTTPS 下还要 TLS）握手 —— 手机上每次上百毫秒，累积起来好几秒。
@@ -643,6 +746,29 @@ class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs): super().__init__(*args, directory=str(PUBLIC), **kwargs)
     def send_head(self):
         """文本资源走 gzip；音频 / PDF / 位图等照原样交给父类。"""
+        parsed=urlparse(self.path)
+        if parsed.path in ('/','/index.html'):
+            from share_metadata import render
+            host=(self.headers.get('Host') or '127.0.0.1:5173').lower()
+            # Forwarded headers must not inject an arbitrary preview host.
+            origin='https://suzhou.super-tang.com' if host=='suzhou.super-tang.com' else 'http://'+host
+            body=render((PUBLIC/'index.html').read_text(encoding='utf-8'),self.path,origin).encode('utf-8')
+            zipped='gzip' in self.headers.get('Accept-Encoding','').lower()
+            if zipped:body=gzip.compress(body,compresslevel=3,mtime=0)
+            self.send_response(200);self.send_header('Content-Type','text/html; charset=utf-8')
+            self.send_header('Vary','Accept-Encoding')
+            self.send_header('Cache-Control','no-cache')
+            if zipped:self.send_header('Content-Encoding','gzip')
+            self.send_header('Content-Length',str(len(body)));self.end_headers()
+            return io.BytesIO(body)
+        # Safari requests short byte ranges while probing and starting AAC media.
+        # SimpleHTTPRequestHandler ignores Range; a slow tunnel then sends the
+        # whole recording again for each probe, delaying the first spoken word.
+        media_path = Path(self.translate_path(self.path))
+        if media_path.suffix.lower() in ('.m4a', '.mp3', '.wav', '.ogg', '.aac', '.mp4', '.webm') and media_path.is_file():
+            from media_range import serve_media
+            serve_media(self, media_path, self.guess_type(str(media_path)))
+            return None
         if 'gzip' not in (self.headers.get('Accept-Encoding') or '').lower():
             return super().send_head()
         path = self.translate_path(self.path)
@@ -677,7 +803,12 @@ class Handler(SimpleHTTPRequestHandler):
     def end_headers(self):
         self.send_header('X-Content-Type-Options', 'nosniff')
         immutable_page=self.path.startswith('/api/scores/') and '/page/' in self.path
-        long_lived=self.path.startswith('/assets/piano/salamander/') or self.path.startswith('/assets/instruments/') or immutable_page or self.path.startswith('/vendor/')
+        # /folia/assets/ 是 Folia 的构建产物，文件名带内容 hash（embed-CLtkFG5v.js），
+        # 内容一变文件名就变 —— 可以放心 immutable。它不是「可选优化」：
+        # 那里有 1900 多个 fragment chunk，原来按 no-cache 每次打开全屏歌词都要向
+        # 本机单进程 server 回源校验近两千次，光排队就把主线程之外的一切拖慢。
+        folia_asset=self.path.split('?',1)[0].startswith('/folia/assets/')
+        long_lived=self.path.startswith('/assets/piano/salamander/') or self.path.startswith('/assets/instruments/') or immutable_page or self.path.startswith('/vendor/') or folia_asset
         # vendor 下的第三方库版本稳定，可以长期缓存。
         # ★ dist 自身仍在迭代，以前一律 no-store —— 后果是**每次刷新都要重下首屏那
         #   400 多 KB 的 JS/CSS**（URL 里的 ?v= 版本号本来是为缓存准备的，被 no-store
@@ -689,6 +820,17 @@ class Handler(SimpleHTTPRequestHandler):
         else:
             self.send_header('Cache-Control', 'public, max-age=31536000, immutable' if long_lived else 'no-cache')
         super().end_headers()
+    def send_score_response(self, compressed, original_length):
+        zipped='gzip' in (self.headers.get('Accept-Encoding') or '').lower()
+        body=compressed if zipped else gzip.decompress(compressed)
+        self.send_response(200)
+        self.send_header('Content-Type','application/json; charset=utf-8')
+        self.send_header('Vary','Accept-Encoding')
+        self.send_header('X-Uncompressed-Length',str(original_length))
+        if zipped:self.send_header('Content-Encoding','gzip')
+        self.send_header('Content-Length',str(len(body)))
+        self.end_headers();self.wfile.write(body)
+
     def json_response(self, data, status=200):
         body = json.dumps(data, ensure_ascii=False).encode('utf-8')
         original_length = len(body)
@@ -701,7 +843,14 @@ class Handler(SimpleHTTPRequestHandler):
         if compressed: self.send_header('Content-Encoding', 'gzip')
         self.send_header('Content-Length', str(len(body))); self.end_headers(); self.wfile.write(body)
     def allowed(self):
-        host = self.headers.get('Host', '').rsplit(':', 1)[0].strip('[]')
+        try:
+            authority = urlparse('//'+self.headers.get('Host', ''))
+            host = authority.hostname or ''
+            authority.port  # Reject malformed port values as well.
+            if not host or authority.username or authority.password or authority.path or authority.query or authority.fragment:
+                return False
+        except ValueError:
+            return False
         if host.lower() not in {'127.0.0.1', 'localhost'} and host.lower() not in ALLOWED_HOSTS:
             try:
                 # Host 必须是 IP 字面量（IPv4/IPv6 均可，含外网 IPv6 直连）。
@@ -711,7 +860,10 @@ class Handler(SimpleHTTPRequestHandler):
             except ValueError:
                 return False
         origin = self.headers.get('Origin')
-        return not origin or (urlparse(origin).hostname or '').strip('[]').lower() == host.lower()
+        try:
+            return not origin or (urlparse(origin).hostname or '').lower() == host.lower()
+        except ValueError:
+            return False
     def send_bundle(self):
         """把十来份样式表拼成一份返回。
 
@@ -750,8 +902,53 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header('Content-Length', str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+    def proxy_track(self):
+        # 邮件追踪像素的反代：/t/o.gif -> 本机 8791（review_server.js 里的追踪路由）。
+        # 必须绕过系统代理，否则 127.0.0.1 会被送到 Clash 上去。
+        # 追踪服务挂了也要返回像素，不能让收件端看到破图。
+        import urllib.request
+        fallback=b'GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;'
+        try:
+            req=urllib.request.Request('http://127.0.0.1:8791'+self.path,
+                headers={'X-Forwarded-For': self.client_address[0],
+                         'User-Agent': self.headers.get('User-Agent',''),
+                         'Referer': self.headers.get('Referer','')})
+            opener=urllib.request.build_opener(urllib.request.ProxyHandler({}))
+            with opener.open(req, timeout=4) as r:
+                body=r.read(); ctype=r.headers.get('Content-Type','image/gif')
+        except Exception:
+            body=fallback; ctype='image/gif'
+        try:
+            self.send_response(200)
+            self.send_header('Content-Type', ctype)
+            self.send_header('Content-Length', str(len(body)))
+            self.send_header('Cache-Control','no-store, no-cache, must-revalidate, max-age=0')
+            self.send_header('Pragma','no-cache')
+            self.send_header('Expires','0')
+            self.end_headers()
+            self.wfile.write(body)
+        except Exception:
+            pass
     def do_GET(self):
+        # 邮件追踪像素：只放行 /t/o.gif，报表与看板不对外。
+        # 放在 allowed() 之前——像素要被各家邮箱的图片代理抓取，不能受同源限制。
+        if urlparse(self.path).path=='/t/o.gif':
+            return self.proxy_track()
+        if urlparse(self.path).path.startswith('/t/'):
+            self.send_response(404); self.end_headers(); return
         if not self.allowed(): return self.json_response({'error':'仅接受本机同源请求'},403)
+        log_mentor_access(self, urlparse(self.path))
+        if urlparse(self.path).path=='/api/mentor-report':
+            import mentor_analytics
+            return mentor_analytics.report(self)
+        if urlparse(self.path).path=='/api/online-music/preview':
+            import online_music
+            return online_music.preview(self)
+        # 全屏动态歌词：同源代理，避免浏览器直连第三方歌词接口的跨域限制。
+        # 只接受本项目试听目录里已存在的 catalog id，不开放任意 URL（防 SSRF）。
+        if urlparse(self.path).path=='/api/online-music/lyric':
+            import online_music
+            return online_music.lyrics(self)
         if urlparse(self.path).path.startswith('/api/classroom'):
             import score_classroom
             return score_classroom.handle(self)
@@ -979,15 +1176,29 @@ class Handler(SimpleHTTPRequestHandler):
                     from pdf_geometry import detect
                     return self.json_response(detect(pdf,page_number,CACHE_DIR))
                 except Exception as error: return self.json_response({'error':f'PDF 谱表定位失败：{error}'},422)
+            stamp=score_http_stamp(digest)
+            with _SCORE_HTTP_LOCK:
+                cached_response=_SCORE_HTTP_CACHE.get(digest)
+            if cached_response and cached_response[0]==stamp:
+                return self.send_score_response(cached_response[1],cached_response[2])
             item=read_cached_score(digest)
             if item:
-                value=read_variants(digest);summary=variants_summary(digest)
+                value=read_variants(digest);summary=variants_summary(digest,value) if value else None
                 if summary:
                     # The variants file is the source of truth for which reading
                     # is shown, so the active one wins over a stale cache entry.
                     active=(value['entries'].get(value['active']) or {}).get('xml')
                     item={**item,'variants':summary,**({'xml':active} if active else {})}
-            return self.json_response(item or {'error':'尚未完成识谱'},200 if item else 404)
+            if item:
+                raw=json.dumps(item,ensure_ascii=False).encode('utf-8');body=gzip.compress(raw,compresslevel=3,mtime=0)
+                if len(body)<=_SCORE_HTTP_BUDGET:
+                    with _SCORE_HTTP_LOCK:
+                        _SCORE_HTTP_CACHE.pop(digest,None)
+                        while _SCORE_HTTP_CACHE and sum(len(v[1]) for v in _SCORE_HTTP_CACHE.values())+len(body)>_SCORE_HTTP_BUDGET:
+                            _SCORE_HTTP_CACHE.pop(next(iter(_SCORE_HTTP_CACHE)))
+                        _SCORE_HTTP_CACHE[digest]=(score_http_stamp(digest),body,len(raw))
+                return self.send_score_response(body,len(raw))
+            return self.json_response({'error':'尚未完成识谱'},404)
         if path == '/api/health': return self.json_response({'omr':bool(audiveris_path()),'version':'0.1','audio':'experimental-harmonic-fitting'})
         if path.startswith('/api/jobs/'):
             key=path.split('/')[-1]
@@ -1017,6 +1228,9 @@ class Handler(SimpleHTTPRequestHandler):
         return self.json_response({'error':'接口不存在'},404)
     def do_POST(self):
         if not self.allowed(): return self.json_response({'error':'仅接受本机同源请求'},403)
+        if urlparse(self.path).path=='/api/visit':
+            import mentor_analytics
+            return mentor_analytics.record(self)
         if urlparse(self.path).path.startswith('/api/classroom'):
             import score_classroom
             return score_classroom.handle(self)
@@ -1035,9 +1249,15 @@ class Handler(SimpleHTTPRequestHandler):
         if urlparse(self.path).path=='/api/workspace-ai/web':
             import ai_web_import
             return ai_web_import.handle(self,sys.modules[__name__])
+        if urlparse(self.path).path=='/api/online-music':
+            import online_music
+            return online_music.handle(self,sys.modules[__name__])
         if urlparse(self.path).path=='/api/workspace-ai':
             import ai_workspace
             return ai_workspace.handle(self)
+        if urlparse(self.path).path.startswith('/api/sera-edit/'):
+            import sera_bridge
+            return sera_bridge.handle(self)
         if urlparse(self.path).path.startswith('/api/upload/'):
             import upload_auth
             return upload_auth.handle(self)
@@ -1215,7 +1435,8 @@ class Handler(SimpleHTTPRequestHandler):
                 title=str(json.loads(body).get('title','')).strip()
                 if not title or len(title)>120: raise ValueError('曲名应为 1–120 个字符')
                 metadata={**cached.get('metadata',{}),'title':title,'ocrTitle':'','userTitle':title,'titleSource':'user'}
-                write_cached_score(digest,cached['xml'],metadata)
+                from score_title import with_title
+                write_cached_score(digest,with_title(cached['xml'],title),metadata)
                 # The library merges this sidecar after the cached score. Keep
                 # both copies in step or an earlier OCR title wins after save.
                 (CACHE_DIR/(digest+'.metadata.json')).write_text(json.dumps(metadata,ensure_ascii=False),encoding='utf-8')
@@ -1238,13 +1459,20 @@ class Handler(SimpleHTTPRequestHandler):
                     raise ValueError('MIDI 乐谱数据格式不正确')
                 if not xml.startswith('<?xml') or '<score-partwise' not in xml:
                     raise ValueError('MIDI 乐谱缺少有效 MusicXML')
+                from xml.etree import ElementTree as ET
+                try:
+                    document=ET.fromstring(xml)
+                    if document.tag.split('}')[-1] != 'score-partwise':raise ValueError('根元素不正确')
+                except (ET.ParseError, ValueError) as error:
+                    raise ValueError('MIDI 乐谱的 MusicXML 结构不完整') from error
+                if not isinstance(metadata, dict):raise ValueError('MIDI 乐谱元数据应为对象')
                 digest=hashlib.sha256((xml+'\n'+json.dumps(metadata,ensure_ascii=False,sort_keys=True)).encode('utf-8')).hexdigest()
                 cache_path(digest)
                 from title_validation import resolved_import_title
                 metadata={**metadata,'sourceType':'midi'}
                 metadata['title']=resolved_import_title(metadata.get('title'),name,metadata)
-                from xml.sax.saxutils import escape
-                xml=re.sub(r'<work-title>.*?</work-title>',lambda m:'<work-title>'+escape(metadata['title'])+'</work-title>',xml,count=1,flags=re.S)
+                from score_title import with_title
+                xml=with_title(xml,metadata['title'])
                 write_cached_score(digest,xml,metadata,parts=omr_normalize.REVISION)
                 (CACHE_DIR/(digest+'.name')).write_text(name,encoding='utf-8')
                 return self.json_response({'id':digest,'saved':True})
@@ -1305,6 +1533,9 @@ def sources_busy():
     import score_classroom
     with score_classroom.LOCK:
         if score_classroom.ACTIVE:return True
+    import classroom_image_repair
+    with classroom_image_repair.LOCK:
+        if classroom_image_repair.ACTIVE:return True
     with LOCK:
         if any(j.get('status')=='running' for j in JOBS.values()): return True
     import performance_service
@@ -1391,6 +1622,8 @@ if __name__ == '__main__':
     background_jobs.start(sys.modules[__name__])
     import scorestarling
     scorestarling.resume(sys.modules[__name__])
+    import online_music
+    online_music.resume(sys.modules[__name__])
     # Python imports a module once per process, so edits to *.py stay invisible
     # until the process is replaced -- every newly written route used to answer
     # "接口不存在" until someone restarted by hand. Watch the sources and, once

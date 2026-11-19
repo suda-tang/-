@@ -47,7 +47,7 @@ const ASKS=['你是谁？你是什么模型？','你是苏州大学AI智能助�
       //   绝不能连用户自己的提问一起查 —— 问「你是苏州大学AI智能助手吗？」
       //   时，用户那句话本身就含被禁字样，会造出假阳性（第一版就是这么误报的）。
       return await page.evaluate(()=>{
-        const nodes=[...document.querySelectorAll('.ai-messages p.assistant')];
+        const nodes=[...document.querySelectorAll('.ai-messages .assistant')];
         return nodes.length?nodes[nodes.length-1].textContent:'';
       });
     };

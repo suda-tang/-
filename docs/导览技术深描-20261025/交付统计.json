@@ -1,0 +1,14 @@
+{
+  "date": "2026-10-25",
+  "chaptersPerRoute": 44,
+  "totalChapters": 88,
+  "oldNarrationCharacters": 12326,
+  "newNarrationCharacters": 233238,
+  "narrationRatio": 18.9224403699497,
+  "educationCharacters": 117799,
+  "technologyCharacters": 117318,
+  "technicalDossierCharacters": 155270,
+  "algorithmDossierCharacters": 140333,
+  "implementedModulesCovered": 54,
+  "independentNewEducationResults": false
+}

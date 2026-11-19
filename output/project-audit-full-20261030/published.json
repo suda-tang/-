@@ -1,0 +1,10 @@
+[
+  {
+    "file": "catalog-request.js",
+    "matchesLocal": true
+  },
+  {
+    "file": "midi-loader.js",
+    "matchesLocal": true
+  }
+]

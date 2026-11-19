@@ -1,0 +1,22 @@
+PASS 播放《知足》里边通鼓最早出现的地方
+      reply  : 《《情歌王2024》.mp3》里高音通鼓最早出现在第 52 小节第 1 拍，已经跳过去开始播放了。 / 它属于「鼓组」声部。
+      actions: [{"type": "open", "value": "e84f5cb917d149bfbc2a4d715ff4299813d13f610b8c142a15ee9ba95d80c69b"}, {"type": "seek_measure", "value": "52"}, {"type": "play", "value": ""}]
+PASS 《知足》里通鼓最早出现在第几小节？
+      reply  : 《《情歌王2024》.mp3》里高音通鼓最早出现在第 52 小节第 1 拍，已经跳到那一小节。 / 它属于「鼓组」声部。
+      actions: [{"type": "open", "value": "e84f5cb917d149bfbc2a4d715ff4299813d13f610b8c142a15ee9ba95d80c69b"}, {"type": "seek_measure", "value": "52"}]
+PASS 鼓组是什么时候进来的
+      reply  : 《《情歌王2024》.mp3》里鼓组最早出现在第 17 小节第 1 拍，已经跳到那一小节。
+      actions: [{"type": "open", "value": "e84f5cb917d149bfbc2a4d715ff4299813d13f610b8c142a15ee9ba95d80c69b"}, {"type": "seek_measure", "value": "17"}]
+PASS 只听鼓组，播放通鼓最早出现的地方
+      reply  : 《《情歌王2024》.mp3》里高音通鼓最早出现在第 52 小节第 1 拍，已经跳过去开始播放了。 / 它属于「鼓组」声部。
+      actions: [{"type": "open", "value": "e84f5cb917d149bfbc2a4d715ff4299813d13f610b8c142a15ee9ba95d80c69b"}, {"type": "solo", "value": "P10"}, {"type": "seek_measure", "value": "52"}, {"type": "play", "value": ""}]
+PASS 《知足》里小号最早出现的地方
+      reply  : 《《情歌王2024》.mp3》整首里没有找到小号的演奏记录。
+      actions: []
+FAIL 无演奏数据的曲谱：退回有数据的副本，或说明原因
+      reply  : 《知足》里中低音通鼓最早出现在第 72 小节第 1 拍，已经跳过去开始播放了。 / 它属于「鼓组」声部。
+      actions: [{"type": "seek_measure", "value": "72"}, {"type": "play", "value": ""}]
+
+FAIL AI 定位检查：
+  - 无演奏数据的曲谱既没退回副本也没说明原因：《知足》里中低音通鼓最早出现在第 72 小节第 1 拍，已经跳过去开始播放了。
+它属于「鼓组」声部。

@@ -1,0 +1,11 @@
+const fs=require('fs'),path=require('path');
+const swaps={
+ 'mentor-garden-walk109-20261021':'mentor-garden-walk110-20261021','mentor-walk109':'mentor-walk110','mentor-preload.js?v=109':'mentor-preload.js?v=110','mentor-arrival.js?v=walk109':'mentor-arrival.js?v=walk110',
+ 'mentor-flight-safety.js?v=17':'mentor-flight-safety.js?v=18','mentor-flight-plan.js?v=8':'mentor-flight-plan.js?v=9','mentor-flight-worker.js?v=13':'mentor-flight-worker.js?v=14','mentor-chapter-flight.js?v=26':'mentor-chapter-flight.js?v=27',
+ 'mentor-garden-view.js?v=7':'mentor-garden-view.js?v=8','mentor-site-activity.js?v=18':'mentor-site-activity.js?v=19','mentor-garden-asset-stream.js?v=25':'mentor-garden-asset-stream.js?v=26','mentor-garden-floor.js?v=2':'mentor-garden-floor.js?v=3','mentor-garden-tour.js?v=1':'mentor-garden-tour.js?v=2','mentor-garden-stations.js?v=10':'mentor-garden-stations.js?v=11',
+ 'mentor-sign-placement.js?v=3':'mentor-sign-placement.js?v=4','mentor-waterside-willows.js?v=10':'mentor-waterside-willows.js?v=11','mentor-garden-vegetation.js?v=8':'mentor-garden-vegetation.js?v=9','mentor-old-city.js?v=50':'mentor-old-city.js?v=51','mentor-garden-neighborhood.js?v=20':'mentor-garden-neighborhood.js?v=21','mentor-water-town.js?v=14':'mentor-water-town.js?v=15',
+ 'garden-walking-paths.json?v=interior109':'garden-walking-paths.json?v=interior110','garden-tour-rails.json?v=109':'garden-tour-rails.json?v=110','-base-outline.png?v=walk109':'-base-outline.png?v=walk110'
+};
+const files=[...fs.readdirSync('dist').filter(f=>f.endsWith('.js')||f==='index.html').map(f=>path.join('dist',f)),...fs.readdirSync('scripts').filter(f=>(f.startsWith('check-mentor-')||f.startsWith('check-garden-')||f==='build-garden-promenade-rails.cjs'||f==='diagnose-garden-walk-sight.cjs')&&f.endsWith('.cjs')).map(f=>path.join('scripts',f))];
+for(const file of files){let s=fs.readFileSync(file,'utf8'),before=s;for(const [a,b]of Object.entries(swaps))s=s.split(a).join(b);if(file.endsWith('check-mentor-route-release.cjs'))s=s.replace("'?v=walk109'","'?v=walk110'").replace("'?v=18'","'?v=19'");if(file.endsWith('check-mentor-route-visuals.cjs'))s=s.split('mentor109-video').join('mentor110-video');if(s!==before)fs.writeFileSync(file,s);}
+console.log('Mentor walk 110 cache versions published');

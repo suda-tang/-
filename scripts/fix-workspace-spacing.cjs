@@ -1,0 +1,4 @@
+const fs=require('fs');const file='dist/workspace.js';let text=fs.readFileSync(file,'utf8');
+const from='stageWidth=stage.clientWidth;measureNav();',to="stageWidth=stage.clientWidth+(parseFloat(getComputedStyle(stage).getPropertyValue('--workspace-page-gap'))||24);measureNav();";
+if(!text.includes(to)){if(!text.includes(from))throw Error('Workspace measurement not found');text=text.replace(from,to);fs.writeFileSync(file,text);}
+for(const name of fs.readdirSync('dist')){if(!(name.endsWith('.js')||name==='index.html'))continue;const p='dist/'+name;let s=fs.readFileSync(p,'utf8'),old=s;s=s.replaceAll('workspace.js?v=single-home6','workspace.js?v=panel-spacing7').replaceAll('app.js?v=single-home9','app.js?v=single-home10').replaceAll('bundle.css?v=online-preview26','bundle.css?v=panel-spacing27');if(s!==old)fs.writeFileSync(p,s);}

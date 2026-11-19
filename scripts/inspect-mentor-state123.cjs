@@ -1,0 +1,1 @@
+const fs=require('fs');const lines=fs.readFileSync('dist/mentor-arrival.js','utf8').split('\n');for(let i=150;i<177;i++)console.log(i+1,lines[i]);console.log('PREFETCH');lines.forEach((s,i)=>{if(s.includes('prefetchChapter'))console.log(i+1,s.slice(0,1600));});

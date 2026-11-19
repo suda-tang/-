@@ -1,0 +1,48 @@
+{
+  "model": "Eleven v4",
+  "turbo": false,
+  "voiceName": "冒小瑛认可讲座去背景音乐58秒",
+  "reference": "lecture-isolation/mentor-lecture-no-music-58s.mp3",
+  "requested": 7,
+  "plannedWithinQuota": 6,
+  "pending": "mentor-learning",
+  "items": [
+    {
+      "id": "mentor-preface",
+      "taskId": "29070",
+      "characters": 483,
+      "file": "C:/Users/mail/Documents/ChatGPT/自动钢琴陪练系统/output/audio/mentor-v4-release-20261026/mentor-preface.mp3"
+    },
+    {
+      "id": "mentor-context",
+      "taskId": "29111",
+      "characters": 490,
+      "file": "C:/Users/mail/Documents/ChatGPT/自动钢琴陪练系统/output/audio/mentor-v4-release-20261026/mentor-context.mp3"
+    },
+    {
+      "id": "mentor-material",
+      "taskId": "29112",
+      "characters": 509,
+      "file": "C:/Users/mail/Documents/ChatGPT/自动钢琴陪练系统/output/audio/mentor-v4-release-20261026/mentor-material.mp3"
+    },
+    {
+      "id": "mentor-listening",
+      "taskId": "29113",
+      "characters": 348,
+      "file": "C:/Users/mail/Documents/ChatGPT/自动钢琴陪练系统/output/audio/mentor-v4-release-20261026/mentor-listening.mp3"
+    },
+    {
+      "id": "mentor-arrangement",
+      "taskId": "29114",
+      "characters": 420,
+      "file": "C:/Users/mail/Documents/ChatGPT/自动钢琴陪练系统/output/audio/mentor-v4-release-20261026/mentor-arrangement.mp3"
+    },
+    {
+      "id": "mentor-handoff",
+      "taskId": "29115",
+      "characters": 37,
+      "file": "C:/Users/mail/Documents/ChatGPT/自动钢琴陪练系统/output/audio/mentor-v4-release-20261026/mentor-handoff.mp3"
+    }
+  ],
+  "remainingCredits": 30
+}

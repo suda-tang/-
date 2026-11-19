@@ -75,6 +75,7 @@ def validate_practice_plan(value, context):
 PRACTICE_GUIDANCE = '''
 跟弹练习支持 practice_plan 动作，value 为 JSON 对象：{"goal":"具体目标","steps":[{"start":1,"end":4,"bpm":60,"rounds":3,"method":"具体练法","criterion":"由演奏者或教师核对的检查点"}]}。曲谱版本由程序绑定到本次请求的谱面，不需要生成 scoreVersion。
 用户明确要求练习计划、分段跟弹建议，或 context.practiceRequest 为真时，应提供这个动作，把建议送到现有跟弹区域供确认，不能只写一段无法应用的散文。其他问题不要强加计划。
+goal、method、criterion 必须使用 context.language 指定的界面语言，英语界面使用自然英文，不要输出中文。
 只能根据 context.measureNumbers 和 scoreEvidence 选择实际小节，1–6 段，每段速度30–240、遍数1–10。不要虚构指法、学生错误或学习成果。检查点不等于自动评分；柔和音色、放松、连奏等须本人或教师核对。
 practice_plan 仅为待确认建议，尚未改变控件。reply 简短说明已提供待确认建议，不要声称已应用。不得同时用 set_tempo、seek_measure、play、open 等动作绕过用户确认；绝不自动开启麦克风。
 若无 practiceVersion 或无实际小节数据，说明需要先载入可演奏曲谱，不得编造方案。不要把 sourceVersion 当作曲谱标题或云曲库id。

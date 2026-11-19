@@ -1,0 +1,1 @@
+const fs=require('fs');let code=fs.readFileSync('scripts/check-garden-real-base-visual.cjs','utf8');code=code.replace("['old','new']","['open-perimeter115']");code=code.replace("'-base-'+mode+'109.png'","'-base-'+mode+'.png'");eval(code);

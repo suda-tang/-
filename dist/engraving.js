@@ -292,12 +292,14 @@ function xmlWithMetadata(xml, metadata = {}, width = 900) {
 }
 
 export async function renderEngraved(container,score){
+ const generation={};container.renderGeneration=generation;container.lazyEngravingObserver?.disconnect();
  // ★ 2026-10-10：以前这里为了「数有多少小节」把整份 XML 重新 DOMParser 一遍
  //   （大谱 18MB 一次就要 1.3 秒，纯属浪费），而 score.measures 在解析阶段就算好了。
  //   先用它给小谱做快判；真要分块时再让 engravingPlan 解析一次（全程只解析一次）。
  const declared=Number(score.measures);
  if(Number.isFinite(declared)&&declared>0&&declared<=16)return renderSingleEngraved(container,score);
  const plan=await engravingPlan(score);
+ if(container.renderGeneration!==generation||!container.isConnected)return;
  const measures=plan.count||declared||0;
  if(measures<=16)return renderSingleEngraved(container,score);
  // 分块大小按声部数收敛（见 engraving-plan.js）。占位高度用同一套估算，
@@ -306,7 +308,7 @@ export async function renderEngraved(container,score){
  const width=sheetWidth(container);
  const barsPerSystem=width<600?2:width<950?3:4;
  const placeholderHeight=Math.round(Math.max(1,Math.ceil(step/barsPerSystem))*Math.max(1,plan.parts?.length||1)*60+60);
- container.replaceChildren();const generation={};container.renderGeneration=generation;
+ container.replaceChildren();
  const mobile=matchMedia('(pointer:coarse)').matches||innerWidth<800;
  for(let start=0;start<measures;start+=step){
   if(start>=step){const placeholder=document.createElement('div');placeholder.className='notation-chunk';placeholder.dataset.lazyMeasure=String(start);placeholder.style.minHeight=placeholderHeight+'px';placeholder.textContent='正在准备后续谱面…';container.append(placeholder);continue;}
@@ -322,10 +324,12 @@ export async function renderEngraved(container,score){
 let lazyRenderQueue=Promise.resolve();
 export function activateLazyEngraving(container,score){
  container.lazyEngravingObserver?.disconnect();
- const observer=new IntersectionObserver(entries=>{for(const entry of entries){const chunk=entry.target;if(!entry.isIntersecting||chunk.dataset.loading)continue;observer.unobserve(chunk);chunk.dataset.loading='true';const start=Number(chunk.dataset.lazyMeasure);
+ const epoch={};container.lazyEngravingEpoch=epoch;const generation=container.renderGeneration;
+ const current=()=>container.lazyEngravingEpoch===epoch&&container.renderGeneration===generation;
+ const observer=new IntersectionObserver(entries=>{for(const entry of entries){const chunk=entry.target;if(!current()||container.hidden||!entry.isIntersecting||chunk.dataset.loading)continue;observer.unobserve(chunk);chunk.dataset.loading='true';const start=Number(chunk.dataset.lazyMeasure);
  const work=lazyRenderQueue.catch(()=>{}).then(async()=>{
- if(!chunk.isConnected||container.hidden){delete chunk.dataset.loading;return;}
- const xml=await engravingChunk(score,start);if(!chunk.isConnected||container.hidden){delete chunk.dataset.loading;return;}
- await renderSingleEngraved(chunk,{...score,xml,measureOffset:(score.measureOffset||0)+start});if(!chunk.isConnected)return;chunk.style.minHeight='';delete chunk.dataset.lazyMeasure;delete chunk.dataset.loading;document.dispatchEvent(new Event('engraving-chunk-ready'));});lazyRenderQueue=work;void work.catch(()=>{delete chunk.dataset.loading;if(chunk.isConnected)chunk.textContent='此段排版失败，请重新打开曲谱';});
+ if(!current()||!chunk.isConnected||container.hidden){delete chunk.dataset.loading;if(current()&&chunk.isConnected)observer.observe(chunk);return;}
+ const xml=await engravingChunk(score,start);if(!current()||!chunk.isConnected||container.hidden){delete chunk.dataset.loading;if(current()&&chunk.isConnected)observer.observe(chunk);return;}
+ await renderSingleEngraved(chunk,{...score,xml,measureOffset:(score.measureOffset||0)+start});if(!current()||!chunk.isConnected)return;chunk.style.minHeight='';delete chunk.dataset.lazyMeasure;delete chunk.dataset.loading;document.dispatchEvent(new Event('engraving-chunk-ready'));});lazyRenderQueue=work;void work.catch(()=>{delete chunk.dataset.loading;if(current()&&chunk.isConnected)chunk.textContent='此段排版失败，请重新打开曲谱';});
  }},{root:container.closest('.sheet-scroll'),rootMargin:'500px'});container.lazyEngravingObserver=observer;container.querySelectorAll('[data-lazy-measure]').forEach(chunk=>observer.observe(chunk));
 }

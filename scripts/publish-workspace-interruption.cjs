@@ -1,0 +1,1 @@
+const fs=require('fs');for(const name of fs.readdirSync('dist')){if(!(name.endsWith('.js')||name==='index.html'))continue;const file='dist/'+name,s=fs.readFileSync(file,'utf8'),next=s.replaceAll('workspace.js?v=panel-spacing7','workspace.js?v=panel-spacing8').replaceAll('app.js?v=single-home10','app.js?v=single-home11');if(next!==s)fs.writeFileSync(file,next);}

@@ -1,0 +1,25 @@
+const assert=require('node:assert/strict');
+const {chromium}=require('C:/Users/mail/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+(async()=>{const browser=await chromium.launch({channel:'msedge',headless:true});try{
+ const page=await browser.newPage({viewport:{width:1360,height:900},acceptDownloads:true}),errors=[];
+ page.on('pageerror',e=>errors.push(e.message));
+ await page.addInitScript(()=>{navigator.mediaDevices.getUserMedia=async()=>{throw new DOMException('test denied','NotAllowedError');};});
+ await page.goto('http://127.0.0.1:5173');
+ await page.waitForFunction(()=>document.documentElement.classList.contains('boot-ready'),null,{timeout:90000});
+ await page.locator('.workspace-nav [data-panel=play]').click();
+ await page.locator('#sample-button').evaluate(el=>{for(let p=el.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;});
+ await page.locator('#sample-button').evaluate(el=>el.click());
+ await page.waitForFunction(()=>!document.getElementById('start-button').disabled);
+ const range=await page.evaluate(()=>new Promise((resolve,reject)=>document.dispatchEvent(new CustomEvent('ai-range-play',{detail:{value:{from:1,to:2,practice:true},resolve,reject}}))));
+ assert.equal(range.from,1);assert.equal(range.to,2);
+ assert.equal(await page.locator('.follow-range input[name=from]').inputValue(),'1');
+ assert.equal(await page.locator('.follow-range input[name=to]').inputValue(),'2');
+ const pending=page.waitForEvent('download');
+ const exported=await page.evaluate(()=>new Promise((resolve,reject)=>document.dispatchEvent(new CustomEvent('ai-export-score',{detail:{value:'midi',resolve,reject}}))));
+ const download=await pending;assert.match(download.suggestedFilename(),/\.mid$/);assert.equal(exported.format,'midi');
+ await page.locator('#start-button').evaluate(el=>{for(let p=el.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;});
+ await page.locator('#start-button').click();
+ await page.waitForFunction(()=>{const el=document.querySelector('.follow-error');return el&&!el.hidden&&el.textContent.includes('麦克风');},{timeout:10000});
+ assert.deepEqual(errors,[]);
+ console.log('PASS actual practice range controls, MIDI browser download and denied-microphone inline feedback');
+}finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

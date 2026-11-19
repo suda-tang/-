@@ -1,0 +1,100 @@
+[
+  {
+    "manifest": "narration/tour.json",
+    "id": "mentor-preface",
+    "url": "/narration/mentor-preface.eleven-v4-20261027.m4a",
+    "bytes": 1496189,
+    "exists": true
+  },
+  {
+    "manifest": "narration/tour.json",
+    "id": "mentor-context",
+    "url": "/narration/mentor-context.eleven-v4-20261027.m4a",
+    "bytes": 1506919,
+    "exists": true
+  },
+  {
+    "manifest": "narration/tour.json",
+    "id": "mentor-material",
+    "url": "/narration/mentor-material.eleven-v4-20261027.m4a",
+    "bytes": 1526293,
+    "exists": true
+  },
+  {
+    "manifest": "narration/tour.json",
+    "id": "mentor-listening",
+    "url": "/narration/mentor-listening.eleven-v4-20261027.m4a",
+    "bytes": 1086721,
+    "exists": true
+  },
+  {
+    "manifest": "narration/tour.json",
+    "id": "mentor-arrangement",
+    "url": "/narration/mentor-arrangement.eleven-v4-20261027.m4a",
+    "bytes": 1312673,
+    "exists": true
+  },
+  {
+    "manifest": "narration/tour.json",
+    "id": "mentor-learning",
+    "url": "/narration/mentor-learning.voxcpm.clean.m4a",
+    "bytes": 678597,
+    "exists": true
+  },
+  {
+    "manifest": "narration/tour.json",
+    "id": "mentor-handoff",
+    "url": "/narration/mentor-handoff.eleven-v4-20261027.m4a",
+    "bytes": 102609,
+    "exists": true
+  },
+  {
+    "manifest": "narration/tour.cartoon.json",
+    "id": "mentor-preface",
+    "url": "/narration/mentor-preface.cartoon.eleven-v4-20261027.m4a",
+    "bytes": 1463432,
+    "exists": true
+  },
+  {
+    "manifest": "narration/tour.cartoon.json",
+    "id": "mentor-context",
+    "url": "/narration/mentor-context.eleven-v4-20261027.m4a",
+    "bytes": 1506919,
+    "exists": true
+  },
+  {
+    "manifest": "narration/tour.cartoon.json",
+    "id": "mentor-material",
+    "url": "/narration/mentor-material.eleven-v4-20261027.m4a",
+    "bytes": 1526293,
+    "exists": true
+  },
+  {
+    "manifest": "narration/tour.cartoon.json",
+    "id": "mentor-listening",
+    "url": "/narration/mentor-listening.eleven-v4-20261027.m4a",
+    "bytes": 1086721,
+    "exists": true
+  },
+  {
+    "manifest": "narration/tour.cartoon.json",
+    "id": "mentor-arrangement",
+    "url": "/narration/mentor-arrangement.eleven-v4-20261027.m4a",
+    "bytes": 1312673,
+    "exists": true
+  },
+  {
+    "manifest": "narration/tour.cartoon.json",
+    "id": "mentor-learning",
+    "url": "/narration/mentor-learning.voxcpm.clean.m4a",
+    "bytes": 678597,
+    "exists": true
+  },
+  {
+    "manifest": "narration/tour.cartoon.json",
+    "id": "mentor-handoff",
+    "url": "/narration/mentor-handoff.eleven-v4-20261027.m4a",
+    "bytes": 102609,
+    "exists": true
+  }
+]

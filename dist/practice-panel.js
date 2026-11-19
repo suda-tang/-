@@ -34,7 +34,7 @@ export function mountPracticePanel(root){
   if(changed||rangeChanged||!$('[name=from]').value){$('[name=from]').value=next.range?.start??measures[0]??'';$('[name=to]').value=next.range?.end??measures.at(-1)??'';}
   for(const button of section.querySelectorAll('button')){if(button.closest('.practice-actions,.practice-fingering'))continue;button.disabled=!ready||next.running||next.starting;}
   $('[data-action=advice]').disabled=!ready||next.running||next.starting;
-  $('.follow-status').textContent=!ready?'选择曲谱后，可以整曲跟弹，也可以只练一段。':next.finishing?'正在处理最后一段听音…':next.starting?'正在准备麦克风与复音听音模型…':next.running?(next.demo?'试听中，不计入练习记录':'正在聆听 · 短窗口识别，结果稍后显示'):next.complete?'本段已练完 · 可以再练一次':next.done?'已暂停 · 再次开始可接着练':'准备就绪 · 点击开始跟弹后才会开启麦克风';
+  $('.follow-status').textContent=!ready?'选择曲谱后，可以整曲跟弹，也可以只练一段。':next.finishing?'正在处理最后一段听音…':next.starting?'正在准备麦克风与复音听音模型…':next.running?(next.demo?'试听中，不计入练习记录':'正在聆听 · 短窗口识别，结果稍后显示'):next.playing?'正在播放作品，尚未开始跟弹':next.complete?'本段已练完 · 可以再练一次':next.done?'已暂停 · 再次开始可接着练':'准备就绪 · 点击开始跟弹后才会开启麦克风';
   $('.follow-progress span').textContent=ready?`${next.range?`第 ${next.range.start}–${next.range.end} 小节`:'整曲'} · ${next.bpm} BPM · ${next.done} / ${next.total} 组`:'尚未选择曲谱';$('.follow-progress progress').value=next.total?Math.min(100,next.done/next.total*100):0;
   root.querySelector('#start-button').textContent=next.starting?'正在开启…':next.complete?'再练一遍':next.done&&!next.demo?'继续跟弹':'开始跟弹';root.querySelector('#reset-button').textContent=next.range?'回到本段起点':'从头练习';
   const ev=next.evidence;$('.follow-live').textContent=ev?`本次 ${ev.observations} 条匹配记录 · ${ev.measures.filter(m=>m.wrong+m.missed+m.extra>0).length} 个小节待核对`:'';

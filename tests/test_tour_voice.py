@@ -1,24 +1,29 @@
-import json,tempfile,time,unittest
-from pathlib import Path
+import unittest
 from unittest.mock import patch
-import tour_voice as v
+import tour_voice as voice
 
-class VoiceFallbackTests(unittest.TestCase):
- def test_circuit_uses_cached_file_and_marks_provider(self):
-  with tempfile.TemporaryDirectory() as folder,patch.object(v,'ROOT',Path(folder)),patch.object(v,'EDGE_RETRY_AT',time.time()+600):
-   ident=v.key('测试备用朗读')
-   def fake(text,target,locale):target.write_bytes(b'ID3'+b'0'*2000)
-   with patch.object(v,'fallback',side_effect=fake) as fallback:
-    v.generate('测试备用朗读',ident)
-   fallback.assert_called_once()
-   self.assertTrue((v.ROOT/(ident+'.mp3')).exists())
-   self.assertEqual(json.loads((v.ROOT/(ident+'.json')).read_text())['provider'],'fallback')
- def test_failure_cleans_partial_audio(self):
-  with tempfile.TemporaryDirectory() as folder,patch.object(v,'ROOT',Path(folder)),patch.object(v,'EDGE_RETRY_AT',time.time()+600):
-   ident=v.key('失败检查')
-   def fail(text,target,locale):target.write_bytes(b'partial');raise RuntimeError('测试连接失败')
-   with patch.object(v,'fallback',side_effect=fail):v.generate('失败检查',ident)
-   self.assertFalse((v.ROOT/(ident+'.tmp')).exists());self.assertFalse((v.ROOT/(ident+'.mp3')).exists())
-   self.assertIn('测试连接失败',v.ERRORS.pop(ident)[1])
+class VoicePriorityTests(unittest.TestCase):
+ def tearDown(self):
+  voice.MEMORY.clear();voice.ERRORS.clear();voice.STAGES.clear()
+ def test_neural_voice_is_primary_without_starting_online_fallback(self):
+  key=voice.key('测试自然朗读')
+  with patch('classroom_voice.available',return_value=True),patch('classroom_voice.stream',return_value=iter([b'ID3'+b'x'*2000])) as stream,patch.object(voice.subprocess,'Popen') as fallback:
+   voice.generate('测试自然朗读',key)
+  self.assertEqual(voice.MEMORY[key]['provider'],'kokoro-cpu');self.assertTrue(voice.MEMORY[key]['done']);self.assertIsNone(voice.MEMORY[key]['error']);fallback.assert_not_called();stream.assert_called_once_with('测试自然朗读','teacher')
+ def test_guide_voice_identity_is_separate(self):
+  self.assertNotEqual(voice.key('同一句话',role='narrator'),voice.key('同一句话',role='teacher'))
+  self.assertEqual(voice.VOICES['zh'],'zh-CN-YunxiNeural')
+ def test_student_voice_uses_separate_audio_identity(self):
+  self.assertNotEqual(voice.key('同一句话',role='teacher'),voice.key('同一句话',role='student'))
+  key=voice.key('同一句话',role='student')
+  with patch('classroom_voice.available',return_value=True),patch('classroom_voice.stream',return_value=iter([b'ID3'+b'x'*2000])) as stream:
+   voice.generate('同一句话',key,role='student')
+  stream.assert_called_once_with('同一句话','student')
+ def test_streaming_preserves_all_chunks(self):
+  key=voice.key('第一句。第二句。')
+  chunks=[b'ID3'+b'a'*1100,b'b'*1200]
+  with patch('classroom_voice.available',return_value=True),patch('classroom_voice.stream',return_value=iter(chunks)):
+   voice.generate('第一句。第二句。',key)
+  self.assertEqual(bytes(voice.MEMORY[key]['audio']),b''.join(chunks))
 
 if __name__=='__main__':unittest.main()

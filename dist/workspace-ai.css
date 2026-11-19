@@ -163,3 +163,7 @@ body.studio .ai-conversation.is-morphing{transition:none;}
 @keyframes ai-search-ring{to{transform:rotate(270deg)}}
 @keyframes ai-search-wait{from{transform:translateX(-110%)}to{transform:translateX(300%)}}
 @media(prefers-reduced-motion:reduce){.ai-operation-layer.is-indeterminate>span::before{animation:none;width:100%;opacity:.25}}
+
+/* Response actions size to their labels; composer icons keep their own sizing. */
+body.studio .ai-conversation .ai-messages button{box-sizing:border-box;flex:0 1 auto;width:fit-content;max-width:100%;min-width:0;height:auto;min-height:40px;padding:9px 14px;border-radius:14px;font:500 14px/1.5 system-ui;white-space:normal;overflow-wrap:anywhere;word-break:normal;aspect-ratio:auto;text-align:center;margin:5px 4px 5px 0}
+body.studio .ai-messages .ai-search-card button{display:inline-flex;align-items:center;justify-content:center}

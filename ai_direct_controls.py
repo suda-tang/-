@@ -16,11 +16,30 @@ def direct_controls(text, context):
         return {'reply':('打开' if named[1]=='打开' or named[3] else '打开并播放')+'《'+named[2]+'》。','actions':actions}
     if not context.get('currentId'):
         return None
+    if re.fullmatch(r'(?:请|帮我)?(?:生成|查看|打开)(?:当前)?(?:曲目|曲谱|作品)报告[。！!]?\s*',text):
+        return {'reply':'核对当前曲谱的结构与声部。','actions':[{'type':'score_report','value':''}]}
+    passage=re.fullmatch(r'(?:请|帮我)?(?:练习|练|播放)第?\s*(\d+)\s*(?:到|至|—|-)\s*第?\s*(\d+)\s*小节[。！!]?\s*',text)
+    if passage:
+        start,end=map(int,passage.groups());count=int(context.get('measureCount') or 0)
+        if not 1<=start<=end<=count:return None
+        return {'reply':f'设置第 {start}—{end} 小节的播放范围。','actions':[{'type':'set_range','value':{'from':start,'to':end,'practice':not text.startswith('播放')}}]}
+    playback=re.fullmatch(r'从第?(\d+)小节(?:开始)?(?:只)?播放(.*?)[。！!]?\s*',text)
+    if playback:
+        number=int(playback[1]);count=int(context.get('measureCount') or 0)
+        if not 1<=number<=count:return None
+        target=playback[2].strip().removesuffix('声部')
+        actions=[]
+        if target:
+            matches=[p for p in context.get('parts',[]) if p.get('value')!='all' and target==str(p.get('name') or p.get('label') or '').removesuffix('声部').strip()]
+            if len(matches)!=1:return None
+            actions.append({'type':'solo','value':matches[0]['value']})
+        actions.extend([{'type':'seek_measure','value':str(number)},{'type':'play','value':''}])
+        return {'reply':f'从第 {number} 小节播放'+target+'。','actions':actions}
     clauses = [c.strip() for c in re.split(r'[，,。；;！!\n]+', text) if c.strip()]
     actions, descriptions = [], []
     keep_paused = False
     for clause in clauses:
-        c = re.sub(r'^(?:请|帮我|先|然后|再|并且|并)+', '', clause).strip()
+        c = re.sub(r'^(?:请|帮我|先|然后|再|并且|并|现在)+', '', clause).strip()
         if re.fullmatch(r'(?:暂时|先)?(?:不要|别|不)(?:开始)?播放', c):
             keep_paused = True
             continue

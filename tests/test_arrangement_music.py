@@ -16,6 +16,13 @@ class ArrangementMusicTest(unittest.TestCase):
   self.assertEqual(drum_pattern(sparse,bars),drum_pattern(dense,bars))
   hits=drum_pattern(sparse,bars)
   self.assertEqual([n['beat'] for n in hits if n['midi']==38],[1,3,5,7])
+ def test_open_and_closed_hats_do_not_collide(self):
+  bars=[{'start':i*4,'length':4,'beats':4,'unit':4,'pickup':False} for i in range(8)]
+  hits=drum_pattern({'events':[{'beat':0,'notes':[{'midi':60,'duration':32}]}]},bars)
+  closed={n['beat'] for n in hits if n['midi']==42}
+  opened={n['beat'] for n in hits if n['midi']==46}
+  self.assertTrue(opened)
+  self.assertFalse(closed & opened)
  def test_compound_meter(self):
   bars=meter_bars(xml('6',8));score={'events':[{'beat':0,'notes':[{'midi':60,'duration':6}]}]}
   self.assertEqual([n['beat'] for n in drum_pattern(score,bars) if n['midi']==38],[1.5,4.5])

@@ -3,10 +3,19 @@ import * as T from './vendor/three/three.module.js';
 // A single articulated character: the portrait surface and hair share one head pivot.
 export async function createPortraitMentor(signal, progress = () => {}) {
   progress('正在载入面部');
-  const response = await fetch('/narration/models/mentor-portrait-surface.json?v=2', {signal});
-  if (!response.ok) throw Error('Portrait surface HTTP '+response.status);
-  const data = await response.json();
-  const texture = await new T.TextureLoader().loadAsync('/narration/models/mentor-reference-face.png?v=2');
+  const [surfaceResult,textureResult]=await Promise.allSettled([
+    fetch('/narration/models/mentor-portrait-surface.json?v=2',{signal}).then(response=>{
+      if(!response.ok)throw Error('Portrait surface HTTP '+response.status);
+      return response.json();
+    }),
+    new T.TextureLoader().loadAsync('/narration/models/mentor-reference-face.png?v=2')
+  ]);
+  if(surfaceResult.status==='rejected'||textureResult.status==='rejected'){
+    if(textureResult.status==='fulfilled')textureResult.value.dispose();
+    throw surfaceResult.status==='rejected'?surfaceResult.reason:textureResult.reason;
+  }
+  const data=surfaceResult.value,texture=textureResult.value;
+  if(signal?.aborted){texture.dispose();throw new DOMException('数字人已退出','AbortError');}
   texture.colorSpace = T.SRGBColorSpace;
   const model = new T.Group(), body = new T.Group(), head = new T.Group();
   head.name = 'Head'; head.position.set(0,1.27,0); model.add(body,head);

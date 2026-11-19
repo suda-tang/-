@@ -75,7 +75,7 @@ const MAX_MS=120000;
     await page.waitForTimeout(2500);
 
     const finalText=await page.evaluate(()=>{
-      const nodes=[...document.querySelectorAll('.ai-messages p.assistant')];
+      const nodes=[...document.querySelectorAll('.ai-messages .assistant')];
       return nodes.length?nodes[nodes.length-1].textContent:'';
     });
     const distinct=[...new Set(lengths)].filter(n=>n>0);

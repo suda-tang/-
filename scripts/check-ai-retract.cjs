@@ -59,7 +59,7 @@ const sse=(reply,actions)=>[
       const state=await page.evaluate(()=>({
         open:!!document.querySelector('.ai-conversation')?.open,
         settle:(document.querySelector('.ai-settle-pill')?.textContent||''),
-        tail:[...document.querySelectorAll('.ai-messages p')].slice(-4).map(x=>x.textContent.slice(0,90))
+        tail:[...document.querySelectorAll('.ai-messages .assistant')].slice(-4).map(x=>x.textContent.slice(0,90))
       }));
       return {...state,repairs:repairs-before};
     };

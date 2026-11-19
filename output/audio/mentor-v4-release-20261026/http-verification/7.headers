@@ -1,0 +1,12 @@
+HTTP/1.1 206 Partial Content
+Server: SimpleHTTP/0.6 Python/3.12.10
+Date: Mon, 26 Oct 2026 18:05:27 GMT
+Content-Type: audio/mp4
+Accept-Ranges: bytes
+ETag: "18e2257b6cbe1448-165488"
+Cache-Control: private, no-cache
+Content-Length: 1024
+Content-Range: bytes 0-1023/1463432
+X-Content-Type-Options: nosniff
+Cache-Control: no-cache
+

@@ -1,0 +1,46 @@
+✔ custom arrangement accepts exact supported IDs (3.5851ms)
+✔ invalid arrangement proposals cannot partly apply (0.8617ms)
+✔ simulation cannot become student evidence (0.6564ms)
+✔ opposite timing errors do not cancel in stability evidence (0.6576ms)
+✔ missing timing is unknown, not zero (0.2965ms)
+✔ score evidence describes the active arrangement, excludes drum pitches and preserves empty bars (0.7438ms)
+✔ preview pauses, resumes, replaces tracks and releases URLs (3.26ms)
+✔ playback → microphone → playback switches category and releases input (3.6439ms)
+✔ permission denial and audio initialization failure restore the category (3.2303ms)
+✔ cancel while permission is pending stops late-arriving tracks (0.5565ms)
+✔ overlapping owners and browsers without Audio Session API are safe (0.2824ms)
+✔ MIDI notes without derived pitches follow correctly without mutating score (5.6467ms)
+✔ events without pitched material do not crash or invent a match (0.8198ms)
+✔ silence is not an onset and has no invented metrics (19.2731ms)
+✔ middle-register single tones and non-octave triads (27.6954ms)
+✔ lookahead records skipped notes but unrelated input cannot drag the score forward (0.5391ms)
+✔ tempo is normalized by score beat intervals, pause reanchors time (0.5676ms)
+✔ extra notes reduce pitch F1 and do not inflate score (0.203ms)
+✔ chords distinguish major minor inversions and ambiguity (4.3204ms)
+✔ orchestration preserves source and assigns independent instruments (2.582ms)
+✔ irregular timer callbacks keep notes and metronome on the audio clock (4.0068ms)
+✔ render stalls of half a second do not compress note attacks (0.9853ms)
+✔ pause cancels lookahead and resume requeues future notes without rewinding (2.645ms)
+✔ tempo change preserves position and applies the new beat spacing (0.8379ms)
+✔ default piano and isolate selected notes without changing source (2.4729ms)
+✔ instrument-only follower keeps global score indices across silent groups (0.6008ms)
+✔ transferred audio retains its commit timeline (5.155ms)
+✔ structured proposal is bound to the loaded score and supported controls (1.008ms)
+✔ onset windows group actual chords and reject low-confidence/duplicate boundaries (0.2825ms)
+✔ resampling preserves silence/DC, duration and sample ownership (7.4499ms)
+✔ passage preserves global indices and cannot follow beyond its end (2.0468ms)
+✔ pause resumes with no fabricated timing interval (0.4072ms)
+✔ simulation is not practice evidence; differences identify actual measures (1.0883ms)
+✔ history separates changed score versions (0.5137ms)
+✔ shared sample requests return independent decode buffers (12.0952ms)
+✔ global network and decode concurrency stay bounded (112.177ms)
+✔ failed primary uses mirror and a failed request can be retried (2.3993ms)
+ℹ tests 37
+ℹ suites 0
+ℹ pass 37
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 392.9333
+

@@ -1,0 +1,24 @@
+{
+  "tests": [
+    {
+      "label": "frontend",
+      "ok": true,
+      "summary": "imulation is not practice evidence; differences identify actual measures (0.9464ms)\n✔ history separates changed score versions (0.4156ms)\n✔ shared sample requests return independent decode buffers (10.9064ms)\n✔ global network and decode concurrency stay bounded (137.0231ms)\n✔ failed primary uses mirror and a failed request can be retried (3.2679ms)\nℹ tests 46\nℹ suites 0\nℹ pass 46\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 495.9775\n"
+    },
+    {
+      "label": "syntax",
+      "ok": true,
+      "summary": "PASS 前端脚本语法检查（187 个文件）\n"
+    }
+  ],
+  "published": [
+    {
+      "file": "audio-preview.js",
+      "matchesLocal": true
+    },
+    {
+      "file": "lecture-music.js",
+      "matchesLocal": true
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+import{r as e}from"./rolldown-runtime-hePW80VL.js";import{Et as t}from"./lucide-icons-BLzzyU0y.js";import{d as n}from"./lyricRenderQuality-MuCcCtwi.js";import{l as r,u as i}from"./embed-q8zb3H9m.js";var a=e(t(),1),o=e=>{let t=i(),o=r(),s=t?void 0:e?.scale,c=t?void 0:e?.antialias;return(0,a.useMemo)(()=>n(o,s&&c?{scale:s,antialias:c}:null),[o,s,c])};export{o as t};

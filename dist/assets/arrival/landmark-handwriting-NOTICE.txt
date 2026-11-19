@@ -1,0 +1,6 @@
+Stroke medians adapted from Hanzi Writer Data / Make Me a Hanzi.
+Original font data: Arphic Technology. Licensed under the Arphic Public License.
+https://github.com/chanind/hanzi-writer-data
+https://github.com/skishore/makemeahanzi
+The license is included at /assets/brand-handwriting-ARPHICPL.txt.
+Modifications: smoothed monoline centre paths and per-stroke animation for fixed three-dimensional landmark labels.
