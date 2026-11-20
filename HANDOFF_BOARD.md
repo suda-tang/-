@@ -43,6 +43,33 @@
 
 占锁 / 释放都改这一节。当前为空 = 暂无人在占锁。
 
+> 2026-11-21 02:0x 补 A11「移到 bE 调」（本会话）；**锁已全部释放**。
+> 全量审计 128 条：OK 96 / SUSPECT 26 / DOWN 6。逐条定性后仅 A11 是真缺口：
+> `ai_workspace.py` 目标调动词表漏「移到/转到」（规则层本就有）→ 已补，A11/Bb/B 全部走 edit_score。
+> 其余 25 条 SUSPECT 全是**诚实回执被审计判据误伤**（渐强/连奏/指法/无此声部/能力询问等正确回执）
+> 或**审计脚本空 context 失真**（多轮 K04#3「撤销」、I07「只练最后4小节」、H03/H04 声部——
+> 脚本只发单条 message + 空 context，没有前序对话和当前曲谱，真实浏览器里这些都验证过是对的）。
+> 6 条 DOWN 是审计中途 502 抖动。详见 `.sites-runtime/MODEL-REPLY-AUDIT-FULL-2026-11-21.md`。
+> 验证：py_compile PASS；5 条移调说法活端点全 edit_score；重启 5173（旧 69684→新 97536）。
+> 备份 `.sites-runtime/ai_workspace.py.bak-20261121-020500`。
+
+> 2026-11-21 01:45–02:0x 修第二轮审计抓到的 3 条错误拒答（本会话）；**锁已全部释放**。
+> 用户问题：服务恢复后跑真实模型审计，A05「transpose to E major」/A08「移高两个半音」/A10「升到 F# 调」
+> 被模型答「当前不支持移调」，而项目规则层其实支持 —— 典型错误拒答。
+> 根因双层：① AI 层 `SERA_EDITABLE_RE` 不认这三种说法（英文 target-key / 升到+调名 / 移高+N半音）；
+>   ② 规则层 `_transpose_delta` 不认「移高/移低 N 半音」（只认升高/降低）、
+>      `_parse_transpose_target_key` 动词表无「升到/降到」且**不支持后置升降号 F#**（只认前置 #F）。
+> 改动（只动 `ai_workspace.py` + `sera_vendor/sera_edit/generation/rule_patch_generator.py`）：
+>   AI 层补 3 组触发词（含 F# 后置）；规则层补「移高/移低 N 半音」(中文数字) + 动词表升到/降到 +
+>   目标调名正则兼容前置/后置升降号。工作区里 voice_*、dist/index.html、server.py 是别的会话的语音功能，未碰。
+> 验证：py_compile PASS；`.sites-runtime/diag-transpose-phrases.py` 8 正例全生成 patch + 3 反例守卫 0 失败；
+>   既有 `test-transpose-key.py` / `test-transpose-e2e.py` / `check-sera-edit.py` / `test_bug_rounds.py` 全过；
+>   重启 5173（旧 93116 强杀→新 103692，注意 restart 脚本第一次没真替换，需确认监听 PID 变了）后
+>   活端点 3 句全 `edit_score`（0–3.4s，不再等模型）；真实浏览器 `.sites-runtime/check-transpose-phrases.cjs`
+>   8/8（3 句都触发 ai-edit-score 提案、无「不支持」拒答、无 pageerror）；审计重跑 3 条 SUSPECT→OK。
+> 备份 `.sites-runtime/*.bak-20261121-014055`。⚠ 发现并修复了一个历史遗留缺口：规则层从不支持后置
+>   升降号 F#/Bb，任何「移调到 F# 调」都会失败，本次一并补上。
+
 > 2026-11-20 01:55–02:05 修「只练/只播最后N小节」假闭环（本会话）；**锁已全部释放**。
 > 根因：`ai_direct_controls.direct_controls` 的 passage 正则只认「第X到Y小节」，不认「最后N小节」；
 >   于是「只练最后4小节」掉进 `ai_workspace.fast_plan`，被 `requested_measure`（见「最后」返回末小节号）

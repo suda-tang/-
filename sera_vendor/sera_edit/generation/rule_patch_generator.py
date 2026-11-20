@@ -65,6 +65,18 @@ def _transpose_delta(text: str) -> int | None:
     if numeric:
         value = int(numeric.group(1))
         return value if -24 <= value <= 24 else None
+    # ★ 2026-11-21 补「移高/移低 N 个半音」（第二轮真实模型审计 A08「移高两个半音」
+    #   被答「不支持移调」）：原来只认「升高/降低 N 半音」的「升高/降低」，漏了
+    #   「移高/移低」这对动词，且 N 只支持阿拉伯数字。这里支持中文数字（一两三四…十）。
+    cn_num = {"一": 1, "两": 2, "二": 2, "三": 3, "四": 4, "五": 5,
+              "六": 6, "七": 7, "八": 8, "九": 9, "十": 10, "十二": 12}
+    mv = re.search(r"移(高|低)\s*([0-9]+|[一两二三四五六七八九十]+)\s*个?半音", text)
+    if mv:
+        raw = mv.group(2)
+        value = int(raw) if raw.isdigit() else cn_num.get(raw)
+        if value is not None:
+            value = value if mv.group(1) == "高" else -value
+            return value if -24 <= value <= 24 else None
     patterns = (
         (2, (r"升高(?:一个)?大二度", r"上移(?:一个)?大二度", r"up by (?:a )?major second")),
         (-2, (r"降低(?:一个)?大二度", r"下移(?:一个)?大二度", r"down by (?:a )?major second")),
@@ -196,14 +208,21 @@ def _parse_transpose_target_key(text: str):
     #   8/8 种力度/音高/渐强/拍号说法全部挡住，0 误伤。
     #   注意：不要退回「独立字母即可」的方案，那会重新误命中音名 C→D。
     m = re.search(
-        r"(?:移调|转调|移到|转到|transpose|to|更改|改成|改到|调成|换成|改为|变更|调到|转成|变调)\s*"
+        # ★ 2026-11-21 补「升到/降到/升至/降至 + 调名」目标调口语（第二轮审计 A10
+        #   「升到 F# 调」被答「不支持移调」）：原动词表只有移到/转到/调到，漏了升/降系的
+        #   「到/至」。注意调名后缀仍强制存在，不会误吞「升到高音」等描述性说法。
+        r"(?:移调|转调|移到|转到|transpose|to|更改|改成|改到|调成|换成|改为|变更|调到|转成|变调|升到|降到|升至|降至)\s*"
         r"[^，。；、！？\n]{0,12}?\s*(?:到|成)?\s*"
-        r"([升降]|sharp|flat|#|b)?\s*([a-gA-G])\s*(大调|小调|调|major|minor)",
+        # ★ 2026-11-21：兼容后置升降号 F#/Bb（中文与英文乐理都常写成字母在后）。
+        #   原来只认前置「#F / 升F」，导致「升到 F# 调」「transpose to F# major」解析失败
+        #   （第二轮真实模型审计 A10）。四组：前置升降号 / 字母 / 后置升降号 / 调式后缀。
+        r"([升降]|sharp|flat|[#b])?\s*([a-gA-G])\s*([#b♯♭]?)\s*(大调|小调|调|major|minor)",
         text,
     )
     if not m:
         return None
-    accidental, letter, mode_word = m.group(1), m.group(2), (m.group(3) or "")
+    pre_acc, letter, post_acc, mode_word = m.group(1), m.group(2), (m.group(3) or ""), m.group(4)
+    accidental = pre_acc or post_acc
     tonic = _normalize_tonic(letter, accidental or "")
     mode = "minor" if ("小" in mode_word or "minor" in mode_word) else "major"
     pc = _TONIC_PC.get(tonic)
